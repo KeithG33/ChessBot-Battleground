@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "chessbot"
+version = "0.1.0"
+description = "A PyTorch-based library for training neural networks on chess datasets."
+readme = "README.md"
+readme-content-type = "text/markdown"
+authors = [
+    { name = "Your Name", email = "your.email@example.com" }
+]
+license = { file = "LICENSE" }
+keywords = ["chess", "machine-learning", "pytorch", "deep-learning"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Education",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "torch>=1.12.0",
+    "numpy>=1.21.0",
+    "pyyaml>=6.0",
+    "wandb>=0.12.0"
+]
+
+[project.urls]
+Homepage = "https://github.com/yourusername/ChessBot-Battleground"
+Source = "https://github.com/yourusername/ChessBot-Battleground"
+Tracker = "https://github.com/yourusername/ChessBot-Battleground/issues"
+
+[tool.setuptools.packages.find]
+where = ["chessbot"]
