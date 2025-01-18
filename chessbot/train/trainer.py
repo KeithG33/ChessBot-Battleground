@@ -1,24 +1,26 @@
 import argparse
 import logging
 import os
-import time
+import sys
 import random
 import yaml
 import wandb
 import importlib
-from collections import OrderedDict
-import attridict
+
+from tqdm import tqdm
+
 import torch
 from torch.utils.data import DataLoader
 
-from chessbot.utils.utils import RunningAverage
 from chessbot.data.dataset import ChessDataset
-from chessbot.training.warmup import WarmupLR
+from chessbot.train.utils import WarmupLR, RunningAverage
+from chessbot.config import get_config, load_config
 from chessbot.models.registry import ModelRegistry
 
 from accelerate import Accelerator
 
-class ChessTrainer:
+
+class SimpleTrainer:
     """Chess trainer for training a chess model using the chess dataset
     
     NOTE: The dataloading here is a little weird, and specific to my levels of home compute. 
@@ -32,119 +34,133 @@ class ChessTrainer:
           positions on my AMD Epyc 7402 (using 20 processes), around 70Gb of RAM
     """
 
-    def __init__(self, config):
-        self.load_config(config)
-        self.import_model_from_config()
-        self.initialize_model()
+    def __init__(self, config, load_model_from_config=True):
+        self.cfg = get_config()
+        config = load_config(config) if isinstance(config, str) else config
+        self.cfg |= config
 
-    def load_config(self, config):
-        self.config = attridict(config)
+        self.model = None
+        if load_model_from_config:
+            self.load_model_from_config()
+            self.initialize_model()
 
-        # Main stuffs
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        self.model_save_path = self.config.model.save_path
-        self.pgn_dir_train = self.config.dataset.train_path
-        self.pgn_dir_test = self.config.dataset.test_path
-        self.dataset_size_train = self.config.dataset.batchsize_train
-        self.dataset_size_test = self.config.dataset.batchsize_test
-        self.batch_size = self.config.training.batchsize
-        self.num_rounds = self.config.training.num_rounds
-        self.log_every = self.config.logging.log_every
-        self.validation_every = self.config.logging.validation_every
-        self.num_threads = self.config.dataset.num_threads
-        self.wandb_enabled = self.config.logging.wandb
-
-        if self.wandb_enabled:
-            wandb.init(project=self.config.logging.wandb_project)
-
-    def import_model_from_config(self):
+        if self.cfg.logging.wandb:
+            wandb.init(project=self.cfg.logging.wandb_project)
+            
+    def load_model_from_config(self):
         """
-        Dynamically import the model file specified in the configuration.
-        The model_hub directory contains model files, and the model_class can refer to
-        either the file name (without .py) or the class name within the file.
+        Load the model dynamically. Prioritize 'model_file' if provided; otherwise, use 'model_hub'.
         """
-        model_hub_dir = self.config['model']['model_hub']
-        model_class_name = self.config['model']['model_class']
+        model_file = self.cfg['model'].get("model_file")
+        model_hub_dir = self.cfg['model']['model_hub']
 
-        # Ensure the model hub directory exists
+        if model_file:
+            self._import_model_from_file(model_file)
+        elif model_hub_dir:
+            self._import_models_from_hub(model_hub_dir)
+        else:
+            raise ValueError("No model_file or model_hub directory specified in the configuration.")
+
+    def _import_model_from_file(self, model_file):
+        """
+        Import a model from a user-specified file.
+        """
+        if not os.path.isfile(model_file):
+            raise ValueError(f"Provided model file '{model_file}' does not exist.")
+
+        module_name = os.path.splitext(os.path.basename(model_file))[0]
+
+        self._import_module_from_path(module_name, model_file)
+
+    def _import_models_from_hub(self, model_hub_dir):
+        """
+        Import all Python files from the model hub directory.
+        """
         if not os.path.isdir(model_hub_dir):
             raise ValueError(f"Model hub directory '{model_hub_dir}' does not exist.")
 
-        # Search for a matching file or module in the model hub
         for filename in os.listdir(model_hub_dir):
             if filename.endswith(".py"):
-                module_name = filename[:-3]  # Strip .py
+                module_name = filename[:-3]
                 module_path = os.path.join(model_hub_dir, filename)
 
-                # Import the module dynamically
-                spec = importlib.util.spec_from_file_location(module_name, module_path)
-                module = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(module)
+                try:
+                    self._import_module_from_path(module_name, module_path)
+                except Exception as e:
+                    print(f"Failed to load model file '{module_name}': {e}")
 
-                # Check if the model class exists in the module
-                if hasattr(module, model_class_name):
-                    return  # Model class successfully imported
+    def _import_module_from_path(self, module_name, module_path):
+        """
+        Helper function to import a module from a given path.
+        """
+        if module_name in sys.modules:
+            print(f"Module '{module_name}' is already imported, skipping.")
+            return  # Module is already imported; no need to re-import
 
-        raise ImportError(
-            f"Model class '{model_class_name}' not found in any file within '{model_hub_dir}'."
-        )
+        spec = importlib.util.spec_from_file_location(module_name, module_path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
 
     def initialize_model(self):
-        model_name = self.config['model']['name']
-        model_args = self.config['model'].get('args', [])
-        model_kwargs = self.config['model'].get('kwargs', {})
+        """
+        Initialize the model using the registry.
+        """
+        model_name = self.cfg.model.name
+        model_args = self.cfg.model.get('args', [])
+        model_kwargs = self.cfg.model.get('kwargs', {})
 
-        # Retrieve the model class from the registry
+        if not ModelRegistry.exists(model_name):
+            raise ValueError(f"Model '{model_name}' is not registered.")
+
         ModelClass = ModelRegistry.get(model_name)
 
-        # Initialize the model
         self.model = ModelClass(*model_args, **model_kwargs)
-        self.model.to(self.device)
+        self.model.to(self.cfg.train.device)
 
     def build_optimizer(self):
         self.optimizer = torch.optim.AdamW(
-            self.model.parameters(), lr=self.config.training.lr
+            self.model.parameters(), lr=self.cfg.train.lr
         )
         self.scheduler = None
 
-        if self.config.training.scheduler == "linear":
-            min_scale = self.config.training.min_lr / self.config.training.lr
+        if self.cfg.train.scheduler == "linear":
+            min_scale = self.cfg.train.min_lr / self.cfg.train.lr
             scheduler = torch.optim.lr_scheduler.LinearLR(
                 self.optimizer,
                 start_factor=1.0,
                 end_factor=min_scale,
-                total_iters=self.config.training.scheduler_iters,
+                total_iters=self.cfg.train.scheduler_iters,
             )
-        elif self.config.training.scheduler == "cosine":
+        elif self.cfg.train.scheduler == "cosine":
             scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
                 self.optimizer,
-                self.config.training.scheduler_iters,
-                self.config.training.min_lr,
+                self.cfg.train.scheduler_iters,
+                self.cfg.train.min_lr,
             )
 
         if scheduler is not None:
             self.scheduler = WarmupLR(
                 scheduler,
-                init_lr=self.config.training.warmup_lr,
-                num_warmup=self.config.training.warmup_iters,
-                warmup_strategy=self.config.training.warmup_strategy,
+                init_lr=self.cfg.train.warmup_lr,
+                num_warmup=self.cfg.train.warmup_iters,
+                warmup_strategy=self.cfg.train.warmup_strategy,
             )
 
-        if os.path.exists(self.model_save_path):
-            checkpoint = torch.load(self.model_save_path)
-            self.model.load_state_dict(checkpoint)
-            print("Loaded model from checkpoint")
+        # if os.path.exists(self.cfg.model.save_path):
+        #     checkpoint = torch.load(self.cfg.model.save_path)
+        #     self.model.load_state_dict(checkpoint)
+        #     print("Loaded model from checkpoint")
 
     def run_validation(self, stats: RunningAverage):
         test_data = [
             pgn.path
-            for pgn in os.scandir(self.pgn_dir_test)
+            for pgn in os.scandir(self.cfg.dataset.test_path)
             if pgn.name.endswith(".pgn")
         ]
-        sampled_test_data = random.sample(test_data, self.dataset_size_test)
-        test_dataset = ChessDataset(sampled_test_data, num_threads=self.num_threads)
+        sampled_test_data = random.sample(test_data, self.cfg.dataset.size_test)
+        test_dataset = ChessDataset(sampled_test_data, num_threads=self.cfg.dataset.num_threads)
         val_loader = DataLoader(
-            test_dataset, batch_size=self.batch_size, shuffle=False
+            test_dataset, batch_size=self.cfg.train.batch_size, shuffle=False
         )
 
         self.model.eval()
@@ -152,9 +168,9 @@ class ChessTrainer:
 
         with torch.no_grad():
             for state, action, result in val_loader:
-                state = state.float().to(self.device)
-                action = action.to(self.device)
-                result = result.float().to(self.device)
+                state = state.float().to(self.cfg.train.device)
+                action = action.to(self.cfg.train.device)
+                result = result.float().to(self.cfg.train.device)
 
                 policy_output, value_output = self.model(state.unsqueeze(1))
 
@@ -193,7 +209,14 @@ class ChessTrainer:
 
         self.model.train()
 
-        for i, (state, action, result) in enumerate(train_loader):
+        progress_bar = tqdm(
+            enumerate(train_loader), 
+            total=len(train_loader),
+            desc="Training",
+            leave=False,
+        )
+
+        for i, (state, action, result) in progress_bar:
             state = state.float()
             # action = action
             result = result.float()
@@ -223,22 +246,29 @@ class ChessTrainer:
                     "train_vloss": value_loss.item(),
                 }
             )
+            progress_bar.set_postfix(
+                {
+                    "train_loss": stats.get_average('train_loss'),
+                    "train_ploss": stats.get_average('train_ploss'),
+                    "train_vloss": stats.get_average('train_vloss'),
+                }
+            )
 
-            if self.wandb_enabled and i % self.log_every == 0 and i > 0:
+            if self.cfg.logging.wandb and i % self.cfg.logging.log_every == 0 and i > 0:
                 wandb.log(
                     {
                         "train_loss": stats.get_average('train_loss'),
                         "train_ploss": stats.get_average('train_ploss'),
                         "train_vloss": stats.get_average('train_vloss'),
-                        "lr": self.scheduler.get_last_lr()[0] if self.scheduler else self.config.training.lr,
+                        "lr": self.scheduler.get_last_lr()[0] if self.scheduler else self.cfg.train.lr,
                         "iter": i,
                     }
                 )
 
-            if i % self.validation_every == 0 and i > 0:
+            if i % self.cfg.train.validation_every == 0 and i > 0:
                 val_loss, val_ploss, val_vloss = self.run_validation(stats)
 
-                if self.wandb_enabled:
+                if self.cfg.logging.wandb:
                     wandb.log(
                         {
                             "val_loss": val_loss,
@@ -250,29 +280,34 @@ class ChessTrainer:
 
                 if val_loss < best_val_loss:
                     best_val_loss = val_loss
-                    torch.save(self.model.state_dict(), self.model_save_path)
-                    accelerator.save_model(self.model, self.model_save_path)
+                    torch.save(self.model.state_dict(), self.cfg.model.save_path)
+                    accelerator.save_model(self.model, self.cfg.model.save_path)
+        progress_bar.close()
 
     def train(self):
+        assert self.model is not None, "Model not initialized. Please call `initialize_model` first."
+
         train_data = [
             pgn.path
-            for pgn in os.scandir(self.pgn_dir_train)
+            for pgn in os.scandir(self.cfg.dataset.train_path)
             if pgn.name.endswith(".pgn")
         ]
 
-        accelerator = Accelerator(
-            cpu = self.device == 'cpu',
-            mixed_precision = self.config.training.amp,
-            dynamo_backend = 'INDUCTOR' if self.config.training.compile else None,
-        )
-        accelerator.device = self.device
+        # Sets self.optimizer and self.scheduler
+        self.build_optimizer()
 
-        for round_num in range(self.num_rounds):
+        accelerator = Accelerator(
+            cpu = self.cfg.train.device == 'cpu',
+            mixed_precision = self.cfg.train.amp,
+            dynamo_backend = 'INDUCTOR' if self.cfg.train.compile else None,
+        )
+
+        for round_num in tqdm(range(self.cfg.train.num_rounds), desc="Rounds", leave=True):
             print(f"Starting round {round_num}")
-            sampled_train_data = random.sample(train_data, self.dataset_size_train)
-            train_dataset = ChessDataset(sampled_train_data, self.num_threads)
+            sampled_train_data = random.sample(train_data, self.cfg.dataset.size_train)
+            train_dataset = ChessDataset(sampled_train_data, self.cfg.dataset.num_threads)
             train_loader = DataLoader(
-                train_dataset, self.batch_size, shuffle=True
+                train_dataset, self.cfg.train.batch_size, shuffle=True
             )
 
             self.model, self.optimizer, train_loader, self.scheduler = accelerator.prepare(
@@ -280,7 +315,8 @@ class ChessTrainer:
             )
 
             self.training_round(train_loader, accelerator)
-
+          
+            # Helped reduce memory usage and spikes
             del train_dataset, train_loader
 
 
@@ -323,7 +359,7 @@ if __name__ == "__main__":
 
     config = apply_overrides(config, args.override)
 
-    trainer = ChessTrainer(config)
+    trainer = SimpleTrainer(config)
 
     logging.info("Starting Chess Trainer...")
     trainer.train()

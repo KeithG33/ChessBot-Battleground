@@ -1,4 +1,5 @@
-from base import BaseModel
+from chessbot.models.base import BaseModel
+
 
 class ModelRegistry:
     """
@@ -23,7 +24,11 @@ class ModelRegistry:
             return model_cls
 
         return decorator
-
+    
+    @classmethod
+    def exists(cls, name):
+        return name in cls._registry
+        
     @classmethod
     def get(cls, name):
         if name not in cls._registry:
