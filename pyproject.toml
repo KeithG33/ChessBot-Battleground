@@ -7,7 +7,6 @@ name = "chessbot"
 version = "0.1.0"
 description = "A PyTorch-based library for training neural networks on chess datasets."
 readme = "README.md"
-readme-content-type = "text/markdown"
 authors = [
     { name = "Your Name", email = "your.email@example.com" }
 ]
