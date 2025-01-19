@@ -19,7 +19,7 @@ class ModelRegistry:
             if not issubclass(model_cls, BaseModel):
                 raise ValueError(f"Model '{register_name}' must inherit from BaseModel.")
             if register_name in cls._registry:
-                raise ValueError(f"Model '{register_name}' is already registered.")
+                pass # already registered
             cls._registry[register_name] = model_cls
             return model_cls
 
