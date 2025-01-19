@@ -24,8 +24,8 @@ class ChessDataset(Dataset):
         self.pgn_files = pgn_files
         self.data = (
             self.generate_pgn_data()
-            if num_threads > 0
-            else self.generate_pgn_data_parallel(num_threads=num_threads)
+            if num_threads < 1
+            else self.generate_pgn_data_parallel(num_threads)
         )
 
     def generate_pgn_data(self):

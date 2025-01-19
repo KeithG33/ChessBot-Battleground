@@ -1,8 +1,10 @@
 import argparse
 import logging
 import os
+
 import sys
 import random
+import time
 import yaml
 import wandb
 import importlib
@@ -46,6 +48,9 @@ class SimpleTrainer:
 
         if self.cfg.logging.wandb:
             wandb.init(project=self.cfg.logging.wandb_project)
+
+        self.latest_model_path = os.path.join(self.cfg.train.output_dir, "model_latest.pth")
+        self.best_model_path = os.path.join(self.cfg.train.output_dir, "model_best.pth")
             
     def load_model_from_config(self):
         """
@@ -146,22 +151,32 @@ class SimpleTrainer:
                 warmup_strategy=self.cfg.train.warmup_strategy,
             )
 
-        # if os.path.exists(self.cfg.model.save_path):
-        #     checkpoint = torch.load(self.cfg.model.save_path)
-        #     self.model.load_state_dict(checkpoint)
-        #     print("Loaded model from checkpoint")
+    def build_train_loader(self) -> DataLoader:
+        data = [
+            pgn.path
+            for pgn in os.scandir(self.cfg.dataset.train_path)
+            if pgn.name.endswith(".pgn")
+        ]
+        sampled_data = random.sample(data, self.cfg.dataset.size_train)
+        dataset = ChessDataset(sampled_data, num_threads=self.cfg.dataset.num_threads)
+        return DataLoader(
+            dataset, batch_size=self.cfg.train.batch_size, shuffle=True
+        )
 
-    def run_validation(self, stats: RunningAverage):
-        test_data = [
+    def build_val_loader(self) -> DataLoader:
+        data = [
             pgn.path
             for pgn in os.scandir(self.cfg.dataset.test_path)
             if pgn.name.endswith(".pgn")
         ]
-        sampled_test_data = random.sample(test_data, self.cfg.dataset.size_test)
-        test_dataset = ChessDataset(sampled_test_data, num_threads=self.cfg.dataset.num_threads)
-        val_loader = DataLoader(
-            test_dataset, batch_size=self.cfg.train.batch_size, shuffle=False
+        sampled_data = random.sample(data, self.cfg.dataset.size_test)
+        dataset = ChessDataset(sampled_data, num_threads=self.cfg.dataset.num_threads)
+        return DataLoader(
+            dataset, batch_size=self.cfg.train.batch_size, shuffle=False
         )
+
+    def run_validation(self, stats: RunningAverage):
+        val_loader = self.build_val_loader()
 
         self.model.eval()
         stats.reset(["val_loss", "val_ploss", "val_vloss"])
@@ -193,132 +208,121 @@ class SimpleTrainer:
             stats.get_average('val_vloss'),
         )
     
-    def training_round(self, train_loader, accelerator):
-        stats = RunningAverage()
-        stats.add(
-            [
-                "train_loss",
-                "val_loss",
-                "train_ploss",
-                "train_vloss",
-                "val_ploss",
-                "val_vloss",
-            ]
-        )
+    def training_round(self, train_loader, accelerator, progress_bar, stats):
+        """
+        Perform a single training round.
+        """
+        self.model.train()
         best_val_loss = float('inf')
 
-        self.model.train()
+        for epoch in range(self.cfg.train.epochs):
+    
+            for i, (state, action, result) in enumerate(train_loader):
+                state = state.float()
+                result = result.float()
 
-        progress_bar = tqdm(
-            enumerate(train_loader), 
-            total=len(train_loader),
-            desc="Training",
-            leave=False,
-        )
+                with accelerator.accumulate():
+                    policy_output, value_output = self.model(state.unsqueeze(1))
 
-        for i, (state, action, result) in progress_bar:
-            state = state.float()
-            # action = action
-            result = result.float()
-            with accelerator.accumulate():
-                policy_output, value_output = self.model(state.unsqueeze(1))
+                    policy_loss = self.model.policy_loss(policy_output.squeeze(), action)
+                    value_loss = self.model.value_loss(value_output.squeeze(), result)
+                    loss = policy_loss + value_loss
 
-                policy_loss = self.model.policy_loss(policy_output.squeeze(), action)
-                value_loss = self.model.value_loss(value_output.squeeze(), result)
+                    self.optimizer.zero_grad(set_to_none=True)
+                    accelerator.backward(loss)
 
-                loss = policy_loss + value_loss
+                    if accelerator.sync_gradients:
+                        accelerator.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
 
-                self.optimizer.zero_grad(set_to_none=True)
-                accelerator.backward(loss)
-                
-                if accelerator.sync_gradients:
-                    accelerator.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
-            
-                self.optimizer.step()
+                    self.optimizer.step()
 
-                if self.scheduler:
-                    self.scheduler.step()
+                    if self.scheduler:
+                        self.scheduler.step()
 
-            stats.update(
-                {
-                    "train_loss": loss.item(),
-                    "train_ploss": policy_loss.item(),
-                    "train_vloss": value_loss.item(),
-                }
-            )
-            progress_bar.set_postfix(
-                {
-                    "train_loss": stats.get_average('train_loss'),
-                    "train_ploss": stats.get_average('train_ploss'),
-                    "train_vloss": stats.get_average('train_vloss'),
-                }
-            )
-
-            if self.cfg.logging.wandb and i % self.cfg.logging.log_every == 0 and i > 0:
-                wandb.log(
+                stats.update(
                     {
-                        "train_loss": stats.get_average('train_loss'),
-                        "train_ploss": stats.get_average('train_ploss'),
-                        "train_vloss": stats.get_average('train_vloss'),
-                        "lr": self.scheduler.get_last_lr()[0] if self.scheduler else self.cfg.train.lr,
-                        "iter": i,
+                        "train_loss": loss.item(),
+                        "train_ploss": policy_loss.item(),
+                        "train_vloss": value_loss.item(),
                     }
                 )
 
-            if i % self.cfg.train.validation_every == 0 and i > 0:
-                val_loss, val_ploss, val_vloss = self.run_validation(stats)
+                progress_bar.set_postfix(
+                    {
+                        "train_loss": stats.get_average("train_loss"),
+                        "val_loss": stats.get_average("val_loss"),
+                        "epoch": f"{epoch + 1}/{self.cfg.train.epochs}",
+                        "iter": f"{i + 1}/{len(train_loader)}",
+                    }
+                )
 
-                if self.cfg.logging.wandb:
-                    wandb.log(
+
+                if i % self.cfg.train.validation_every == 0 and i > 0:
+                    val_loss, val_ploss, val_vloss = self.run_validation(stats)
+                    stats.update(
                         {
                             "val_loss": val_loss,
                             "val_ploss": val_ploss,
                             "val_vloss": val_vloss,
-                            "iter": i,
                         }
                     )
 
-                if val_loss < best_val_loss:
-                    best_val_loss = val_loss
-                    torch.save(self.model.state_dict(), self.cfg.model.save_path)
-                    accelerator.save_model(self.model, self.cfg.model.save_path)
-        progress_bar.close()
+                    if self.cfg.logging.wandb:
+                        wandb.log(
+                            {
+                                "val_loss": val_loss,
+                                "val_ploss": val_ploss,
+                                "val_vloss": val_vloss,
+                                "iter": i,
+                            }
+                        )
+
+                    if val_loss < best_val_loss:
+                        best_val_loss = val_loss
+                        accelerator.save_model(self.model, self.best_model_path)
+            
+            accelerator.save_model(self.model, self.latest_model_path)
 
     def train(self):
-        assert self.model is not None, "Model not initialized. Please call `initialize_model` first."
+        assert self.model is not None, "Model not initialized"
 
-        train_data = [
-            pgn.path
-            for pgn in os.scandir(self.cfg.dataset.train_path)
-            if pgn.name.endswith(".pgn")
-        ]
-
-        # Sets self.optimizer and self.scheduler
+        # Sets optimizer and scheduler
         self.build_optimizer()
 
         accelerator = Accelerator(
-            cpu = self.cfg.train.device == 'cpu',
-            mixed_precision = self.cfg.train.amp,
-            dynamo_backend = 'INDUCTOR' if self.cfg.train.compile else None,
+            cpu=self.cfg.train.device == 'cpu',
+            mixed_precision=self.cfg.train.amp,
+            dynamo_backend='INDUCTOR' if self.cfg.train.compile else None,
         )
 
-        for round_num in tqdm(range(self.cfg.train.num_rounds), desc="Rounds", leave=True):
-            print(f"Starting round {round_num}")
-            sampled_train_data = random.sample(train_data, self.cfg.dataset.size_train)
-            train_dataset = ChessDataset(sampled_train_data, self.cfg.dataset.num_threads)
-            train_loader = DataLoader(
-                train_dataset, self.cfg.train.batch_size, shuffle=True
-            )
+        progress_bar = tqdm(
+            desc="Training Progress",
+            leave=True,
+            dynamic_ncols=True,
+            bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}] {postfix}",
+        )
+
+        # Each round samples new data from dataset and performs epochs
+        for round_num in range(self.cfg.train.rounds):
+            progress_bar.set_description(f"Round {round_num + 1}/{self.cfg.train.rounds}")
+
+            stats = RunningAverage()
+            stats.add(["train_loss", "val_loss", "train_ploss", "train_vloss", "val_ploss", "val_vloss"])
+
+            train_loader = self.build_train_loader()
+
+            print(f"Loaded {len(train_loader.dataset.data)} positions")
 
             self.model, self.optimizer, train_loader, self.scheduler = accelerator.prepare(
                 self.model, self.optimizer, train_loader, self.scheduler
             )
+            
+            self.training_round(train_loader, accelerator, progress_bar, stats)
 
-            self.training_round(train_loader, accelerator)
-          
-            # Helped reduce memory usage and spikes
-            del train_dataset, train_loader
+            # reduce memory spikes
+            del train_loader
 
+        progress_bar.close()
 
 
 if __name__ == "__main__":

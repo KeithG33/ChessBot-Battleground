@@ -14,7 +14,8 @@ dataset:
 
 # Training configuration
 train:
-  num_rounds: 50                        # Number of times to sample from datasettraining rounds
+  rounds: 50                        # Number of times to sample from dataset
+  epochs: 1                             # Number of epochs to train on sampled data
   batch_size: 1024                      # Batch size (test/train)
   lr: 0.0005                            # Learning rate
   min_lr: 0.00005                       # Minimum learning rate
