@@ -299,7 +299,7 @@ class SimpleTrainer:
             desc="Training Progress",
             leave=True,
             dynamic_ncols=True,
-            bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}] {postfix}",
+            bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}] {postfix}",
         )
 
         # Each round samples new data from dataset and performs epochs
