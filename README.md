@@ -1,7 +1,12 @@
 # ChessBot Battleground
 
+### 🚧 Under Construction 🚧
 
-## 🚀 Summary
+Project under development. Stay tuned!
+
+:)
+
+##  Summary
 
 This repository is designed to help you train and compare model architectures, primarily in computer vision, to see how well they can extract information and perform in chess using tiny 8x8 chess board images
 
