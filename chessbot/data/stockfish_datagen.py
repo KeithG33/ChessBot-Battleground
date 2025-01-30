@@ -178,7 +178,7 @@ def initialize_worker(
         params = {"Threads": 2, "Hash": 1024 * 2}
 
     if fr:
-        params["UCI_Chess960"] = "true"
+        params["UCI_Chess960"] = True
 
     worker_stockfish = Stockfish(path=fish_path, parameters=params, depth=depth)
 
