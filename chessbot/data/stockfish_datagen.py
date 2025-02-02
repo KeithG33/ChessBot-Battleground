@@ -290,6 +290,7 @@ def dispatch_annotator(task: str) -> str:
 def solve_and_export(
     pgn_path: str,
     output_dir: str,
+    fish_path: str = None,
     max_moves: int = 20,
     fr: bool = False,
     num_proc: int = 5,
@@ -310,7 +311,7 @@ def solve_and_export(
     params = {"Threads": threads, "Hash": hash_size}
     params["UCI_Chess960"] = True if fr else False
 
-    worker_init = partial(initialize_worker, params=params)
+    worker_init = partial(initialize_worker, fish_path=fish_path, params=params)
     with Pool(processes=num_proc, initializer=worker_init) as pool:
         for pgn_file in pgn_files:
             output_file = os.path.join(output_dir, os.path.basename(pgn_file))
@@ -374,6 +375,7 @@ def solve_and_export_random_positions(
     pgn_path: str,
     output_dir: str,
     max_moves: int = 20,
+    fish_path: str = None,
     p: float = 0.1,  # Probability to solve a position
     fr: bool = False,
     num_proc: int = 5,
@@ -397,7 +399,7 @@ def solve_and_export_random_positions(
 
     # Use the top-level initialize_worker function with partial
     worker_init = partial(
-        initialize_worker, fr=fr, params=params
+        initialize_worker, fish_path=fish_path, fr=fr, params=params
     )
 
     with Pool(processes=num_proc, initializer=worker_init) as pool:
