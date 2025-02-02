@@ -86,7 +86,7 @@ class StockfishSolver:
         move_uci = stockfish.get_best_move()
 
         if move_uci is None:
-            return None, None, None
+            return None, None
 
         move = chess.Move.from_uci(move_uci)
 
@@ -162,6 +162,58 @@ class StockfishSolver:
         return solution
 
 
+class StockfishAnnotator:
+    def __init__(self, stockfish: Stockfish, move=True, score=True):
+        self.stockfish = stockfish
+        self.move = move
+        self.score = score
+
+
+    def evaluate_position(self, board):
+        """
+        Evaluate a position with stockfish. 
+        """
+        score = ""
+        move_san = ""
+        if self.move:
+            move_uci = self.stockfish.get_best_move()
+            move_san = board.san(chess.Move.from_uci(move_uci))
+
+        if self.score:
+            wdl = self.stockfish.get_wdl_stats()
+            score = wdl_to_value(wdl)
+
+        return move_san, str(score)
+    
+    def process_game(self, game):
+        """
+        Process game, add comments, return the game
+        """
+        board = game.board()
+        self.stockfish.set_fen_position(board.fen())
+
+        for i, node in enumerate(game.mainline()):
+            board.push(node.move)
+            t1 = time.perf_counter()
+            move, score = self.evaluate_position(board)
+            comment = f"sf:{move},{score}"
+            node.comment = comment
+        
+        return game
+    
+    def annotate_pgn(self, pgn_file, output_file):
+        """
+        Annotate a pgn file with stockfish evaluations
+        """
+        with open(pgn_file) as pgn:
+            with open(output_file, "w") as output:
+                while (game := chess.pgn.read_game(pgn)):
+                    game = self.process_game(game)
+                    print(game, file=output, end="\n\n")
+                    print(f"Annotated game {game.headers['Event']}")
+
+
+
 def initialize_worker(
     fish_path: str = None, params: dict = None, depth: int = 27, fr: bool = False
 ):
@@ -171,7 +223,7 @@ def initialize_worker(
     global worker_stockfish
     if fish_path is None:
         fish_path = (
-            "/home/kage/chess_workspace/chess-puzzle-maker/stockfish-x86_64-bmi2"
+            "stockfish-x86_64-bmi2"
         )
 
     if params is None:
@@ -222,6 +274,19 @@ def dispatch_game_solver(task: tuple[str, int]) -> str:
     return solved_game
 
 
+def dispatch_annotator(task: str) -> str:
+    """
+    Worker function to annotate a game with Stockfish evaluations. Used in multiprocessing.
+    """
+    global worker_stockfish
+    if worker_stockfish is None:
+        raise ValueError("Stockfish instance not initialized in worker.")
+    
+    annotator = StockfishAnnotator(worker_stockfish, move=False, score=True)
+    game = annotator.process_game(chess.pgn.read_game(io.StringIO(task)))
+    
+    return str(game)
+
 def solve_and_export(
     pgn_path: str,
     output_dir: str,
@@ -231,7 +296,7 @@ def solve_and_export(
     threads: int = 7,
     hash_size: int = 1024 * 2,
 ):
-    """Solves the pgn files with a directory using multiprocessing within each file
+    """Solves the pgn files within a directory using multiprocessing
 
     Creates a PGN file with Stockfish moves, and evaluations as comments
     """
@@ -264,6 +329,45 @@ def solve_and_export(
                         print(f"Done processing game {idx}")
 
             print(f"Annotated file written to: {output_file}")
+
+
+def annotate_and_export(
+    pgn_path: str,
+    output_dir: str,
+    fish_path: str,
+    fr: bool = False,
+    num_proc: int = 1,
+    threads: int = 2,
+    hash_size: int = 1024
+):
+    """
+    Annotate a pgn file with stockfish evaluations
+    """
+    os.makedirs(output_dir, exist_ok=True)
+
+    if os.path.isfile(pgn_path) and pgn_path.endswith(".pgn"):
+        pgn_files = [pgn_path]
+    else:
+        pgn_files = [f.path for f in os.scandir(pgn_path) if f.name.endswith(".pgn")]
+
+    params = {"Threads": threads, "Hash": hash_size}
+    params["UCI_Chess960"] = True if fr else False
+
+    worker_init = partial(initialize_worker, fish_path=fish_path, params=params, fr=fr)
+    with Pool(processes=num_proc, initializer=worker_init) as pool:
+        for pgn_file in pgn_files:
+            output_file = os.path.join(output_dir, os.path.basename(pgn_file))
+            output_file = output_file.replace(".pgn", "-fished-annos.pgn")
+
+            games = read_games(pgn_file)
+
+            with open(output_file, 'w', encoding='utf-8') as out_f:
+                for idx, annotated_game in enumerate(
+                    pool.imap_unordered(dispatch_annotator, games), 1
+                ):
+                    if annotated_game:
+                        print(annotated_game, file=out_f, end="\n\n")
+                        print(f"Done processing game {idx}")
 
 
 def solve_and_export_random_positions(
@@ -302,6 +406,9 @@ def solve_and_export_random_positions(
             output_file = os.path.join(output_dir, os.path.basename(pgn_file))
             output_file = output_file.replace(".pgn", "-fished.pgn")
 
+            if os.path.exists(output_file):
+                mode = "a" # Append if file exists
+
             games = read_games(pgn_file)
 
             # Iterate through each game and select random positions
@@ -330,7 +437,7 @@ def solve_and_export_random_positions(
                 pool.imap_unordered(dispatch_fen_solver, solution_tasks), 1
             ):
                 if solution_pgn:
-                    with open(output_file, 'a', encoding='utf-8') as out_f:
+                    with open(output_file, mode=mode, encoding='utf-8') as out_f:
                         out_f.write(solution_pgn + "\n\n")
 
                     print(f"Done processing solution {idx}")
