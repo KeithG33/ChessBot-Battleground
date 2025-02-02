@@ -5,7 +5,7 @@
 Project under development. Stay tuned!
 
 :)
-
+<!-- 
 ##  Summary
 
 This repository is designed to help you train and compare model architectures, primarily in computer vision, to see how well they can extract information and perform in chess using tiny 8x8 chess board images
@@ -23,19 +23,20 @@ This library provides support for:
 
 ## 📂 Dataset
 
-Currently the dataset contains approximately **700 million positions** in **PGN format**. For each position there is a ground-truth action and result.
+Currently the dataset contains approximately **700 million positions** in **PGN format**. 
+The repo provides a pytorch dataset to load the data and it is mainly taken from the following sources
 
 Highlights include:
 
-- Super-GM games, World Championship matches, famous tournaments
+- Lumbra's Database (filtered 2600+)
 - Lichess Puzzle Database
-- Stockfish vs. AlphaZero
-- TCEC (Top Chess Engine Championship) database
-- Including some Chess960/FR/freestyle games
+- Computer chess - TCEC Database, CCRL, Stockfish vs. AlphaZero, Kasparov vs Deep Blue
+- Includes Chess960/FR/freestyle
+- Stockfish Generated Data - position evaluation and selfplay from position
 
 With a goal of reaching **1 billion positions**, the dataset is ideal for large-scale training. 
 
-*The dataset is available for download.*  
+*download link coming here*  
 
 
 ## 🧠 Training
@@ -71,6 +72,7 @@ Take your models to the battleground! The library includes:
 ## 📈 Future Plans
 
 - Expand the dataset to over **1 billion positions**.  
+- Deduplicate the TCEC and CCRL datasets
 - Release **MCTS training pipelines**.  
 - Add enhanced tools for training and visualization.
 
@@ -86,4 +88,4 @@ Take your models to the battleground! The library includes:
     ```bash
     pip install -r requirements.txt
 3. Download the dataset (link coming soon)
-4. Check out the examples 
+4. Check out the examples  -->
