@@ -5,4 +5,4 @@ from .stockfish_datagen import (
     StockfishSolver
 )
 
-from .lichess_puzzles import lichess_csv_to_pgn
+from .utils import lichess_csv_to_pgn
