@@ -1,5 +1,6 @@
 """ 
-Randomly select positions from PGN games and evaluate max_moves moves from each position. 
+File to generate stockfish data from PGN files. Can generate moves and/or evaluations as comments,
+which can be used as training data. 
 """
 
 import os
@@ -47,7 +48,7 @@ def read_games(pgn_file: str) -> list[str]:
 
 
 def wdl_to_value(wdl: tuple[int, int, int]) -> float:
-    """Converts win-draw-loss statistics to a value between -1 and 1."""
+    """ Convert win-draw-loss to a value in [-1, 1] """
     win, draw, loss = wdl
     total = win + draw + loss
     score = win + 0.5 * draw
@@ -57,9 +58,7 @@ def wdl_to_value(wdl: tuple[int, int, int]) -> float:
 
 
 class StockfishSolver:
-    """
-    Class to solve chess positions using Stockfish.
-    """
+    """ Class to solve chess positions using Stockfish. """
 
     max_moves: int = 20
     move_time: int = 0  # milliseconds
@@ -167,14 +166,18 @@ class StockfishSolver:
 
 class StockfishAnnotator:
     def __init__(
-        self, stockfish: Stockfish, move_time: int = None, move=True, score=True
+        self,
+        stockfish: Stockfish,
+        move_time: int = None,
+        move: bool = True,
+        score: bool = True,
     ):
         self.stockfish = stockfish
         self.move_time = move_time
         self.move = move
         self.score = score
 
-    def evaluate_position(self, board, move_time=10_000) -> tuple[str, str]:
+    def evaluate_position(self, board, move_time = 10_000) -> tuple[str, str]:
         """
         Evaluate a position with stockfish.
         """
@@ -222,7 +225,9 @@ class StockfishAnnotator:
 
 
 def initialize_worker(
-    fish_path: str = None, params: dict = None, depth: int = 27,
+    fish_path: str = None,
+    params: dict = None,
+    depth: int = 27,
 ):
     """
     Initializer for each worker process to create its own Stockfish instance. Used in multiprocessing.
@@ -246,7 +251,7 @@ def dispatch_game_solver(task: tuple[str, int]) -> str:
         raise ValueError("Stockfish instance not initialized in worker.")
 
     game_pgn_str, max_moves, move_time = task
-    solver = StockfishSolver(worker_stockfish, max_moves=max_moves)
+    solver = StockfishSolver(worker_stockfish, max_moves=max_moves, move_time=move_time)
 
     if is_fen(game_pgn_str):
         return solver.solve_fen(game_pgn_str)
@@ -265,10 +270,12 @@ def dispatch_annotator(task: str) -> str:
     global worker_stockfish
     if worker_stockfish is None:
         raise ValueError("Stockfish instance not initialized in worker.")
-    
+
     game, move, score, move_time = task
 
-    annotator = StockfishAnnotator(worker_stockfish, move=move, score=score, move_time=move_time)
+    annotator = StockfishAnnotator(
+        worker_stockfish, move=move, score=score, move_time=move_time
+    )
     game = annotator.process_game(chess.pgn.read_game(io.StringIO(game)))
 
     return str(game)
