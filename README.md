@@ -4,11 +4,11 @@
 
 Project under development. Stay tuned!
 
-:)
-<!-- 
-##  Summary
 
-This repository is designed to help you train and compare model architectures, primarily in computer vision, to see how well they can extract information and perform in chess using tiny 8x8 chess board images
+
+##  Introduction
+
+This repository is designed to help you train and compare model architectures, primarily in computer vision, to see how well they can extract information and perform in chess with tiny 8x8 chess board images
 
 The dataset is available under Releases, and contains 2000 pgn files split into train and test. A pytorch dataset is provided in the library at `chessbot.data.dataset` to load the data. 
 
@@ -24,19 +24,17 @@ This library provides support for:
 ## 📂 Dataset
 
 Currently the dataset contains approximately **700 million positions** in **PGN format**. 
-The repo provides a pytorch dataset to load the data and it is mainly taken from the following sources
-
-Highlights include:
+The repo provides a pytorch dataset to load the data and it is mainly taken from the following sources:
 
 - Lumbra's Database (filtered 2600+)
 - Lichess Puzzle Database
-- Computer chess - TCEC Database, CCRL, Stockfish vs. AlphaZero, Kasparov vs Deep Blue
-- Includes Chess960/FR/freestyle
-- Stockfish Generated Data - position evaluation and selfplay from position
+- Computer Chess - TCEC Database, CCRL, Stockfish vs. AlphaZero, Kasparov vs Deep Blue
+- Includes chess960/FR/freestyle
+- Stockfish Data - position evaluation, puzzle solutions, best move sequences
 
 With a goal of reaching **1 billion positions**, the dataset is ideal for large-scale training. 
 
-*download link coming here*  
+*See the latest Release for the dataset .zip file*  
 
 
 ## 🧠 Training
@@ -71,21 +69,40 @@ Take your models to the battleground! The library includes:
 
 ## 📈 Future Plans
 
-- Expand the dataset to over **1 billion positions**.  
-- Deduplicate the TCEC and CCRL datasets
+- Clean, deduplicate, and expand the dataset, with an epic milestone of **1 billion positions**.  
 - Release **MCTS training pipelines**.  
 - Add enhanced tools for training and visualization.
 
 
+## 🛠 Installation
 
-## 🛠 Installation & Getting Started
-
-1. Clone the repository:  
+1. From source:  
    ```bash
-   git clone https://github.com/your-repo/chessbot-battleground.git
+   git clone https://github.com/KeithG33/ChessBot-Battleground.git
+
    cd chessbot-battleground
-2. Install dependencies
+
+   pip install -r requirements.txt
+   pip install . 
+   ```
+
+2. Pip 
     ```bash
-    pip install -r requirements.txt
-3. Download the dataset (link coming soon)
-4. Check out the examples  -->
+    pip install chessbot
+    ```
+
+## Getting Started
+**1. Downloading the dataset:**  
+
+The dataset is provided as a downloadable .zip file with each release. Either navigate to the github release page, or use the provided download tool:
+```bash
+chessbot download [<tag>="latest"] [--save-path <path>] [--dataset-name <filename>]
+
+# Ex: download latest release to cwd if pip installed, or ChessBot-Battleground/dataset if source installed
+chessbot download
+
+# Ex: download release v0.0.0 to output_dir
+chessbot download v0.0.0 --output-dir /path/to/output_dir
+```
+
+By default the latest release will be downloaded into the `ChessBot-Battleground/dataset/` directory
