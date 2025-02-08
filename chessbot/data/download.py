@@ -1,39 +1,115 @@
 import argparse
 import os
-import zipfile
 import requests
-import tempfile
+import zipfile
+import logging
+import re
 
-def download_and_extract(url, save_path):
-    """Download a ZIP file from a web URL and extract it to a local directory."""
+# Configure logging
+logging.basicConfig(
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    level=logging.INFO
+)
 
-    with tempfile.TemporaryDirectory() as temp_dir:
-        temp_zip_path = os.path.join(temp_dir, 'dataset.zip')
+REPO_OWNER = "KeithG33"
+REPO_NAME = "ChessBot-Battleground"
+GITHUB_TAGS_URL = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/tags"
 
-        print("Downloading dataset...")
-        response = requests.get(url, allow_redirects=True)
-        with open(temp_zip_path, 'wb') as f:
-            f.write(response.content)
 
-        print("Extracting dataset...")
-        with zipfile.ZipFile(temp_zip_path, 'r') as zip_ref:
-            zip_ref.extractall(save_path)
+def get_latest_tag():
+    """Fetch the latest release tag from GitHub."""
+    try:
+        response = requests.get(GITHUB_TAGS_URL)
+        response.raise_for_status()
+        tags = response.json()
+        if tags:
+            return tags[0]["name"]  # Example: "v0.0.0-test"
+        else:
+            logging.error("No tags found in the repository.")
+            return None
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Failed to fetch latest tag: {e}")
+        return None
 
-    print(f"Dataset downloaded and extracted to {save_path}")
+
+def extract_version(tag):
+    """Extract the numeric version from a tag (e.g., 'v0.0.0-test' -> '0.0.0')."""
+    match = re.search(r"(\d+\.\d+\.\d+)", tag)
+    return match.group(1) if match else tag  # Fallback to original if extraction fails
+
+
+def determine_save_path(user_path=None) -> tuple[str, bool]:
+    """Determine the appropriate save path based on installation type.
+    
+    Returns True or False to indicate source or not"""
+    if user_path:
+        return user_path, False  # User explicitly provided a save path
+
+    # Check if pip installed (inside site-packages)
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    if "site-packages" in script_dir or "dist-packages" in script_dir:
+        logging.info("Detected pip install. Defaulting to current working directory")
+        return os.path.join(os.getcwd()), False  # Default to cwd/dataset
+
+    source_dataset_dir = os.path.abspath(os.path.join(script_dir, "../../dataset"))
+    return source_dataset_dir, True
+
+
+def download(args):
+    """Download and extract the dataset from GitHub."""
+    
+    tag = args.tag or get_latest_tag()
+    if not tag:
+        logging.error("Could not determine a valid release tag. Exiting.")
+        return
+    
+    version = extract_version(tag)
+    dataset_name = args.dataset_name or f"test-{version}.zip"
+    output_dir, source_install = args.output_dir if args.output_dir else os.path.join(os.path.dirname(__file__), "dataset")
+
+    download_url = f"https://github.com/{REPO_OWNER}/{REPO_NAME}/releases/download/{tag}/{dataset_name}"
+    logging.info(f"Downloading dataset from {download_url}")
+
+    try:
+        response = requests.get(download_url, stream=True)
+        response.raise_for_status()  # Raise an error for failed requests
+
+        os.makedirs(output_dir, exist_ok=True)
+        zip_path = os.path.join(output_dir, dataset_name)
+
+        with open(zip_path, 'wb') as file:
+            for chunk in response.iter_content(chunk_size=8192):
+                file.write(chunk)
+
+        logging.info(f"Dataset downloaded successfully: {zip_path}")
+
+        # Extract the dataset if using source install
+        if source_install:    
+            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                zip_ref.extractall(output_dir)
+
+            logging.info(f"Dataset extracted successfully in: {output_dir}")
+
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Failed to download the dataset. Error: {e}")
 
 def main():
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    default_save_path = os.path.join(script_dir, "../../dataset/")
-    
-    parser = argparse.ArgumentParser(description="Chess Dataset Downloader")
-    parser.add_argument("--url", type=str, default="https://github.com/username/repository/releases/download/v1.0/chess_dataset.zip",
-                        help="URL of the dataset to download")
-    parser.add_argument("--save-path", type=str, default=default_save_path, help="Path to save the downloaded dataset")
+    """Main command-line interface function."""
+    parser = argparse.ArgumentParser(description="ChessBot command-line tool.")
+    subparsers = parser.add_subparsers(help="Available commands")
+
+    # Subparser for the 'download' command
+    parser_download = subparsers.add_parser('download', help="Download a dataset from a GitHub release")
+    parser_download.add_argument('tag', type=str, nargs='?', default=None, help="Tag of the GitHub release (default: latest)")
+    parser_download.add_argument('--output-dir', type=str, help="Path where the dataset should be saved")
+    parser_download.add_argument('--dataset-name', type=str, help="Custom dataset filename (default: ChessBot-Dataset-{tag}.zip)")
+    parser_download.set_defaults(func=download)
+
     args = parser.parse_args()
+    if hasattr(args, 'func'):
+        args.func(args)
+    else:
+        parser.print_help()
 
-    if not os.path.exists(args.save_path):
-        os.makedirs(args.save_path)
-    download_and_extract(args.url, args.save_path)
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
