@@ -1,3 +1,4 @@
+from pathlib import Path
 from torch.multiprocessing import Pool, set_start_method
 import chess
 import chess.pgn
@@ -21,12 +22,29 @@ def create_sparse_vector(action_probs):
 class ChessDataset(Dataset):
     def __init__(self, pgn_files, num_threads=0):
         super().__init__()
-        self.pgn_files = pgn_files
+        self.load_pgn_files(pgn_files)
+
         self.data = (
             self.generate_pgn_data()
             if num_threads < 1
             else self.generate_pgn_data_parallel(num_threads)
         )
+
+    def load_pgn_files(self, pgn_files):
+        # Handle file or directory
+        if isinstance(pgn_files, str):
+            if Path(pgn_files).is_dir():
+                self.pgn_files = list(Path(pgn_files).rglob("*.pgn"))
+            elif Path(pgn_files).is_file():
+                self.pgn_files = [pgn_files]
+            else:
+                raise ValueError("Invalid pgn_files argument - string not a file or directory")
+        # Handle list of files
+        elif isinstance(pgn_files, list):
+            self.pgn_files = pgn_files
+        # Handle no bueno
+        else:
+            raise ValueError("Invalid pgn_files argument")
 
     def generate_pgn_data(self):
         """Return a list of tuples with (state, action, result)"""

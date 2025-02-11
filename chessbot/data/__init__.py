@@ -6,3 +6,5 @@ from .stockfish_datagen import (
 )
 
 from .utils import lichess_csv_to_pgn
+
+from .dataset import ChessDataset
