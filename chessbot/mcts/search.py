@@ -44,16 +44,18 @@ class MonteCarloTreeSearch:
         action_probs = {
             action: (count / total_visits) for action, count in action_probs.items()
         }
-        best_action = max(action_probs, key=action_probs.get)
-        return action_probs, best_action
+        return action_probs
     
-    def search(self, init_state, init_obs, simulations_number=10_000):
-        for itr in range(simulations_number):
+    def search(self, init_state, init_obs, num_simulations=1000):
+        for itr in range(num_simulations):
             self.game_state.set_string_representation(init_state)
             self.search_iteration(self.game_state, game_obs=init_obs, root=True)
 
         self.game_state.set_string_representation(init_state)
-        return self.get_action_probabilities(init_state)
+
+        action_probs = self.get_action_probabilities(init_state)
+        best_action = max(action_probs, key=action_probs.get)
+        return action_probs, best_action
 
     def search_iteration(self, game_state, game_obs, root=False, c_param=1.4):
         state = game_state.get_string_representation()
@@ -78,7 +80,7 @@ class MonteCarloTreeSearch:
 
             # 1 current state wins, -1 previous state wins
             with torch.no_grad():
-                action_probs, predicted_outcome, _ = self.nnet(game_obs[0])
+                action_probs, predicted_outcome = self.nnet(game_obs[0])
                 action_probs = action_probs.cpu().numpy().flatten()
                 predicted_outcome = predicted_outcome.item()
             
