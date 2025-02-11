@@ -2,11 +2,11 @@ import gym
 import adversarial_gym
 import chess
 
-from chessbot.models.base import BaseModel
+from chessbot.models.base import BaseChessModel
 from chessbot.mcts import MonteCarloTreeSearch
 
 
-def play_game(white: BaseModel, black: BaseModel, perspective=None, num_sims=100, visualize=False):
+def play_game(white: BaseChessModel, black: BaseChessModel, perspective=None, num_sims=100, visualize=False):
     """
     Plays a game and returns 1 if chosen perspective has won, else 0.
 

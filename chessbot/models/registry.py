@@ -1,9 +1,9 @@
-from chessbot.models.base import BaseModel
+from chessbot.models.base import BaseChessModel
 
 
 class ModelRegistry:
     """
-    Registry for managing and validating models derived from BaseModel.
+    Registry for managing and validating models derived from BaseChessModel.
     """
     _registry = {}
 
@@ -16,8 +16,8 @@ class ModelRegistry:
         """
         def decorator(model_cls):
             register_name = name or model_cls.__name__
-            if not issubclass(model_cls, BaseModel):
-                raise ValueError(f"Model '{register_name}' must inherit from BaseModel.")
+            if not issubclass(model_cls, BaseChessModel):
+                raise ValueError(f"Model '{register_name}' must inherit from BaseChessModel.")
             if register_name in cls._registry:
                 pass # already registered
             cls._registry[register_name] = model_cls

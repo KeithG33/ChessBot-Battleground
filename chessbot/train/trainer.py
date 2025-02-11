@@ -16,13 +16,13 @@ from torch.utils.data import DataLoader
 
 from chessbot.data.dataset import ChessDataset
 from chessbot.train.utils import WarmupLR, RunningAverage
-from chessbot.config import get_config, load_config
+from chessbot.train.config import get_config, load_config
 from chessbot.models.registry import ModelRegistry
 
 from accelerate import Accelerator
 
 
-class SimpleTrainer:
+class ChessTrainer:
     """Chess trainer for training a chess model using the chess dataset
     
     NOTE: The dataloading here is a little weird, and specific to my levels of home compute. 
@@ -36,18 +36,27 @@ class SimpleTrainer:
           positions on my AMD Epyc 7402 (using 20 processes), around 70Gb of RAM
     """
 
-    def __init__(self, config, load_model_from_config=True):
+    def __init__(self, config, model=None, load_model_from_config=False):
         self.cfg = get_config()
         config = load_config(config) if isinstance(config, str) else config
         self.cfg |= config
 
-        self.model = None
+        self.model = model
         if load_model_from_config:
             self.load_model_from_config()
             self.initialize_model()
 
         if self.cfg.logging.wandb:
             wandb.init(project=self.cfg.logging.wandb_project)
+
+        # Automatically use dated experiment directory
+        self.cfg.train.output_dir = os.path.join(
+            self.cfg.train.output_dir, f"{time.strftime('%Y-%m-%d_%H-%M')}-experiment"
+        )
+
+        os.makedirs(self.cfg.train.output_dir, exist_ok=True)
+        with open(os.path.join(self.cfg.train.output_dir, "config.yaml"), "w") as f:
+            yaml.safe_dump(self.cfg, f)
 
         self.latest_model_path = os.path.join(self.cfg.train.output_dir, "model_latest.pth")
         self.best_model_path = os.path.join(self.cfg.train.output_dir, "model_best.pth")
@@ -64,7 +73,7 @@ class SimpleTrainer:
         elif model_hub_dir:
             self._import_models_from_hub(model_hub_dir)
         else:
-            raise ValueError("No model_file or model_hub directory specified in the configuration.")
+            raise ValueError("No model_file or model_hub directory specified in the configurat.ion.")
 
     def _import_model_from_file(self, model_file):
         """
@@ -143,7 +152,7 @@ class SimpleTrainer:
                 self.cfg.train.min_lr,
             )
 
-        if scheduler is not None:
+        if self.scheduler is not None and self.cfg.train.warmup_iters > 0:
             self.scheduler = WarmupLR(
                 scheduler,
                 init_lr=self.cfg.train.warmup_lr,
@@ -152,9 +161,10 @@ class SimpleTrainer:
             )
 
     def build_train_loader(self) -> DataLoader:
+        train_path = os.path.join(self.cfg.dataset.data_path, "train")
         data = [
             pgn.path
-            for pgn in os.scandir(self.cfg.dataset.train_path)
+            for pgn in os.scandir(train_path)
             if pgn.name.endswith(".pgn")
         ]
         sampled_data = random.sample(data, self.cfg.dataset.size_train)
@@ -164,9 +174,10 @@ class SimpleTrainer:
         )
 
     def build_val_loader(self) -> DataLoader:
+        test_path = os.path.join(self.cfg.dataset.data_path, "test")
         data = [
             pgn.path
-            for pgn in os.scandir(self.cfg.dataset.test_path)
+            for pgn in os.scandir(test_path)
             if pgn.name.endswith(".pgn")
         ]
         sampled_data = random.sample(data, self.cfg.dataset.size_test)
@@ -363,7 +374,7 @@ if __name__ == "__main__":
 
     config = apply_overrides(config, args.override)
 
-    trainer = SimpleTrainer(config)
+    trainer = ChessTrainer(config)
 
     logging.info("Starting Chess Trainer...")
     trainer.train()
