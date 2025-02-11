@@ -1,8 +1,7 @@
 """
-This section loads the collected PGN files and then distributes them
-across the selected num_output_files PGN files. 
+This section loads the collected PGN files and distributes them across num_output_files PGN files. 
 
-Ensures each PGN file has a wide spread of data.
+Distributes by "dealing" each game to a different output file in a circular fashion.
 """
 from itertools import cycle
 import random, os
@@ -10,29 +9,23 @@ import glob
 import chess.pgn
 
 def distribute_games_across_files(filepaths, output_dir, num_output_files):
-    # Ensure the output directory exists
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    # Prepare output files for writing
     output_files = [open(os.path.join(output_dir, f'chesspgn_{i}.pgn'), 'w', encoding='utf-8') for i in range(num_output_files)]
     output_file_cycle = cycle(output_files)  # Create a cycle of output files for round-robin distribution
 
-    # game_count = 0
     for i, filepath in enumerate(filepaths):
         print(f"{i}/{len(filepaths)}   - filepath: {filepath} ")
         with open(filepath, 'r', encoding='utf-8') as pgn_file:
             while game := chess.pgn.read_game(pgn_file):
-                # game_count += 1
-                output_file = next(output_file_cycle)  # Get the next file in the cycle
+                output_file = next(output_file_cycle) 
                 exporter = chess.pgn.FileExporter(output_file)
                 game.accept(exporter)
-    
-    # Close all output files
+
     for f in output_files:
         f.close()
 
-    # print(f"Total games: {game_count}")
 
 def process_pgn_files(input_dir, output_dir, num_output_files):
     filepaths = list(glob.iglob(f'{input_dir}/**/*.pgn', recursive=True))
