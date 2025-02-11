@@ -5,7 +5,7 @@ import numpy as np
 from adversarial_gym.chess_env import ChessEnv
 
 
-class BaseModel(nn.Module):
+class BaseChessModel(nn.Module):
     """
     Base class for all chess models in the ChessBot-Battleground library.
     Each model should accept an input tensor of shape (B, 1, 8, 8) and produce
@@ -14,31 +14,86 @@ class BaseModel(nn.Module):
 
     def __init__(self):
         super().__init__()
-        
+
         # Common loss functions for consistency's sake
         self.policy_loss = nn.CrossEntropyLoss()
         self.value_loss = nn.MSELoss()
 
-        self.action_dim = 4672  # Typically the dimension for chess actions
+        self.action_dim = 4672
+
+        self.validate_flag = True
+
+    @classmethod
+    def __init_subclass__(cls, **kwargs):
+        """
+        Automatically injects validation at the end of the derived class `__init__()`.
+        """
+        original_init = cls.__init__
+
+        def wrapped_init(self, *args, **kwargs):
+            original_init(self, *args, **kwargs)  # Call the original __init__
+            
+            # Validate the model after initialization if self.validate_flag is True
+            if getattr(self, "validate", True):
+                self.validate_model()
+
+        cls.__init__ = wrapped_init  # Replace the subclass's __init__ with the wrapped version
+
+        super().__init_subclass__(**kwargs)  # Call super to ensure proper subclass behavior
+
+    def validate_model(self):
+        """ Quickly validate model meets expected input/output shapes """
+        test_batch = 2
+        policy_shape = (test_batch, 4672)
+        value_shape1 = (test_batch,1)
+        value_shape2 = (test_batch,)
+
+        x = torch.randn(2, 1, 8, 8).cpu()
+        self = self.cpu()
+        output1, output2 = self.forward(x)
+
+        if output1.shape != policy_shape:
+            raise ValueError(f"Model Validation Fail - expected policy output to have shape (B, 4672), but got {output1.shape}")
+
+        if output2.shape not in [value_shape1, value_shape2]:
+            raise ValueError(f"Model Validation Fail - Expected value output to have shape (B,), but got {output2.shape}")
+
+        print("✅ Model validated successfully!")
+
+    def get_current_device(self):
+        """ Get the current device of the model """
+        return next(self.parameters()).device
 
     def forward(self, x):
         """
         Forward pass of the model. Should be overridden by all subclasses.
 
-        Note that modifying inputs and outputs may require some configuration or custom code.
-
         Args:
             x (torch.Tensor): Input tensor of shape (B, 1, 8, 8), representing the chess board state.
 
         Returns:
-            Tuple[torch.Tensor, torch.Tensor]: A tuple containing action logits and board value.
-                - action_logits (torch.Tensor): raw policy output of shape (B, 4672), representing the logits of each action.
-                - board_val (torch.Tensor): value of the current position, in the range [-1, 1] for the current player
-                    losing=-1, drawing=0, or winning=1. Shape (B,)
+            - action_logits (torch.Tensor): raw policy output of shape (B, 4672), representing the logits of each action.
+            - board_val (torch.Tensor): value output of the current position with shape (B,), in the range [-1, 1] for current player
+                losing=-1, drawing=0, or winning=1.
         """
 
         raise NotImplementedError("This method should be overridden by subclasses")
 
+    def __call__(self, *args, **kwargs):
+        """ Override the __call__ method to automatically add numpy to torch conversion
+        
+        Needed because the PyTorch dataset returns (B, 1, 8, 8) tensors but the gym environment
+        returns (8, 8) numpy arrays.
+
+        Expects the input x tensor is first arg
+        """
+
+        if isinstance(args[0], np.ndarray):
+            input = torch.as_tensor(args[0], dtype=torch.float32).reshape(1, 1, *args[0].shape)
+            args = (input, *args[1:])
+
+        return super().__call__(*args, **kwargs)
+    
     def get_action(self, state, legal_moves, sample_n=1):
         """
         Given the state and legal moves, returns the selected action and its log probability.
@@ -52,8 +107,10 @@ class BaseModel(nn.Module):
         Returns:
             Tuple[int, float]: The chosen action and its log probability.
         """
+        # Put input on current device
+        device = self.get_current_device()
         state = (
-            torch.as_tensor(state, dtype=torch.float32, device=self.device)
+            torch.as_tensor(state, dtype=torch.float32, device=device)
             .unsqueeze(0)
             .unsqueeze(0)
         )
@@ -93,3 +150,8 @@ class BaseModel(nn.Module):
 
         log_prob = action_probs.flatten()[action]
         return action, log_prob
+
+
+# # test model
+# model = BaseChessModel()
+# model.validate_model()
