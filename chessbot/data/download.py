@@ -65,7 +65,7 @@ def download(args):
     
     version = extract_version(tag)
     dataset_name = args.dataset_name or f"test-{version}.zip"
-    output_dir, source_install = args.output_dir if args.output_dir else os.path.join(os.path.dirname(__file__), "dataset")
+    output_dir, source_install = determine_save_path(args.output_dir)
 
     download_url = f"https://github.com/{REPO_OWNER}/{REPO_NAME}/releases/download/{tag}/{dataset_name}"
     logging.info(f"Downloading dataset from {download_url}")
