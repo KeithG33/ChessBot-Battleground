@@ -1,0 +1,1 @@
+from chessbot.train import config
