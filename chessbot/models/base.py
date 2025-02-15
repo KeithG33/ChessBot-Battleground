@@ -64,7 +64,7 @@ class BaseChessModel(nn.Module):
         """ Get the current device of the model """
         return next(self.parameters()).device
 
-    def forward(self, x):
+    def forward(self, x, *args, **kwargs):
         """
         Forward pass of the model. Should be overridden by all subclasses.
 
@@ -76,7 +76,6 @@ class BaseChessModel(nn.Module):
             - board_val (torch.Tensor): value output of the current position with shape (B,), in the range [-1, 1] for current player
                 losing=-1, drawing=0, or winning=1.
         """
-
         raise NotImplementedError("This method should be overridden by subclasses")
 
     def __call__(self, *args, **kwargs):
@@ -111,8 +110,7 @@ class BaseChessModel(nn.Module):
         device = self.get_current_device()
         state = (
             torch.as_tensor(state, dtype=torch.float32, device=device)
-            .unsqueeze(0)
-            .unsqueeze(0)
+            .reshape(1, 1, 8, 8)
         )
 
         policy_logits, _ = self.forward(state)
