@@ -24,16 +24,12 @@ from accelerate import Accelerator
 
 class ChessTrainer:
     """Chess trainer for training a chess model using the chess dataset
-    
-    NOTE: The dataloading here is a little weird, and specific to my levels of home compute. 
+
+    NOTE: The dataloading here is a little weird, and specific to my levels of home compute.
           Users will likely want to write their own training code for their own setup.
 
           The training setup here uses 'rounds' and 'epochs'. Each 'round' samples a subset of the
-          training data, and will perform a specified number of 'epochs' before sampling again to
-          start a new round
-
-          This is reasonable because ~5 minutes of dataloading can load >100 million
-          positions on my AMD Epyc 7402 (using 20 processes), around 70Gb of RAM
+          training data, and then performs a specified number of 'epochs'.
     """
 
     def __init__(self, config, model=None, load_model_from_config=False):
@@ -42,6 +38,8 @@ class ChessTrainer:
         self.cfg |= config
 
         self.model = model
+        load_model_from_config = True if model is None else load_model_from_config
+        
         if load_model_from_config:
             self.load_model_from_config()
             self.initialize_model()
@@ -53,14 +51,15 @@ class ChessTrainer:
         self.cfg.train.output_dir = os.path.join(
             self.cfg.train.output_dir, f"{time.strftime('%Y-%m-%d_%H-%M')}-experiment"
         )
+        self.checkpoint_dir = os.path.join(self.cfg.train.output_dir, "checkpoint")
 
         os.makedirs(self.cfg.train.output_dir, exist_ok=True)
         with open(os.path.join(self.cfg.train.output_dir, "config.yaml"), "w") as f:
             yaml.safe_dump(self.cfg, f)
 
-        self.latest_model_path = os.path.join(self.cfg.train.output_dir, "model_latest.pth")
-        self.best_model_path = os.path.join(self.cfg.train.output_dir, "model_best.pth")
-            
+        self.latest_model_path = os.path.join(self.cfg.train.output_dir, "model_latest")
+        self.best_model_path = os.path.join(self.cfg.train.output_dir, "model_best")
+
     def load_model_from_config(self):
         """
         Load the model dynamically. Prioritize 'model_file' if provided; otherwise, use 'model_hub'.
@@ -73,7 +72,9 @@ class ChessTrainer:
         elif model_hub_dir:
             self._import_models_from_hub(model_hub_dir)
         else:
-            raise ValueError("No model_file or model_hub directory specified in the configurat.ion.")
+            raise ValueError(
+                "No model_file or model_hub directory specified in the configurat.ion."
+            )
 
     def _import_model_from_file(self, model_file):
         """
@@ -160,82 +161,94 @@ class ChessTrainer:
                 warmup_strategy=self.cfg.train.warmup_strategy,
             )
 
-    def build_train_loader(self) -> DataLoader:
-        train_path = os.path.join(self.cfg.dataset.data_path, "train")
-        data = [
-            pgn.path
-            for pgn in os.scandir(train_path)
-            if pgn.name.endswith(".pgn")
-        ]
-        sampled_data = random.sample(data, self.cfg.dataset.size_train)
-        dataset = ChessDataset(sampled_data, num_threads=self.cfg.dataset.num_threads)
-        return DataLoader(
-            dataset, batch_size=self.cfg.train.batch_size, shuffle=True
-        )
+    @staticmethod
+    def build_train_loader(cfg) -> DataLoader:
+        train_path = os.path.join(cfg.dataset.data_path, "train")
+        data = [pgn.path for pgn in os.scandir(train_path) if pgn.name.endswith(".pgn")]
+        sampled_data = random.sample(data, cfg.dataset.size_train)
+        dataset = ChessDataset(sampled_data, num_threads=cfg.dataset.num_threads)
+        return DataLoader(dataset, batch_size=cfg.train.batch_size, shuffle=True)
 
-    def build_val_loader(self) -> DataLoader:
-        test_path = os.path.join(self.cfg.dataset.data_path, "test")
-        data = [
-            pgn.path
-            for pgn in os.scandir(test_path)
-            if pgn.name.endswith(".pgn")
-        ]
-        sampled_data = random.sample(data, self.cfg.dataset.size_test)
-        dataset = ChessDataset(sampled_data, num_threads=self.cfg.dataset.num_threads)
-        return DataLoader(
-            dataset, batch_size=self.cfg.train.batch_size, shuffle=False
-        )
+    @staticmethod
+    def build_val_loader(cfg) -> DataLoader:
+        test_path = os.path.join(cfg.dataset.data_path, "test")
+        data = [pgn.path for pgn in os.scandir(test_path) if pgn.name.endswith(".pgn")]
+        sampled_data = random.sample(data, cfg.dataset.size_test)
+        dataset = ChessDataset(sampled_data, num_threads=cfg.dataset.num_threads)
+        return DataLoader(dataset, batch_size=cfg.train.batch_size, shuffle=False)
 
-    def run_validation(self, stats: RunningAverage):
-        val_loader = self.build_val_loader()
-
-        self.model.eval()
-        stats.reset(["val_loss", "val_ploss", "val_vloss"])
-
-        with torch.no_grad():
-            for state, action, result in val_loader:
-                state = state.float().to(self.cfg.train.device)
-                action = action.to(self.cfg.train.device)
-                result = result.float().to(self.cfg.train.device)
-
-                policy_output, value_output = self.model(state.unsqueeze(1))
-
-                policy_loss = self.model.policy_loss(policy_output.squeeze(), action)
-                value_loss = self.model.value_loss(value_output.squeeze(), result)
-
-                loss = policy_loss + value_loss
-
-                stats.update(
-                    {
+    def run_validation(self, stats: RunningAverage, main_progress_bar=None):
+        val_loader = self.build_val_loader(self.cfg)
+        total_val_steps = len(val_loader)
+        
+        # Clear the main progress bar so the validation bar can take its place.
+        if main_progress_bar:
+            main_progress_bar.clear()
+        
+        # Create a temporary progress bar for validation that will vanish when done.
+        with tqdm(total=total_val_steps, desc="Validation", leave=False, dynamic_ncols=True, position=0,
+                bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}] {postfix}"
+        ) as val_bar:
+            self.model.eval()
+            stats.reset(["val_loss", "val_ploss", "val_vloss"])
+        
+            with torch.no_grad():
+                for state, action, result in val_loader:
+                    state = state.float().to(self.cfg.train.device)
+                    action = action.to(self.cfg.train.device)
+                    result = result.float().to(self.cfg.train.device)
+        
+                    policy_output, value_output = self.model(state.unsqueeze(1))
+        
+                    policy_loss = self.model.policy_loss(policy_output.squeeze(), action)
+                    value_loss = self.model.value_loss(value_output.squeeze(), result)
+        
+                    loss = policy_loss + value_loss
+        
+                    stats.update({
                         "val_loss": loss.item(),
                         "val_ploss": policy_loss.item(),
                         "val_vloss": value_loss.item(),
-                    }
-                )
-
+                    })
+        
+                    # Update the validation progress bar to display current loss.
+                    val_bar.set_postfix({
+                        "Val Loss": f"{loss.item():.4f}",
+                        "Val Ploss": f"{policy_loss.item():.4f}",
+                        "Val Vloss": f"{value_loss.item():.4f}",
+                    })
+                    val_bar.update(1)
+    
+        # After validation, refresh the main progress bar.
+        if main_progress_bar:
+            main_progress_bar.refresh()
+        
         return (
             stats.get_average('val_loss'),
             stats.get_average('val_ploss'),
             stats.get_average('val_vloss'),
         )
-    
-    def training_round(self, train_loader, accelerator, progress_bar, stats):
+
+    def training_round(self, train_loader, accelerator, progress_bar, stats, round):
         """
         Perform a single training round.
         """
         self.model.train()
         best_val_loss = float('inf')
+        val_loss = float('inf')
 
         for epoch in range(self.cfg.train.epochs):
-    
-            for i, (state, action, result) in enumerate(train_loader):
+
+            for iter, (state, action, result) in enumerate(train_loader):
                 state = state.float()
                 result = result.float()
 
                 with accelerator.accumulate():
                     policy_output, value_output = self.model(state.unsqueeze(1))
 
-                    policy_loss = self.model.policy_loss(policy_output.squeeze(), action)
+                    policy_loss = self.model.policy_loss(
+                        policy_output.squeeze(), action
+                    )
                     value_loss = self.model.value_loss(value_output.squeeze(), result)
                     loss = policy_loss + value_loss
 
@@ -243,7 +256,9 @@ class ChessTrainer:
                     accelerator.backward(loss)
 
                     if accelerator.sync_gradients:
-                        accelerator.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
+                        accelerator.clip_grad_norm_(
+                            self.model.parameters(), max_norm=1.0
+                        )
 
                     self.optimizer.step()
 
@@ -258,17 +273,8 @@ class ChessTrainer:
                     }
                 )
 
-                progress_bar.set_postfix(
-                    {
-                        "train_loss": stats.get_average("train_loss"),
-                        "val_loss": stats.get_average("val_loss"),
-                        "epoch": f"{epoch + 1}/{self.cfg.train.epochs}",
-                        "iter": f"{i + 1}/{len(train_loader)}",
-                    }
-                )
-
-
-                if i % self.cfg.train.validation_every == 0 and i > 0:
+                # Validation
+                if iter % self.cfg.train.validation_every == 0 and iter > 0:
                     val_loss, val_ploss, val_vloss = self.run_validation(stats)
                     stats.update(
                         {
@@ -284,18 +290,30 @@ class ChessTrainer:
                                 "val_loss": val_loss,
                                 "val_ploss": val_ploss,
                                 "val_vloss": val_vloss,
-                                "iter": i,
+                                "iter": iter,
                             }
                         )
 
                     if val_loss < best_val_loss:
                         best_val_loss = val_loss
                         accelerator.save_model(self.model, self.best_model_path)
-            
+                        accelerator.save_state(output_dir=self.checkpoint_dir)
+
+                # Update the single progress bar with detailed information
+                progress_bar.set_postfix({
+                    "Round": f"{round + 1}/{self.cfg.train.rounds}",
+                    "Epoch": f"{epoch + 1}/{self.cfg.train.epochs}",
+                    "Iter": f"{iter + 1}/{len(train_loader)}",
+                    "Loss": f"{loss.item():.4f}",
+                    "Val Loss": f"{val_loss:.4f}",
+                })
+                progress_bar.update(1)
+
             accelerator.save_model(self.model, self.latest_model_path)
+            accelerator.save_state(output_dir=self.checkpoint_dir)
 
     def train(self):
-        assert self.model is not None, "Model not initialized"
+        assert self.model is not None, "Model not initialized. Please set up your model before calling .train()"
 
         # Sets optimizer and scheduler
         self.build_optimizer()
@@ -306,29 +324,44 @@ class ChessTrainer:
             dynamo_backend='INDUCTOR' if self.cfg.train.compile else None,
         )
 
-        progress_bar = tqdm(
-            desc="Training Progress",
-            leave=True,
-            dynamic_ncols=True,
-            bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}] {postfix}",
-        )
 
         # Each round samples new data from dataset and performs epochs
         for round_num in range(self.cfg.train.rounds):
-            progress_bar.set_description(f"Round {round_num + 1}/{self.cfg.train.rounds}")
-
             stats = RunningAverage()
-            stats.add(["train_loss", "val_loss", "train_ploss", "train_vloss", "val_ploss", "val_vloss"])
+            stats.add(
+                [
+                    "train_loss",
+                    "train_ploss",
+                    "train_vloss",
+                    "val_loss",
+                    "val_ploss",
+                    "val_vloss",
+                ]
+            )
 
-            train_loader = self.build_train_loader()
+            train_loader = self.build_train_loader(self.cfg)
+
+            total_iters = len(train_loader) * self.cfg.train.epochs
+            progress_bar = tqdm(
+                desc="Epoch:",
+                total=total_iters,
+                leave=True,
+                dynamic_ncols=True,
+                bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}] {postfix}",
+            )
 
             print(f"Loaded {len(train_loader.dataset.data)} positions")
 
-            self.model, self.optimizer, train_loader, self.scheduler = accelerator.prepare(
-                self.model, self.optimizer, train_loader, self.scheduler
+            self.model, self.optimizer, train_loader, self.scheduler = (
+                accelerator.prepare(
+                    self.model, self.optimizer, train_loader, self.scheduler
+                )
             )
-            
-            self.training_round(train_loader, accelerator, progress_bar, stats)
+            if self.checkpoint_dir and round_num == 0:
+                accelerator.load_state(self.cfg.train.checkpoint_dir)
+
+            # self.training_round(train_loader, accelerator, progress_bar, stats)
+            self.training_round(train_loader, accelerator, progress_bar, stats, round_num)
 
             # reduce memory spikes
             del train_loader
@@ -336,46 +369,46 @@ class ChessTrainer:
         progress_bar.close()
 
 
-if __name__ == "__main__":
-    import argparse
+# if __name__ == "__main__":
+#     import argparse
 
-    def parse_args():
-        parser = argparse.ArgumentParser(description="Chess Trainer")
-        parser.add_argument(
-            "--config",
-            type=str,
-            required=True,
-            help="Path to the YAML configuration file.",
-        )
-        parser.add_argument(
-            "--override",
-            nargs="*",
-            help="Override any config variable using dot notation, e.g., training.lr=0.001.",
-        )
-        return parser.parse_args()
+#     def parse_args():
+#         parser = argparse.ArgumentParser(description="Chess Trainer")
+#         parser.add_argument(
+#             "--config",
+#             type=str,
+#             required=True,
+#             help="Path to the YAML configuration file.",
+#         )
+#         parser.add_argument(
+#             "--override",
+#             nargs="*",
+#             help="Override any config variable using dot notation, e.g., training.lr=0.001.",
+#         )
+#         return parser.parse_args()
 
-    def apply_overrides(config, overrides):
-        if overrides:
-            for override in overrides:
-                keys, value = override.split("=", 1)
-                keys = keys.split(".")
-                sub_config = config
-                for key in keys[:-1]:
-                    sub_config = sub_config.setdefault(key, {})
-                sub_config[keys[-1]] = yaml.safe_load(
-                    value
-                )  # Parse value as YAML for proper typing
-        return config
+#     def apply_overrides(config, overrides):
+#         if overrides:
+#             for override in overrides:
+#                 keys, value = override.split("=", 1)
+#                 keys = keys.split(".")
+#                 sub_config = config
+#                 for key in keys[:-1]:
+#                     sub_config = sub_config.setdefault(key, {})
+#                 sub_config[keys[-1]] = yaml.safe_load(
+#                     value
+#                 )  # Parse value as YAML for proper typing
+#         return config
 
-    args = parse_args()
+#     args = parse_args()
 
-    with open(args.config, 'r') as f:
-        config = yaml.safe_load(f)
+#     with open(args.config, 'r') as f:
+#         config = yaml.safe_load(f)
 
-    config = apply_overrides(config, args.override)
+#     config = apply_overrides(config, args.override)
 
-    trainer = ChessTrainer(config)
+#     trainer = ChessTrainer(config)
 
-    logging.info("Starting Chess Trainer...")
-    trainer.train()
-    logging.info("Training completed.")
+#     logging.info("Starting Chess Trainer...")
+#     trainer.train()
+#     logging.info("Training completed.")
