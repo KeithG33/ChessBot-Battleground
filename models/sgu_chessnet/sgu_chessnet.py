@@ -215,16 +215,3 @@ class SpatialGatingChessNet(BaseChessModel):
         board_val = self.value_head(features)
 
         return action_logits, board_val
-
-
-
-
-
-# transformer = SpatialGatingChessNet().cuda()
-# print(f"Num parameters: {sum(p.numel() for p in transformer.parameters())}")
-
-# # Test the transformer with random inputs
-# state = torch.randint(-1, 1, (32, 1, 8, 8)) * 6  # Random integer tensor between -6 and 6
-
-# # # Forward pass
-# action_logits, board_val, action_rewards = transformer(state.cuda())

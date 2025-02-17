@@ -213,8 +213,6 @@ class ChessTransformer(nn.Module):
         self.pos_encoding = nn.Parameter(torch.randn(1, 64, piece_embed_dim))
         torch.nn.init.kaiming_normal_(self.pos_encoding, mode='fan_out', nonlinearity='relu')
 
-        self.embed_mlp = ResidualBlock(num_features, 2 * num_features, dropout=dropout)
-
         # Mixer blocks
         # params: [num_heads, drop_path] (dropout uses lots of memory)
         params_config = [(6, 0.05)] * 4 + [(8, 0.1)] * 4 + [(12, 0.15)] * 8 + [(24, 0.2)] * 4
@@ -246,107 +244,21 @@ class ChessTransformer(nn.Module):
             nn.Tanh()
         ).to(device)
 
-        # Critic head
-        self.critic_head = nn.Sequential(
-            ResidualBlock(num_features, int(2*num_features)),
-            nn.LayerNorm(num_features),
-            nn.Linear(num_features, num_features),
-            nn.GELU(),
-            nn.Linear(num_features, self.action_dim),
-            nn.Tanh()
-        ).to(device)
-        
         self.value_loss = nn.MSELoss()
         self.policy_loss = nn.CrossEntropyLoss()
-        self.crit_loss = nn.MSELoss()
+
     
     def embed_state(self, x):
         x = x.view(x.size(0), -1)  # (B, 1, 8, 8) -> (B, 64)
         x = self.piece_embedding(x + 6)  # (B, 64) -> (B, 64, piece_embed_dim)
         x = x + self.pos_encoding.expand(x.size(0), -1, -1)
-        # x = self.embed_mlp(x.view(x.size(0), -1)).view(x.size(0), 64, -1)
         return x
 
     def forward(self, x):
-        if isinstance(x, np.ndarray):
-            x = torch.tensor(x, dtype=torch.long, device=self.device)
-
         features = self.embed_state(x.long())  # Shape: (B, 64, piece_embed_dim)
         features = self.mixer_layers(features)  # Shape: (B, piece_embed_dim, 64)
         features = features.view(features.size(0), -1)
 
         action_logits = self.policy_head(features)
-        action_rewards = self.critic_head(features)
         board_val = self.value_head(features)
-
-        return action_logits, board_val, action_rewards
-
-    def critic_loss(self, critic_output, action, result):
-        """ 
-        Generate target reward vector and compute MSE loss. Use current action to predict
-        ground truth outcome of game
-        """
-        batch_size = critic_output.shape[0]
-        action_inds = torch.argmax(action, dim=1)
-
-        target = torch.zeros((batch_size, 4672), dtype=torch.float32, device=self.device)
-        batch_indices = torch.arange(batch_size, device=self.device)
-        target[batch_indices, action_inds] = result.float()
-
-        return self.crit_loss(critic_output, target)
-    
-    def get_action(self, state, legal_moves, sample_n=1):
-        """ Randomly sample from top_n legal actions given input state"""
-
-        state = torch.as_tensor(state, dtype=torch.float32, device=self.device).unsqueeze(0).unsqueeze(0)
-        state = self.embed_state(state.long())
-        features = self.mixer_layers(state)
-        features = features.view(features.shape[0], -1)
-        
-        policy_logits = self.policy_head(features)
-
-        legal_actions = [ChessEnv.move_to_action(move) for move in legal_moves]
-        return self.to_action(policy_logits, legal_actions, top_n=sample_n)
-    
-    def to_action(self, action_logits, legal_actions, top_n):
-        """ Randomly sample from top_n legal actions given output action logits """
-
-        if len(legal_actions) < top_n: top_n = len(legal_actions)
-
-        action_probs = torch.nn.functional.log_softmax(action_logits, dim=-1)
-        action_probs_np = action_probs.detach().cpu().numpy().flatten()
-
-        # Set non legal-actions to = -inf so they aren't considered
-        mask = np.ones(action_probs_np.shape, bool)
-        mask[legal_actions] = False
-        action_probs_np[mask] = -np.inf
-
-        # sample from top-n policy prob indices
-        top_n_indices = np.argpartition(action_probs_np, -top_n)[-top_n:]
-        action = np.random.choice(top_n_indices)
-        
-        log_prob = action_probs.flatten()[action]
-        return action, log_prob
-    
-# transformer = ChessTransformer().cuda()
-# print(f"Num parameters: {sum(p.numel() for p in transformer.parameters())}")
-
-# # Test the transformer with random inputs
-# state = torch.randint(-1, 1, (32, 1, 8, 8)) * 6  # Random integer tensor between -6 and 6
-
-# # # Forward pass
-# action_logits, board_val, action_rewards = transformer(state.cuda())
-
-
-
-
-# # test relative position attention
-# rel_pos = AttentionBlock(64,24, 8)
-# x = torch.randn(32, 64, 24)
-# times = []
-# for i in range(200):
-#     t1 = time.perf_counter()
-#     out = rel_pos(x)
-#     times.append(time.perf_counter()-t1)
-
-# print(f"Time: {np.median(times)}")
+        return action_logits, board_val
