@@ -3,6 +3,11 @@ import numpy as np
 import torch
 
 
+def apply_dirichlet_noise(action_probs, dirichlet_alpha=0.3, exploration_fraction=0.25):
+    noise = np.random.dirichlet([dirichlet_alpha] * len(action_probs))
+    return (1 - exploration_fraction) * action_probs + exploration_fraction * noise
+
+
 class MonteCarloTreeSearch:
 
     def __init__(self, game_state, nnet):
@@ -55,7 +60,7 @@ class MonteCarloTreeSearch:
 
         action_probs = self.get_action_probabilities(init_state)
         best_action = max(action_probs, key=action_probs.get)
-        return action_probs, best_action
+        return best_action, action_probs
 
     def search_iteration(self, game_state, game_obs, root=False, c_param=1.4):
         state = game_state.get_string_representation()
@@ -140,8 +145,3 @@ class MonteCarloTreeSearch:
                 best_action = action
 
         return best_action, best_ucb
-    
-def apply_dirichlet_noise(action_probs, dirichlet_alpha=0.3, exploration_fraction=0.25):
-    noise = np.random.dirichlet([dirichlet_alpha] * len(action_probs))
-    return (1 - exploration_fraction) * action_probs + exploration_fraction * noise
-
