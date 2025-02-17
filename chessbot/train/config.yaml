@@ -16,7 +16,7 @@ train:
   rounds: 1                             # Number of times to sample from dataset
   epochs: 1                             # Number of epochs to train on sampled data
   batch_size: 1024                      # Batch size (test/train)
-  validation_every: 20000               # Validate the model every N iterations
+  validation_every: 0                   # Validate the model every N iterations
   lr: 0.0005                            # Learning rate
   min_lr: 0.00005                       # Minimum learning rate
   scheduler: cosine                     # Learning rate scheduler ('linear' or 'cosine')
@@ -31,7 +31,7 @@ train:
   grad_accum: 0                         # Gradient accumulation steps. Greater than 0 to enable
   device: cuda                          # Device to train on
   output_dir: ./                        # Output directory for training artifacts
-  checkpoint_dir: null                  # Checkpoint directory from previous training
+  checkpoint_dir: null                  # Checkpoint directory to load from previous training
 
 # Logging configuration
 logging:

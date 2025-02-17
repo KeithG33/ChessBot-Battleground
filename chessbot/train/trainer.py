@@ -14,32 +14,33 @@ from tqdm import tqdm
 import torch
 from torch.utils.data import DataLoader
 
-from chessbot.data.dataset import ChessDataset
-from chessbot.train.utils import WarmupLR, RunningAverage
-from chessbot.train.config import get_config, load_config
-from chessbot.models.registry import ModelRegistry
-
+from omegaconf import OmegaConf
 from accelerate import Accelerator
+
+from chessbot.data.dataset import ChessDataset
+from chessbot.train.utils import WarmupLR, MetricsTracker
+from chessbot.train.config import load_default_cfg
+from chessbot.models.registry import ModelRegistry
 
 
 class ChessTrainer:
-    """Chess trainer for training a chess model using the chess dataset
+    """Chess trainer for training a chess model with the ChessBot dataset
 
-    NOTE: The dataloading here is a little weird, and specific to my levels of home compute.
-          Users will likely want to write their own training code for their own setup.
-
-          The training setup here uses 'rounds' and 'epochs'. Each 'round' samples a subset of the
-          training data, and then performs a specified number of 'epochs'.
+    Due to the size of the dataset, the training is split into rounds and epochs. Each round
+    samples a subset of the training data, and then performs a specified number of epochs.
     """
 
     def __init__(self, config, model=None, load_model_from_config=False):
-        self.cfg = get_config()
-        config = load_config(config) if isinstance(config, str) else config
-        self.cfg |= config
+        config = OmegaConf.load(config) if isinstance(config, str) else config
+        self.cfg = load_default_cfg()
+        self.cfg = OmegaConf.merge(self.cfg, config)
+
+        self.optimizer = None
+        self.scheduler = None
 
         self.model = model
         load_model_from_config = True if model is None else load_model_from_config
-        
+
         if load_model_from_config:
             self.load_model_from_config()
             self.initialize_model()
@@ -55,10 +56,22 @@ class ChessTrainer:
 
         os.makedirs(self.cfg.train.output_dir, exist_ok=True)
         with open(os.path.join(self.cfg.train.output_dir, "config.yaml"), "w") as f:
-            yaml.safe_dump(self.cfg, f)
+            OmegaConf.save(self.cfg, f)
 
         self.latest_model_path = os.path.join(self.cfg.train.output_dir, "model_latest")
         self.best_model_path = os.path.join(self.cfg.train.output_dir, "model_best")
+
+        self.stats = MetricsTracker()
+        self.stats.add(
+            [
+                "train_loss",
+                "train_ploss",
+                "train_vloss",
+                "val_loss",
+                "val_ploss",
+                "val_vloss",
+            ]
+        )
 
     def load_model_from_config(self):
         """
@@ -177,59 +190,61 @@ class ChessTrainer:
         dataset = ChessDataset(sampled_data, num_threads=cfg.dataset.num_threads)
         return DataLoader(dataset, batch_size=cfg.train.batch_size, shuffle=False)
 
-    def run_validation(self, stats: RunningAverage, main_progress_bar=None):
+    def run_validation(self):
         val_loader = self.build_val_loader(self.cfg)
         total_val_steps = len(val_loader)
-        
-        # Clear the main progress bar so the validation bar can take its place.
-        if main_progress_bar:
-            main_progress_bar.clear()
-        
-        # Create a temporary progress bar for validation that will vanish when done.
-        with tqdm(total=total_val_steps, desc="Validation", leave=False, dynamic_ncols=True, position=0,
-                bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}] {postfix}"
+
+        with tqdm(
+            total=total_val_steps,
+            desc="Validation",
+            leave=False,
+            dynamic_ncols=True,
+            position=0,
+            bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}] {postfix}",
         ) as val_bar:
             self.model.eval()
-            stats.reset(["val_loss", "val_ploss", "val_vloss"])
-        
+            self.stats.reset(["val_loss", "val_ploss", "val_vloss"])
+
             with torch.no_grad():
                 for state, action, result in val_loader:
                     state = state.float().to(self.cfg.train.device)
                     action = action.to(self.cfg.train.device)
                     result = result.float().to(self.cfg.train.device)
-        
+
                     policy_output, value_output = self.model(state.unsqueeze(1))
-        
-                    policy_loss = self.model.policy_loss(policy_output.squeeze(), action)
+
+                    policy_loss = self.model.policy_loss(
+                        policy_output.squeeze(), action
+                    )
                     value_loss = self.model.value_loss(value_output.squeeze(), result)
-        
+
                     loss = policy_loss + value_loss
-        
-                    stats.update({
-                        "val_loss": loss.item(),
-                        "val_ploss": policy_loss.item(),
-                        "val_vloss": value_loss.item(),
-                    })
-        
+
+                    self.stats.update(
+                        {
+                            "val_loss": loss.item(),
+                            "val_ploss": policy_loss.item(),
+                            "val_vloss": value_loss.item(),
+                        }
+                    )
+
                     # Update the validation progress bar to display current loss.
-                    val_bar.set_postfix({
-                        "Val Loss": f"{loss.item():.4f}",
-                        "Val Ploss": f"{policy_loss.item():.4f}",
-                        "Val Vloss": f"{value_loss.item():.4f}",
-                    })
+                    val_bar.set_postfix(
+                        {
+                            "Val Loss": f"{loss.item():.4f}",
+                            "Val Ploss": f"{policy_loss.item():.4f}",
+                            "Val Vloss": f"{value_loss.item():.4f}",
+                        }
+                    )
                     val_bar.update(1)
-    
-        # After validation, refresh the main progress bar.
-        if main_progress_bar:
-            main_progress_bar.refresh()
-        
+
         return (
-            stats.get_average('val_loss'),
-            stats.get_average('val_ploss'),
-            stats.get_average('val_vloss'),
+            self.stats.get_average('val_loss'),
+            self.stats.get_average('val_ploss'),
+            self.stats.get_average('val_vloss'),
         )
 
-    def training_round(self, train_loader, accelerator, progress_bar, stats, round):
+    def training_round(self, train_loader, accelerator, progress_bar, round):
         """
         Perform a single training round.
         """
@@ -246,9 +261,7 @@ class ChessTrainer:
                 with accelerator.accumulate():
                     policy_output, value_output = self.model(state.unsqueeze(1))
 
-                    policy_loss = self.model.policy_loss(
-                        policy_output.squeeze(), action
-                    )
+                    policy_loss = self.model.policy_loss(policy_output.squeeze(), action)
                     value_loss = self.model.value_loss(value_output.squeeze(), result)
                     loss = policy_loss + value_loss
 
@@ -265,7 +278,7 @@ class ChessTrainer:
                     if self.scheduler:
                         self.scheduler.step()
 
-                stats.update(
+                self.stats.update(
                     {
                         "train_loss": loss.item(),
                         "train_ploss": policy_loss.item(),
@@ -274,9 +287,13 @@ class ChessTrainer:
                 )
 
                 # Validation
-                if iter % self.cfg.train.validation_every == 0 and iter > 0:
-                    val_loss, val_ploss, val_vloss = self.run_validation(stats)
-                    stats.update(
+                if (
+                    self.cfg.train.validation_every > 0
+                    and iter % self.cfg.train.validation_every == 0
+                    and iter > 0
+                ):
+                    val_loss, val_ploss, val_vloss = self.run_validation()
+                    self.stats.update(
                         {
                             "val_loss": val_loss,
                             "val_ploss": val_ploss,
@@ -300,23 +317,28 @@ class ChessTrainer:
                         accelerator.save_state(output_dir=self.checkpoint_dir)
 
                 # Update the single progress bar with detailed information
-                progress_bar.set_postfix({
-                    "Round": f"{round + 1}/{self.cfg.train.rounds}",
-                    "Epoch": f"{epoch + 1}/{self.cfg.train.epochs}",
-                    "Iter": f"{iter + 1}/{len(train_loader)}",
-                    "Loss": f"{loss.item():.4f}",
-                    "Val Loss": f"{val_loss:.4f}",
-                })
+                progress_bar.set_postfix(
+                    {
+                        "Round": f"{round + 1}/{self.cfg.train.rounds}",
+                        "Epoch": f"{epoch + 1}/{self.cfg.train.epochs}",
+                        "Iter": f"{iter + 1}/{len(train_loader)}",
+                        "Loss": f"{loss.item():.4f}",
+                        "Val Loss": f"{val_loss:.4f}",
+                    }
+                )
                 progress_bar.update(1)
 
             accelerator.save_model(self.model, self.latest_model_path)
             accelerator.save_state(output_dir=self.checkpoint_dir)
 
     def train(self):
-        assert self.model is not None, "Model not initialized. Please set up your model before calling .train()"
+        assert (
+            self.model is not None
+        ), "Model not initialized. Please set up your model before calling .train()"
 
-        # Sets optimizer and scheduler
-        self.build_optimizer()
+        # Sets optimizer and scheduler if not already set
+        if not self.optimizer:
+            self.build_optimizer()
 
         accelerator = Accelerator(
             cpu=self.cfg.train.device == 'cpu',
@@ -324,11 +346,9 @@ class ChessTrainer:
             dynamo_backend='INDUCTOR' if self.cfg.train.compile else None,
         )
 
-
         # Each round samples new data from dataset and performs epochs
         for round_num in range(self.cfg.train.rounds):
-            stats = RunningAverage()
-            stats.add(
+            self.stats.reset(
                 [
                     "train_loss",
                     "train_ploss",
@@ -340,6 +360,7 @@ class ChessTrainer:
             )
 
             train_loader = self.build_train_loader(self.cfg)
+            print(f"Loaded {len(train_loader.dataset.data)} positions")
 
             total_iters = len(train_loader) * self.cfg.train.epochs
             progress_bar = tqdm(
@@ -350,18 +371,15 @@ class ChessTrainer:
                 bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}] {postfix}",
             )
 
-            print(f"Loaded {len(train_loader.dataset.data)} positions")
-
             self.model, self.optimizer, train_loader, self.scheduler = (
                 accelerator.prepare(
                     self.model, self.optimizer, train_loader, self.scheduler
                 )
             )
-            if self.checkpoint_dir and round_num == 0:
+            if self.cfg.train.checkpoint_dir and round_num == 0:
                 accelerator.load_state(self.cfg.train.checkpoint_dir)
 
-            # self.training_round(train_loader, accelerator, progress_bar, stats)
-            self.training_round(train_loader, accelerator, progress_bar, stats, round_num)
+            self.training_round(train_loader, accelerator, progress_bar, round_num)
 
             # reduce memory spikes
             del train_loader

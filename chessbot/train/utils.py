@@ -1,4 +1,4 @@
-class RunningAverage:
+class MetricsTracker:
     """ Utility class to keep track of training metrics """
     
     def __init__(self):

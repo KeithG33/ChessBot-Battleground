@@ -1,16 +1,10 @@
 from pathlib import Path
-import attridict
-import yaml
-import pprint
+from omegaconf import OmegaConf
 
-def load_config(config_path):
-    with open(config_path) as f:
-        config = yaml.safe_load(f)
-    
-    return attridict(config)
 
-def get_config():
+def load_default_cfg():
     """ Return a default configuration object """
     # load config.yaml from this file's directory
     cfg_path = Path(__file__).parent / 'config.yaml' 
-    return load_config(cfg_path)
+    return OmegaConf.load(cfg_path)
+
