@@ -8,9 +8,7 @@ Project under development. Stay tuned!
 
 ##  Introduction
 
-This repository has two main purposes: store a gigantic curated ChessBot-Dataset for ML training, act as a repository for my somewhat successful Franken-Models, and provide some simple Python/PyTorch infrastructure to quickly design, train, and compare model architectures. See how well your model architecture ideas can extract information from tiny 8x8 chess board images.  
-
-This library provides support for:
+Design a chess network and see how it learns. This repository contains a gigantic curated chess dataset meant for machine learning, along with the supporting code to train, infer, and display games. In total this library provides support for:
 
 - **Dataset/Training:** PyTorch dataset and training code
 - **Gym Environment:** Extra Gym environment for inference and self-play
@@ -38,7 +36,7 @@ Currently the dataset contains approximately **700 million positions** in **PGN 
 <!-- - (*coming soon*) Stockfish Data: position evaluation, puzzle solutions, best-move sequences   -->
   
       
-The PyTorch `ChessDataset` is provided in `chessbot/data/dataset.py` to load the data for training.
+The PyTorch `ChessDataset` is provided in `chessbot/data/dataset.py` to load the data for training, which has the following format:
 
 ```python
 import chessbot.data.ChessDataset
@@ -48,10 +46,12 @@ num_threads = 8
 
 dataset     = ChessDataset(pgn_files, num_threads=num_threads)
 dataloader  = DataLoader(dataset, batch_size=bsz)
+batch       = next(iter(dataloader))
 
-# Get example batch
-batch = next(iter(dataloader))
-states, actions, results = batch # (B, 8, 8),  (B, 4672),  (B,)
+# Check shapes
+states  = batch[0]  # (B, 8, 8),
+actions = batch[1]  # (B, 4672)
+results = batch[2]  # (B,)
 ```
 
 
@@ -63,19 +63,19 @@ A `ChessTrainer` class can be used to train ChessBot models. The trainer splits 
 **ChessTrainer**
 - HuggingFace's `accelerate` for easy access to mixed precision, compilation, gradient clipping, gradient accumulation, etc.
 - Warmup LR scheduling and decay (linear or cosine)
-- Configurable validation frequency in iterations
+- Validation frequency in iterations
 - Optional logging to wandb 
 
 
 Here's a somewhat realistic example of using it:
 
 ```python
-from chessbot.config import get_config()
+from chessbot.config import load_default_cfg()
 from chessbot.train import ChessTrainer
 from chessnet import YourChessNet
 
 # Get default cfg and do some basic setup
-cfg = get_config() # get default cfg
+cfg = load_default_cfg() # get default cfg
 
 cfg.dataset.data_path = 'ChessBot-Battleground/dataset/'
 cfg.dataset.size_train = 25 # num files to sample for train set
@@ -95,7 +95,7 @@ See the [config](chessbot/train/config.yaml) in `chessbot/train/config.yaml` for
 
 ## Models
 
-To take advantage of the training and inference code, models must subclass the `BaseChessModel` class. The input is expected to be a `(B, 1, 8, 8)` tensor or a `(1, 8, 8)` or `(8, 8)` numpy array. There are two outputs corresponding to policy and value for the position, which have shapes `(B, 4672)` and `(B, 1)`.
+To take advantage of the training and inference code, models should subclass the `BaseChessModel` class. The expected input is a `(B, 1, 8, 8)` tensor for the current position, and there are two expected outputs: a policy distribution of shape `(B,4672)`, and an expected value of shape `(B,1)`.
 
 A minimal example below:
 ```python
@@ -106,9 +106,7 @@ class SimpleChessNet(BaseChessModel):
         super().__init__()
         
         # Mini backbone
-        self.layers = nn.Sequential(
-            nn.Linear(64, 256),
-        )
+        self.backbone = nn.Linear(64, 256)
 
         # Policy head
         self.policy_head = nn.Sequential(
@@ -124,14 +122,14 @@ class SimpleChessNet(BaseChessModel):
 
     def forward(self, x):
       """ Input is tensor of shape (B,1,8,8) """
-        x = x.view(B, -1) # <-- pretend we know B ;)
-        features = self.layers(x)
-        action_logits = self.policy_head(features)
-        board_val = self.value_head(features)
+        x             = x.view(B, -1)
+        features      = self.backbone(x)            # -> (B, 256)
+        action_logits = self.policy_head(features)  # -> (B, 4672)
+        board_val     = self.value_head(features)   # -> (B, 1)
         return action_logits, board_val
 ```
 
-To get a bit more custom with inputs and outputs, feel free to write your own training and inference code, but share those high scores regardless.
+If your model needs to break that input/output format, then you'll have to write your own training and inference code.
 
 ## 🤖 Inference & Battling
 
@@ -157,14 +155,14 @@ while not done:
 
 Similar code also exists to harness **Monte Carlo Tree Search (MCTS)** for search during inference. *MCTS training code coming soon!*
 
-The [Chess Battle GIF](#chess-battle-gif) at the beginning is an example of rendering the game with the Chess-env, and using MCTS for model inference. 
+The [Chess Battle GIF](#chess-battle-gif) at the beginning is an example of rendering the game with the Chess-env, and using MCTS for test-time powered inference. 
 
 ## 📈 Future Plans
 
 - Clean and deduplicate the dataset
 - Expand the dataset, add Stockfish generated data, get to an epic milestone of **1 billion positions**.  
 - Release **MCTS training pipelines**.  
-- Add enhanced tools for training and visualization.
+- Add enhanced tools for training and visualization and evaluation.
 
 
 ## Getting Started
@@ -206,10 +204,10 @@ By default, the latest release will be downloaded into the `ChessBot-Battlegroun
 
 **3. Examples**  
 
-1. There is a simple and complete example in [examples](examples/) to get you started. The directory contains an example model and training and inference notebooks. Check out the `SimpleChessNet` for an example of the model interface; use `example_training.ipynb` to train the model; use `example_inference.ipynb` to either run inference with the base model, or with an MCTS wrapper for a test-time-powerup.
+1. There is a simple and complete example in [examples](examples/) to get you started. The directory contains an example model and notebooks for training and inference. Check out the `SimpleChessNet` for an example of the model interface; use `example_training.ipynb` to train the model; use `example_inference.ipynb` to either run inference with the base model, or with an MCTS wrapper for a test-time-powerup.
 
 
-2. For full-scale examples check out the models in the [models](models/) directory for the ones worth saving.
+2. For actual models check out the [models](models/) directory.
 
 3. Additionally, an `example_sf_datagen.ipynb` exists to show how one might add data to the dataset. Unfortunately stockfish is slow so this is a hopeful crumb that I leave for the crowd
 
