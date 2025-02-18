@@ -213,9 +213,7 @@ class ChessTrainer:
 
                     policy_output, value_output = self.model(state.unsqueeze(1))
 
-                    policy_loss = self.model.policy_loss(
-                        policy_output.squeeze(), action
-                    )
+                    policy_loss = self.model.policy_loss(policy_output.squeeze(), action)
                     value_loss = self.model.value_loss(value_output.squeeze(), result)
 
                     loss = policy_loss + value_loss
@@ -285,6 +283,16 @@ class ChessTrainer:
                         "train_vloss": value_loss.item(),
                     }
                 )
+
+                if self.cfg.logging.wandb:
+                    wandb.log(
+                        {
+                            "train_loss": loss.item(),
+                            "train_ploss": policy_loss.item(),
+                            "train_vloss": value_loss.item(),
+                            "iter": iter,
+                        }   
+                    )
 
                 # Validation
                 if (
