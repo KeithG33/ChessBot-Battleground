@@ -21,19 +21,21 @@ def mean_reciprocal_rank(logits, targets):
 
 
 def evaluate_model(
-    model, dataset_dir, batch_size: int, num_threads: int, device="cuda"
+    model, dataset_dir, batch_size: int, num_threads: int, device="cuda", chunk_size=None
 ):
-    """Evaluate the model on the test dataset."""
+    """Evaluate the model with optional chunking for low-memory environments."""
 
-    # Create dataset and dataloader
     test_data = os.path.join(dataset_dir, 'test')
-    dataset = ChessDataset(test_data, num_threads=num_threads)
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
 
-    print(f"Loaded validation dataset with {len(dataset)} positions.")
+    # glob all PGN files in the test directory
+    all_files = [f.path for f in os.scandir(test_data) if f.name.endswith(".pgn")]
+    
+    if chunk_size is None:
+        chunk_size = len(all_files)  # Process all at once if memory allows
 
     model.eval()
 
+    # Track total metrics
     total_policy_loss = 0
     total_mse_loss = 0
     total_mae_loss = 0
@@ -41,37 +43,48 @@ def evaluate_model(
     total_top5_acc = 0
     total_top10_acc = 0
     total_mrr = 0
-    num_batches = len(dataloader)
+    num_batches = 0
 
     with torch.inference_mode():
-        for state, action, result in tqdm(dataloader, desc="Evaluating", leave=False):
-            state = state.float().to(device)
-            action = action.to(device)
-            result = result.float().to(device)
+        for i in range(0, len(all_files), chunk_size):
+            chunk_files = all_files[i : i + chunk_size]
 
-            # Forward pass
-            policy_output, value_output = model(state.unsqueeze(1))
+            # Create a dataset/dataloader for the current chunk
+            dataset = ChessDataset(chunk_files, num_threads=num_threads)
+            dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
 
-            # Compute losses
-            policy_loss = F.cross_entropy(policy_output, action, reduction="mean")
-            value_loss_l2 = F.mse_loss(value_output.squeeze(), result, reduction="mean")
-            value_loss_l1 = F.l1_loss(value_output.squeeze(), result, reduction="mean")
+            print(f"Processing chunk {i // chunk_size + 1} / {len(all_files) // chunk_size + 1} ({len(dataset)} samples)")
 
-            total_policy_loss += policy_loss.item()
-            total_mse_loss += value_loss_l2.item()
-            total_mae_loss += value_loss_l1.item()
+            for state, action, result in tqdm(dataloader, desc="Evaluating", leave=False):
+                state = state.float().to(device)
+                action = action.to(device)
+                result = result.float().to(device)
 
-            # Compute Accuracy, Top-5, and Top-10
-            action_indices = action.argmax(dim=1)  # Get true class indices
-            pred_top5 = policy_output.topk(5, dim=1)[1]
-            pred_top10 = policy_output.topk(10, dim=1)[1]
+                # Forward pass
+                policy_output, value_output = model(state.unsqueeze(1))
 
-            total_acc += (policy_output.argmax(dim=1) == action_indices).float().mean().item()
-            total_top5_acc += (pred_top5 == action_indices.unsqueeze(1)).any(dim=1).float().mean().item()
-            total_top10_acc += (pred_top10 == action_indices.unsqueeze(1)).any(dim=1).float().mean().item()
+                # Compute losses
+                policy_loss = F.cross_entropy(policy_output, action, reduction="mean")
+                value_loss_l2 = F.mse_loss(value_output.squeeze(), result, reduction="mean")
+                value_loss_l1 = F.l1_loss(value_output.squeeze(), result, reduction="mean")
 
-            # Compute Mean Reciprocal Rank (MRR)
-            total_mrr += mean_reciprocal_rank(policy_output, action_indices)
+                total_policy_loss += policy_loss.item()
+                total_mse_loss += value_loss_l2.item()
+                total_mae_loss += value_loss_l1.item()
+
+                # Compute Accuracy, Top-5, and Top-10
+                action_indices = action.argmax(dim=1)  # Get true class indices
+                pred_top5 = policy_output.topk(5, dim=1)[1]
+                pred_top10 = policy_output.topk(10, dim=1)[1]
+
+                total_acc += (policy_output.argmax(dim=1) == action_indices).float().mean().item()
+                total_top5_acc += (pred_top5 == action_indices.unsqueeze(1)).any(dim=1).float().mean().item()
+                total_top10_acc += (pred_top10 == action_indices.unsqueeze(1)).any(dim=1).float().mean().item()
+
+                # Compute Mean Reciprocal Rank (MRR)
+                total_mrr += mean_reciprocal_rank(policy_output, action_indices)
+
+                num_batches += 1  # Track total processed batches
 
     # Compute averages
     policy_loss = total_policy_loss / num_batches
@@ -103,3 +116,4 @@ def evaluate_model(
         "mrr": mrr,
         "mae": mae,
     }
+
