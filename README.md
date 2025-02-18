@@ -102,7 +102,7 @@ trainer.train()
 See [`chessbot/train/config.yaml`](chessbot/train/config.yaml) for a list and description of the available options, and the next section for a brief description of models.
 
 
-## Models
+## 🤖 Models
 
 To take advantage of the training and inference code, models should subclass the `BaseChessModel` class. The expected format is:
 1. **Input**: `(B, 1, 8, 8)` tensor for position
@@ -140,7 +140,7 @@ class SimpleChessNet(BaseChessModel):
 
 If your model needs to break that input/output format, then you'll have to write your own training and inference code.
 
-## 🤖 Inference & Battling
+## 🦾 Inference & Battling
 
 Take your models to the battleground!  
 
