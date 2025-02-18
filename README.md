@@ -1,14 +1,23 @@
+
+<!-- Banner Start -->
+<div align="center">
+<img src="assets/chessbot-banner.png" style="width: 45%; height: auto;">  
+
 # ChessBot Battleground
 
-### 🚧 Under Construction 🚧
+**Chess AI Training & Battleground Platform**
+
+[**Getting Started**](#getting-started) • [**Dataset**](#-dataset) • [**Training**](#-training) • [**Inference & Battling**](#-inference--battling) • [**Models**](#models)
+
+</div>
+<!-- Banner End -->
+
+
 
 Project under development. Stay tuned!
-
-
-
 ##  Introduction
 
-Design a chess network and see how it learns. This repository contains a gigantic curated chess dataset meant for machine learning, along with the supporting code to train, infer, and display games. In total this library provides support for:
+This repository contains a gigantic curated chess dataset meant for machine learning, along with the supporting code to train, infer, and display games. All you need to do is design a model, and you're up and running. In total this library provides support for:
 
 - **Dataset/Training:** PyTorch dataset and training code
 - **Gym Environment:** Extra Gym environment for inference and self-play
@@ -17,7 +26,7 @@ Design a chess network and see how it learns. This repository contains a giganti
 - **Visualization:** Watch your models in action as they play and adapt on the board.
 - **Evaluation**: Compare performance on the dataset. Leaderboard coming soon?
 
-Write a model that subclasses `BaseChessModel` and take advantage of any of the available features. See one in action below:
+For the model, subclass the `BaseChessModel` class and take advantage of any of the available features. See one in action below:
 
 <div align="center"  id="chess-battle-gif">
   <img src="assets/chessSGU-R8.1-selfplay.gif" style="width: 35%; height: auto;">
@@ -54,7 +63,7 @@ actions = batch[1]  # (B, 4672)
 results = batch[2]  # (B,)
 ```
 
-
+If you have your own pgn files and want to make your own dataset, the PyTorch dataset should work with those as well. The moves and results are loaded from each game in the PGN file
 ## 🧠 Training
 
 A `ChessTrainer` class can be used to train ChessBot models. The trainer splits the data loading and training into rounds and epochs. Each round will sample a new subset of `cfg.dataset.size_train` files, and then perform epochs on this subset.   
@@ -90,14 +99,16 @@ trainer = ChessTrainer(cfg, model)
 trainer.train()
 ```
 
-See the [config](chessbot/train/config.yaml) in `chessbot/train/config.yaml` for a list and description of the available options, and the next section for a brief description of models.
+See [`chessbot/train/config.yaml`](chessbot/train/config.yaml) for a list and description of the available options, and the next section for a brief description of models.
 
 
 ## Models
 
-To take advantage of the training and inference code, models should subclass the `BaseChessModel` class. The expected input is a `(B, 1, 8, 8)` tensor for the current position, and there are two expected outputs: a policy distribution of shape `(B,4672)`, and an expected value of shape `(B,1)`.
+To take advantage of the training and inference code, models should subclass the `BaseChessModel` class. The expected format is:
+1. **Input**: `(B, 1, 8, 8)` tensor for position
+2. **Output**: a policy distribution of shape `(B, 4672)`, and expected value of shape `(B, 1)`.
 
-A minimal example below:
+A minimal example of writing a model:
 ```python
 class SimpleChessNet(BaseChessModel):
   """ One layer backbone and one layer prediction heads """
@@ -109,9 +120,7 @@ class SimpleChessNet(BaseChessModel):
         self.backbone = nn.Linear(64, 256)
 
         # Policy head
-        self.policy_head = nn.Sequential(
-            nn.Linear(256, self.action_dim)
-        )
+        self.policy_head = nn.Linear(256, self.action_dim)
         
         # Value head
         self.value_head = nn.Sequential(
@@ -135,27 +144,25 @@ If your model needs to break that input/output format, then you'll have to write
 
 Take your models to the battleground!  
 
-The library includes an **Adversarial Gym Environment** designed for two-player turn-based games, that can be used to visualize model inference. Watch your models in a few lines of code:
+The library depends on an **Adversarial Gym Environment** designed for two-player turn-based games, that can be used to visualize model inference. To visualize your models playing, you can check out the functions in [`chessbot.inference`](chessbot/inference/):
 
 ```python
-import gym
-import adversarial_gym
 from example_model.simple_chessnet import SimpleChessNet
+from chessbot.inference import selfplay, play_match
 
-env = gym.make('Chess-v0', render_mode='human')
+# Run selfplay
 model = SimpleChessNet()
-observation, info = env.reset()
-done = False
+outcome = selfplay(model, visualize=True) # 1 if white wins, -1 if black wins, 0 draw
 
-while not done:
-    legal_moves = env.board.legal_moves
-    action = model.get_action(observation[0], legal_moves)
-    observation, reward, done, truncated, info = env.step(action)
+# Play a match with two models, use MCTS
+model1 = ChessNetOne()
+model2 = ChessNetTwo()
+scores = play_match(model1, model2, best_of=11, search=True, visualize=True) # Returns (score1, score2)
 ```
 
-Similar code also exists to harness **Monte Carlo Tree Search (MCTS)** for search during inference. *MCTS training code coming soon!*
+Use the search flag to harness **Monte Carlo Tree Search (MCTS)** for search during inference. *MCTS training code coming soon!*
 
-The [Chess Battle GIF](#chess-battle-gif) at the beginning is an example of rendering the game with the Chess-env, and using MCTS for test-time powered inference. 
+The [Chess Battle GIF](#chess-battle-gif) at the beginning is an example of visualizing the game with the Chess-env, and using MCTS for test-time powered inference. 
 
 ## 📈 Future Plans
 
@@ -163,6 +170,7 @@ The [Chess Battle GIF](#chess-battle-gif) at the beginning is an example of rend
 - Expand the dataset, add Stockfish generated data, get to an epic milestone of **1 billion positions**.  
 - Release **MCTS training pipelines**.  
 - Add enhanced tools for training and visualization and evaluation.
+- Add a leaderboard
 
 
 ## Getting Started
@@ -212,6 +220,8 @@ By default, the latest release will be downloaded into the `ChessBot-Battlegroun
 3. Additionally, an `example_sf_datagen.ipynb` exists to show how one might add data to the dataset. Unfortunately stockfish is slow so this is a hopeful crumb that I leave for the crowd
 
 
+#### 4. Leaderboard
+Share your model results on the train and test set and the best architectures can fight it out on a leaderboard!
 
 <!-- 
 **2. Training**  
