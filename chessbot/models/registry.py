@@ -42,7 +42,7 @@ class ModelRegistry:
         return list(cls._registry.keys())
   
     @classmethod
-    def load_models_from_directory(cls, directory_path):
+    def _load_models_from_directory(cls, directory_path):
         """
         Automatically loads all Python files in the specified directory to register models.
         Args:
@@ -72,3 +72,19 @@ class ModelRegistry:
         ModelClass = cls._registry[model_name]
         model_instance = ModelClass(*init_args, **init_kwargs)
         return model_instance
+    
+    @classmethod
+    def load_model_from_directory(cls, model_name, directory_path, *init_args, **init_kwargs):
+        """
+        Load a model from a directory containing Python files.
+        Args:
+            model_name (str): The name of the model to load.
+            directory_path (str): The directory containing the model file.
+            init_args (tuple): Positional arguments to pass to the model's constructor.
+            init_kwargs (dict): Keyword arguments to pass to the model's constructor.
+
+        Returns:
+            An instance of the model.
+        """
+        cls._load_models_from_directory(directory_path)
+        return cls.load_model(model_name, *init_args, **init_kwargs)
