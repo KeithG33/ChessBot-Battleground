@@ -7,26 +7,25 @@
 
 **Chess AI Training & Battleground Platform**
 
-[**Getting Started**](#getting-started) • [**Dataset**](#-dataset) • [**Training**](#-training) • [**Inference & Battling**](#-inference--battling) • [**Models**](#models)
+[**Getting Started (Installation)**](#getting-started) • [**Dataset**](#-dataset) • [**Training**](#-training) • [**Inference & Battling**](#-inference--battling) • [**Models**](#models)  
+
+[![Hits](https://hits.seeyoufarm.com/api/count/incr/badge.svg?url=https%3A%2F%2Fgithub.com%2FKeithG33%2FChessBot-Battleground&count_bg=%23A7AFB3&title_bg=%23170532&icon=&icon_color=%230019EE&title=views&edge_flat=false)](https://hits.seeyoufarm.com)
 
 </div>
 <!-- Banner End -->
 
-
-
-Project under development. Stay tuned!
 ##  Introduction
 
-This repository contains a gigantic curated chess dataset meant for machine learning, along with the supporting code to train, infer, and display games. All you need to do is design a model, and you're up and running. In total this library provides support for:
+This repository contains a gigantic curated chess dataset meant for machine learning, along with the supporting code to train, infer, and display games. All you need to do is design a model, and you can take advantage of any of the available features. In total this library provides support for:
 
 - **Dataset/Training:** PyTorch dataset and training code
-- **Gym Environment:** Extra Gym environment for inference and self-play
+- **Gym Environment:** Gym environment for inference and self-play
 - **Dueling:** Functionality for best-of-N matches between saved models
 - **MCTS:** Simple implementation to give your supervised models search capability (*with training coming soon*).
 - **Visualization:** Watch your models in action as they play and adapt on the board.
 - **Evaluation**: Compare performance on the dataset. Leaderboard coming soon?
 
-For the model, subclass the `BaseChessModel` class and take advantage of any of the available features. See one in action below:
+See a model in action below:
 
 <div align="center"  id="chess-battle-gif">
   <img src="assets/chessSGU-R8.1-selfplay.gif" style="width: 35%; height: auto;">
@@ -110,6 +109,10 @@ To take advantage of the training and inference code, models should subclass the
 
 A minimal example of writing a model:
 ```python
+from chessbot.models import BaseChessModel, ModelRegistry
+
+
+@ModelRegistry.register()
 class SimpleChessNet(BaseChessModel):
   """ One layer backbone and one layer prediction heads """
     
@@ -135,11 +138,13 @@ class SimpleChessNet(BaseChessModel):
         features      = self.backbone(x)            # -> (B, 256)
         action_logits = self.policy_head(features)  # -> (B, 4672)
         board_val     = self.value_head(features)   # -> (B, 1)
+
         return action_logits, board_val
 ```
 
-If your model needs to break that input/output format, then you'll have to write your own training and inference code.
+As long as your model has these inputs and outputs, then all the features of the library are available. If you need to break that input/output format, then you'll have to write your own training and inference code.
 
+The model registry is a simple helper for the library to find and load your chess models from a path and name. If the decorator input is empty as in the example, `@ModelRegistry.register()`, then the model will automatically be registered with the class name `SimpleChessNet`. This helps find and load models for command line scripts.
 ## 🦾 Inference & Battling
 
 Take your models to the battleground!  
@@ -150,13 +155,13 @@ The library depends on an **Adversarial Gym Environment** designed for two-playe
 from example_model.simple_chessnet import SimpleChessNet
 from chessbot.inference import selfplay, play_match
 
-# Run selfplay
+# Run selfplay. Returns value in [-1,0,1] for white's outcome
 model = SimpleChessNet()
-outcome = selfplay(model, visualize=True) # 1 if white wins, -1 if black wins, 0 draw
+outcome = selfplay(model, visualize=True)
 
 # Play a match with two models, use MCTS
-model1 = ChessNetOne()
-model2 = ChessNetTwo()
+model1 = SimpleChessNet()
+model2 = SimpleChessNet()
 scores = play_match(model1, model2, best_of=11, search=True, visualize=True) # Returns (score1, score2)
 ```
 
@@ -196,9 +201,10 @@ Now install ChessBot-Battleground
 
 **2. Download the Dataset:**  
 
-The dataset is provided as a downloadable .zip file with each release. Either navigate to the github release page, or use the provided download tool:
+The dataset is provided as a downloadable .zip file with each release. Either navigate to the github release page, or use the chessbot cli tool:
 ```bash
-chessbot download [<tag>="latest"] [--save-path <path>] [--dataset-name <filename>]
+# For list of options
+chessbot download --help 
 
 # Default: download latest release to cwd if pip installed, or ChessBot-Battleground/dataset if source installed
 chessbot download
@@ -220,33 +226,18 @@ By default, the latest release will be downloaded into the `ChessBot-Battlegroun
 3. Additionally, an `example_sf_datagen.ipynb` exists to show how one might add data to the dataset. Unfortunately stockfish is slow so this is a hopeful crumb that I leave for the crowd
 
 
-#### 4. Leaderboard
-Share your model results on the train and test set and the best architectures can fight it out on a leaderboard!
+#### 4. Leaderboard / Evaluation
+Share your model's results on the test set. Compare your scores against the leaderboard. Once you've trained a model run the provided evaluate script to get your test set metrics.
 
-<!-- 
-**2. Training**  
-As above, if you want to use the default trainer you need two things: a config and a model
+```bash
+# For list of options
+chessbot evaluate --help 
 
-```python
-cfg = get_config()
-model = YourChessNet()
-
-trainer = ChessTrainer(cfg, model)
-trainer.train()
-```
-
-The trainer and config have been described so we'll move to the model
-
-**3. Models**
-A  -->
+# Default: register 'my_model' from 'path/to/model_dir', load data from 'ChessBot-Battleground/dataset'
+chessbot evaluate "my_model" --model-dir "path/to/model_dir/" 
+``` 
 
 
-
-<!-- 
-
-Check out the examples in [`ChessBot-Battleground/examples/`](examples/) or the real use-cases in [`ChessBot-Battleground/models/`](models/) for full setups. If you want to do something more custom feel free write your own training loop, or even dataset.
-
- -->
 
 
 

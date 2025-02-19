@@ -1,8 +1,10 @@
 import torch
 import torch.nn as nn
-from chessbot.models.base import BaseChessModel
+from chessbot.models import BaseChessModel
+from chessbot.models import ModelRegistry
 
 
+@ModelRegistry.register("simple_chessnet")
 class SimpleChessNet(BaseChessModel):
     """
     A simple example model that extends the BaseChessModel for the ChessBot-Battleground library.

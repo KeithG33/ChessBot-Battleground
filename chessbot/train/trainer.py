@@ -284,12 +284,12 @@ class ChessTrainer:
                     }
                 )
 
-                if self.cfg.logging.wandb:
+                if self.cfg.logging.wandb and iter % self.cfg.logging.log_every == 0:
                     wandb.log(
                         {
-                            "train_loss": loss.item(),
-                            "train_ploss": policy_loss.item(),
-                            "train_vloss": value_loss.item(),
+                            "train_loss": self.stats.get_average('train_loss'), 
+                            "train_ploss": self.stats.get_average('train_ploss'), 
+                            "train_vloss": self.stats.get_average('train_vloss'), 
                             "iter": iter,
                         }   
                     )
@@ -321,10 +321,11 @@ class ChessTrainer:
 
                     if val_loss < best_val_loss:
                         best_val_loss = val_loss
-                        accelerator.save_model(self.model, self.best_model_path)
+                        accelerator.save_model(self.model, self.best_model_path, safe_serialization=False)   
                         accelerator.save_state(output_dir=self.checkpoint_dir)
+                    
+                    progress_bar.refresh()
 
-                # Update the single progress bar with detailed information
                 progress_bar.set_postfix(
                     {
                         "Round": f"{round + 1}/{self.cfg.train.rounds}",
@@ -336,7 +337,7 @@ class ChessTrainer:
                 )
                 progress_bar.update(1)
 
-            accelerator.save_model(self.model, self.latest_model_path)
+            accelerator.save_model(self.model, self.latest_model_path, safe_serialization=False)
             accelerator.save_state(output_dir=self.checkpoint_dir)
 
     def train(self):
@@ -372,7 +373,7 @@ class ChessTrainer:
 
             total_iters = len(train_loader) * self.cfg.train.epochs
             progress_bar = tqdm(
-                desc="Epoch:",
+                desc="Epoch",
                 total=total_iters,
                 leave=True,
                 dynamic_ncols=True,

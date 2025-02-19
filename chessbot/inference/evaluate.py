@@ -1,4 +1,5 @@
 
+import sys
 from chessbot.data import ChessDataset
 import os
 import torch
@@ -8,11 +9,23 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 from sklearn.metrics import accuracy_score
 
+import typer
+
+from chessbot.models import ModelRegistry
+
+# Configure logging
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s - %(levelname)s - %(message)s',
+                    datefmt='%Y-%m-%d %H:%M:%S',
+                    handlers=[
+                        logging.FileHandler("evaluation.log"),
+                        logging.StreamHandler(sys.stdout)
+                    ])
 
 _logger = logging.getLogger(__name__)
-_logger.setLevel(logging.INFO)
 
 
+# TODO: double check this
 def mean_reciprocal_rank(logits, targets):
     """Compute the Mean Reciprocal Rank (MRR) for ranked predictions."""
     sorted_preds = torch.argsort(logits, dim=1, descending=True)
@@ -53,7 +66,7 @@ def evaluate_model(
             dataset = ChessDataset(chunk_files, num_threads=num_threads)
             dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
 
-            print(f"Processing chunk {i // chunk_size + 1} / {len(all_files) // chunk_size + 1} ({len(dataset)} samples)")
+            _logger.info(f"Processing chunk {i // chunk_size + 1} / {len(all_files) // chunk_size + 1} ({len(dataset)} samples)")
 
             for state, action, result in tqdm(dataloader, desc="Evaluating", leave=False):
                 state = state.float().to(device)
@@ -96,16 +109,16 @@ def evaluate_model(
     mrr = total_mrr / num_batches
 
     # Print results
-    print("\nClassification (Policy) Metrics:")
-    print(f"  Top-1 Accuracy: {accuracy:.4f}")
-    print(f"  Top-5 Accuracy: {top5_accuracy:.4f}")
-    print(f"  Top-10 Accuracy: {top10_accuracy:.4f}")
-    print(f"  Mean Reciprocal Rank (MRR): {mrr:.4f}")
-    print(f"  Cross-Entropy Loss: {policy_loss:.4f}")
+    _logger.info("\nClassification (Policy) Metrics:")
+    _logger.info(f"  Top-1 Accuracy: {accuracy:.4f}")
+    _logger.info(f"  Top-5 Accuracy: {top5_accuracy:.4f}")
+    _logger.info(f"  Top-10 Accuracy: {top10_accuracy:.4f}")
+    _logger.info(f"  Mean Reciprocal Rank (MRR): {mrr:.4f}")
+    _logger.info(f"  Cross-Entropy Loss: {policy_loss:.4f}")
 
-    print("\nRegression (Value) Metrics:")
-    print(f"  MSE: {mse:.4f}")
-    print(f"  MAE: {mae:.4f}")
+    _logger.info("\nRegression (Value) Metrics:")
+    _logger.info(f"  MSE: {mse:.4f}")
+    _logger.info(f"  MAE: {mae:.4f}")
 
     return {
         "policy_loss": policy_loss,

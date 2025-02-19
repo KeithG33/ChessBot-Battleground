@@ -12,9 +12,20 @@ logging.basicConfig(
     level=logging.INFO
 )
 
+
 REPO_OWNER = "KeithG33"
 REPO_NAME = "ChessBot-Battleground"
 GITHUB_TAGS_URL = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/tags"
+
+# Get highest numbered ChessBot-Dataset-* directory
+def get_latest_dataset_dir():
+    source_dataset_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "dataset"))
+    dataset_dirs = [d for d in os.listdir(source_dataset_dir) if d.startswith("ChessBot-dataset-")]
+    if not dataset_dirs:
+        return None
+    return os.path.join(source_dataset_dir, sorted(dataset_dirs)[-1])
+
+DEFAULT_DATASET_DIR = get_latest_dataset_dir()
 
 
 def get_latest_tag():
@@ -56,17 +67,17 @@ def determine_save_path(user_path=None) -> tuple[str, bool]:
     return source_dataset_dir, True
 
 
-def download(args):
+def download(tag, output_dir, dataset_name):
     """Download and extract the dataset from GitHub."""
     
-    tag = args.tag or get_latest_tag()
+    tag = tag or get_latest_tag()
     if not tag:
         logging.error("Could not determine a valid release tag. Exiting.")
         return
     
     version = extract_version(tag)
-    dataset_name = args.dataset_name or f"test-{version}.zip"
-    output_dir, source_install = determine_save_path(args.output_dir)
+    dataset_name = dataset_name or f"test-{version}.zip"
+    output_dir, source_install = determine_save_path(output_dir)
 
     download_url = f"https://github.com/{REPO_OWNER}/{REPO_NAME}/releases/download/{tag}/{dataset_name}"
     logging.info(f"Downloading dataset from {download_url}")
@@ -93,24 +104,3 @@ def download(args):
 
     except requests.exceptions.RequestException as e:
         logging.error(f"Failed to download the dataset. Error: {e}")
-
-def main():
-    """Main command-line interface function."""
-    parser = argparse.ArgumentParser(description="ChessBot command-line tool.")
-    subparsers = parser.add_subparsers(help="Available commands")
-
-    # Subparser for the 'download' command
-    parser_download = subparsers.add_parser('download', help="Download a dataset from a GitHub release")
-    parser_download.add_argument('tag', type=str, nargs='?', default=None, help="Tag of the GitHub release (default: latest)")
-    parser_download.add_argument('--output-dir', type=str, help="Path where the dataset should be saved")
-    parser_download.add_argument('--dataset-name', type=str, help="Custom dataset filename (default: ChessBot-Dataset-{tag}.zip)")
-    parser_download.set_defaults(func=download)
-
-    args = parser.parse_args()
-    if hasattr(args, 'func'):
-        args.func(args)
-    else:
-        parser.print_help()
-
-if __name__ == '__main__':
-    main()

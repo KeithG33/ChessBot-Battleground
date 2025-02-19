@@ -39,5 +39,4 @@ Tracker = "https://github.com/yourusername/ChessBot-Battleground/issues"
 packages = ["chessbot"]
 
 [project.scripts]
-chessbot = "chessbot.data.download:main"
-
+chessbot = "chessbot.cli:app"

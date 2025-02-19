@@ -1,8 +1,9 @@
 # Model configuration
 model:
-  model_hub: ../../models/              # Path to the directory containing models
+  model_dir: null                       # Path to the directory containing models
   model_file: null                      # Path to the model file. Will be used instead of the hub 
-  name: simple_chessnet                 # Name of the model class
+  name: null                            # Name of the model class
+  weights: null                         # Path to the model weights
 
 # Dataset configuration
 dataset:
