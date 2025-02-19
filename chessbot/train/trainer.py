@@ -355,6 +355,14 @@ class ChessTrainer:
             dynamo_backend='INDUCTOR' if self.cfg.train.compile else None,
         )
 
+        progress_bar = tqdm(
+            desc="Training",
+            total=0,
+            leave=True,
+            dynamic_ncols=True,
+            bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}] {postfix}",
+        )
+        
         # Each round samples new data from dataset and performs epochs
         for round_num in range(self.cfg.train.rounds):
             self.stats.reset(
@@ -372,13 +380,8 @@ class ChessTrainer:
             print(f"Loaded {len(train_loader.dataset.data)} positions")
 
             total_iters = len(train_loader) * self.cfg.train.epochs
-            progress_bar = tqdm(
-                desc="Epoch",
-                total=total_iters,
-                leave=True,
-                dynamic_ncols=True,
-                bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}] {postfix}",
-            )
+            progress_bar.total += total_iters
+            progress_bar.refresh()
 
             self.model, self.optimizer, train_loader, self.scheduler = (
                 accelerator.prepare(
