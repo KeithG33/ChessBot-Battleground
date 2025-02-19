@@ -111,7 +111,6 @@ A minimal example of writing a model:
 ```python
 from chessbot.models import BaseChessModel, ModelRegistry
 
-
 @ModelRegistry.register()
 class SimpleChessNet(BaseChessModel):
   """ One layer backbone and one layer prediction heads """
@@ -130,7 +129,6 @@ class SimpleChessNet(BaseChessModel):
             nn.Linear(256, 1),
             nn.Tanh()  # Between -1 and 1 for lose, draw, win
         )
-
 
     def forward(self, x):
       """ Input is tensor of shape (B,1,8,8) """
@@ -229,13 +227,28 @@ By default, the latest release will be downloaded into the `ChessBot-Battlegroun
 #### 4. Leaderboard / Evaluation
 Share your model's results on the test set. Compare your scores against the leaderboard. Once you've trained a model run the provided evaluate script to get your test set metrics.
 
+```python
+from chessbot.inference.evaluate import evaluate_model
+
+# Load your model
+model = ChessModel()
+
+# Evaluate the model
+batch_size = 3072
+num_threads = 8
+dataset_dir = 'path/to/dataset/'
+evaluate_model(model, pgn_dir, batch_size, num_threads, device='cuda')
+```
+<!-- 
+From the command line:
+
 ```bash
 # For list of options
 chessbot evaluate --help 
 
 # Default: register 'my_model' from 'path/to/model_dir', load data from 'ChessBot-Battleground/dataset'
 chessbot evaluate "my_model" --model-dir "path/to/model_dir/" 
-``` 
+```  -->
 
 
 
