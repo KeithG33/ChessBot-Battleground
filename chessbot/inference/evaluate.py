@@ -9,9 +9,6 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 from sklearn.metrics import accuracy_score
 
-import typer
-
-from chessbot.models import ModelRegistry
 
 # Configure logging
 logging.basicConfig(level=logging.INFO,
