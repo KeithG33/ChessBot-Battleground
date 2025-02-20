@@ -175,3 +175,7 @@ dataset/
 
 # stockfish binary
 stockfish*
+
+# wandb
+**/wandb/
+**/**/*.wandb/
