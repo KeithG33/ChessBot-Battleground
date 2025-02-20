@@ -168,12 +168,18 @@ scores = duel(model1, model2, best_of=11, search=True, visualize=True) # Returns
 
 Use the search flag to harness **Monte Carlo Tree Search (MCTS)** for search during inference. *MCTS training code coming soon!* The [Chess Battle GIF](#chess-battle-gif) at the beginning is an example of visualizing the game with the Chess-env, and using MCTS for test-time powered inference. 
 
-There is even a simple app for playing against your model. Run it with
+And a historically important question for humankind: *Can your model beat you?*
+
 
 ```bash
-chessbot play "your_chessnet" --model-dir /path/to/dir --model-weights /path/to/weights.pt
+chessbot play "your_chessnet" \
+              --model-dir /path/to/dir \
+              --model-weights /path/to/weights.pt
 ```
-
+<div align="center">
+<img src="assets/battleground.png" style="width: 70%; height: auto;">  
+  <p><em> Punishing a beautiful queen sac from a randomly initialized model ;)</em></p>
+</div>
 
 
 ## Getting Started
@@ -198,8 +204,9 @@ Now install ChessBot-Battleground
 
 
 **2. Download the Dataset:**  
+*[Releases available for download here](https://github.com/KeithG33/ChessBot-Battleground/releases)* 
 
-The dataset is provided as a downloadable .zip file with each release. Either navigate to the github release page, or use the chessbot cli tool:
+The dataset is provided as a downloadable .zip file with each release. Either use the link and your browser, or the `chessbot` cli tool:
 ```bash
 # For list of options
 chessbot download --help 
@@ -208,23 +215,13 @@ chessbot download --help
 chessbot download
 
 # Ex: download release v0.0.0 to output_dir
-chessbot download v0.0.0 --output-dir /path/to/output_dir
+chessbot download v0.0.0 \
+                  --output-dir /path/to/output_dir
 ```
 
 By default, the latest release will be downloaded into the `ChessBot-Battleground/dataset/` directory, or the current working directory if the package has been pip installed.  
 
-
-**3. Examples**  
-
-1. There is a simple and complete example in [examples](examples/) to get you started. The directory contains an example model and notebooks for training and inference. Check out the `SimpleChessNet` for an example of the model interface; use `example_training.ipynb` to train the model; use `example_inference.ipynb` to either run inference with the base model, or with an MCTS wrapper for a test-time-powerup.
-
-
-2. For actual models check out the [models](models/) directory.
-
-3. Additionally, an `example_sf_datagen.ipynb` exists to show how one might add data to the dataset. Unfortunately stockfish is slow so this is a hopeful crumb that I leave for the crowd
-
-
-#### 4. Leaderboard / Evaluation
+#### 3. Leaderboard / Evaluation
 Share your model's results on the test set. Compare your scores against the leaderboard. Once you've trained a model run the provided evaluate script to get your test set metrics.
 
 ```python
@@ -240,17 +237,28 @@ dataset_dir = 'path/to/dataset/'
 evaluate_model(model, pgn_dir, batch_size, num_threads, device='cuda')
 ```
 
-#### 5. Playing Your ChessBot
-One of the more important questions in the history of humankind is:   *can my model beat me?*` 
-
-
+Or if your model is registered, using the `chessbot` cli tool:
 ```bash
-chessbot play "your_chessnet" --model-dir /path/to/dir --model-weights /path/to/weights.pt
+# For options and help:
+chessbot evaluate --help
+
+chessbot evaluate "your_chessnet" \ 
+                  --model-dir path/to/dir \
+                  --model-weights path/to/weights.pt \
+                  --data-dir path/to/dataset \
+                  --batch-sz 3072 \
+                  --num-threads 8 \
 ```
-<div align="center">
-<img src="assets/battleground.png" style="width: 75%; height: auto;">  
-  <p><em> Punishing a beautiful queen sac from a randomly initialized model</em></p>
-</div>
+
+**4. Examples**  
+
+1. There is a simple and complete example in [examples](examples/) to get you started. Check out the `SimpleChessNet` for an example of the model interface; use `example_training.ipynb` to train the model; use `example_inference.ipynb` to either run inference with the base model, or with an MCTS wrapper for a test-time-powerup.
+
+2. For actual models check out the [models](models/) directory.
+
+3. Additionally, an `example_sf_datagen.ipynb` exists to show how one might add data to the dataset. Unfortunately stockfish is slow so this is a hopeful crumb that I leave for the crowd
+
+
 
 ## 📈 Future Plans
 
@@ -264,5 +272,3 @@ chessbot play "your_chessnet" --model-dir /path/to/dir --model-weights /path/to/
 ## Contributing
 
 If you have ideas, improvements, or bug fixes, feel free to open an issue or submit a pull request. For any questions or further discussion, don't hesitate to reach out!
-
-

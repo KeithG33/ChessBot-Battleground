@@ -45,8 +45,8 @@ def evaluate(
     model_dir: str = typer.Option(..., "--model-dir", help="Directory with model definitions"),
     model_weights: str = typer.Option(None, "--model-weights", "-w", help="Path to model weights"),
     data_dir: str = typer.Option(DEFAULT_DATASET_DIR, "--data-dir", help="Directory containing dataset"),
-    batch_size: int = typer.Option(32, "--batch-size", help="Batch size for evaluation"),
-    num_threads: int = typer.Option(4, "--num-threads", help="Number of threads to use"),
+    batch_size: int = typer.Option(1024, "--batch-sz", help="Batch size for evaluation"),
+    num_threads: int = typer.Option(1, "--num-threads", help="Number of threads to use"),
     model_args: List[str] = typer.Option(
         None,
         "--model-arg",
