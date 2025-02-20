@@ -13,17 +13,52 @@
       padding: 0;
       color: #fff;
     }
-    /* Top Banner */
+  /* Updated Banner Styles */
     #banner {
-      background: linear-gradient(135deg, #003366, #336699);
+      /* A more sophisticated color gradient */
+      background: linear-gradient(135deg, #1f3b73, #2e5c9a);
       color: #fff;
-      text-align: center;
-      padding: 15px;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+      padding: 20px 0;
+      position: relative;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
     }
+
+    #banner-content {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 15px; /* Space between logo and text */
+    }
+
+    #banner-logo {
+      width: 50px;
+      height: 50px;
+      object-fit: contain;
+      /* Optional: add a subtle glow effect around the logo */
+      filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.3));
+    }
+
     #banner h1 {
       margin: 0;
-      font-size: 28px;
+      font-size: 36px;
+      font-weight: 700;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+    }
+
+    #banner-subtitle {
+      text-align: center;
+      font-size: 16px;
+      font-weight: 300;
+      margin-top: 5px;
+      opacity: 0.9;
+    }
+    /* Player vs CPU Stats */
+    #banner-stats {
+      text-align: center;
+      font-size: 16px;
+      font-weight: 300;
+      margin-top: 5px;
+      opacity: 0.9;
     }
     #move-counter {
       font-size: 16px;
@@ -182,11 +217,28 @@
   </style>
 </head>
 <body>
+
+  <!-- Top Banner
+  <div id="banner">
+    <div id="banner-content">
+      <img id="banner-logo" src="https://chessboardjs.com/img/chesspieces/wikipedia/wK.png" alt="Logo">
+      <h1>Chess Bot Battleground</h1>
+    </div>
+    <div id="banner-subtitle">Can you beat your bot?</div>
+  </div> -->
+    
   <!-- Top Banner -->
   <div id="banner">
-    <h1>Chess Bot Battleground</h1>
+    <div id="banner-content">
+      <img id="banner-logo" src="https://chessboardjs.com/img/chesspieces/wikipedia/wK.png" alt="Logo">
+      <h1>Chess Bot Battleground</h1>
+    </div>
+    <!-- Score display -->
+    <div id="banner-stats">
+      <span>Score: <span id="win-counter">0-0</span></span>
+    </div>
   </div>
-  
+
   <!-- Main Container -->
   <div id="game-container">
     <!-- Left bar (captures) -->
@@ -244,7 +296,8 @@
     // Global variables for pending promotion move.
     var pendingSource = null;
     var pendingTarget = null;
-    
+  var initialPlayerWins = "{{ playerWins|tojson }}";
+  var initialCpuWins = "{{ cpuWins|tojson }}";
     // Initialize the board.
     var board = Chessboard("board", {
       draggable: true,
@@ -255,14 +308,24 @@
       onSnapEnd: onSnapEnd,
       pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png'
     });
-    
+    function updateWinCounter(playerWins, cpuWins) {
+    const counterElement = document.getElementById("win-counter");
+    counterElement.textContent = `${playerWins}-${cpuWins}`;
+  }
     // Show the start modal on page load.
+    // Set initial win counter display from server-provided values.
     $(document).ready(function() {
+      // Set win counter using template variables (if you pass them in your template)
+      const initialPlayerWins = "{{ playerWins }}";
+      const initialCpuWins = "{{ cpuWins }}";
+      updateWinCounter(initialPlayerWins, initialCpuWins);
+
       $("#modal-overlay").show();
       $("#start-modal").show();
       updateMoveCounter();
       updateCapturedPanels();
     });
+
     
     // Handle side selection.
     $(".side-btn").on("click", function() {
@@ -342,8 +405,9 @@
           board.position(game.fen());
           updateMoveCounter();
           updateCapturedPanels();
+          updateWinCounter(response.playerWins, response.cpuWins);
           if (response.status === "game over") {
-            showGameOverModal();
+            showGameOverModal(response.playerWins, response.cpuWins);
           }
         },
         error: function(xhr) {
@@ -369,20 +433,22 @@
       pendingTarget = null;
     });
     
-    // Game Over modal functions.
-    function showGameOverModal() {
-      var message = "";
-      if (game.in_draw()) {
-        message = "Game Over: Draw!";
-      } else if (game.in_checkmate()) {
-        message = "Game Over: " + (game.turn() === "w" ? "Black wins!" : "White wins!");
-      } else {
-        message = "Game Over!";
-      }
-      $("#gameover-message").text(message);
-      $("#modal-overlay").show();
-      $("#gameover-modal").show();
+  // Game Over modal functions.
+  function showGameOverModal(playerWins, cpuWins) {
+    var message = "";
+    if (game.in_draw()) {
+      message = "Game Over: Draw!";
+    } else if (game.in_checkmate()) {
+      message = (game.turn() === "w" ? "Black wins!" : "White wins!");
+    } else {
+      message = "Game Over!";
     }
+    // Append win counter to the game over message.
+    message += " Score: " + playerWins + "-" + cpuWins;
+    $("#gameover-message").text(message);
+    $("#modal-overlay").show();
+    $("#gameover-modal").show();
+  }
     // Restart button: call /restart, then re-prompt for side selection.
     $("#restart-btn").on("click", function() {
       $.ajax({
