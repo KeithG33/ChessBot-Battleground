@@ -14,16 +14,12 @@ The main block of the SGU ChessNet consists of two components: A gMLP module and
   <p><em>Pseudo code from paper. Original diagram modified to show tiny-attention module, used in the SGU ChessNet.</em></p>
 </div>
 
-The second part is a straightforward MLP with LayerNorm, GELU, linear layers, and a residual connection between input and output. For global mixing, features are flattened before the MLP.
-
-### Main Features
-- **Feature 1**: Spatial Gating Block with 1D RelPos Attn
-- **Feature 2**: Res-MLP acting on flattened features
+The second part is a straightforward MLP with LayerNorm, GELU, linear layers, and a residual connection between input and output. For global mixing, features are flattened and reshaped before and after the MLP.
 
 
 ### Training Plots
-Include plots here to show the training progress and validation results over time.
-![Training Plot](path_to_training_plot.png)
+*Coming soon*
+<!-- ![Training Plot](path_to_training_plot.png) -->
 
 ## Usage
 Provide instructions on how to use the model, including how to load and run predictions, if applicable.

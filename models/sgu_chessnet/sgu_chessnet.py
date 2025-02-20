@@ -10,7 +10,7 @@ from chessbot.models.base import BaseChessModel
 
 class ResidualBlock(nn.Module):
     def __init__(self, input_dim, hidden_dim, dropout=0.):
-        super(ResidualBlock, self).__init__()
+        super().__init__()
         self.linear1 = nn.Linear(input_dim, hidden_dim)
         self.linear2 = nn.Linear(hidden_dim, input_dim)
         self.norm = nn.LayerNorm(input_dim)
@@ -150,8 +150,7 @@ class SGUBlock(nn.Module):
 
 
 class SpatialGatingChessNet(BaseChessModel):
-    """ Spatial Gating Units (SGU) paired with residual MLP blocks for global feature processing.
-    """
+    """ Spatial Gating Units (SGU) paired with residual MLP blocks for global feature processing."""
 
     def __init__(self, device='cuda'):
         super().__init__()
