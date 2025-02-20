@@ -7,10 +7,10 @@ import typer
 
 from chessbot.data.download import DEFAULT_DATASET_DIR, download as download_fn
 from chessbot.inference.evaluate import evaluate_model as evaluate_fn
-# from chessbot.train.config import load_default_cfg
-# from chessbot.training.train import train
+from chessbot.train.trainer import train_fn
 
 from webapp.app import play as play_fn
+
 
 app = typer.Typer(help="ChessBot CLI Tool")
 
@@ -21,6 +21,7 @@ def parse_kwargs(kwargs_str: str) -> Dict:
     except json.JSONDecodeError as e:
         raise typer.BadParameter(f"Invalid JSON for kwargs: {e}")
     
+
 def find_and_load_from_register(model_name, model_dir, model_args=None, model_kwargs="{}"):
     extra_kwargs = parse_kwargs(model_kwargs)
 
@@ -36,6 +37,7 @@ def find_and_load_from_register(model_name, model_dir, model_args=None, model_kw
         typer.echo(f"Error loading model: {e}")
         raise typer.Exit(code=1)
     return model
+
 
 @app.command()
 def evaluate(
@@ -103,14 +105,29 @@ def play(
     """
     Play a game against the bot using a loaded model. Pass additional positional arguments with --model-arg and keyword arguments as a JSON string via --model-kwargs.
     """
-    print(f"Model_dir: {model_dir}")
-    # model = find_and_load_from_register(model_name, model_dir, model_args, model_kwargs)
     model = find_and_load_from_register(model_name, model_dir, model_args, model_kwargs)
     
     if model_weights:
         model.load_state_dict(torch.load(model_weights))
 
     play_fn(model)
+
+
+@app.command()
+def train(
+    config_path: str = typer.Argument(..., help="Path to the configuration YAML file"),
+    override: List[str] = typer.Option(
+        None,
+        "--override",
+        "-o",
+        help="Override any config variable using dot notation, e.g., training.lr=0.001. This option can be used multiple times."
+    )
+):
+    """
+    Train a model using the provided configuration file and optional overrides.
+    """
+    train_fn(config_path, override)
+
 
 
 if __name__ == "__main__":

@@ -1,10 +1,11 @@
 # Model configuration
 model:
-  model_dir: null                       # Path to the directory containing models
-  model_file: null                      # Path to the model file. Will be used instead of the hub 
+  path: null                            # Path to the directory containing models
   name: null                            # Name of the model class
   weights: null                         # Path to the model weights
-
+  args: null                            # Model arguments
+  kwargs: null                          # Model keyword arguments
+   
 # Dataset configuration
 dataset:
   data_path: /dataset                   # Path dataset containing train/ and test/ directories

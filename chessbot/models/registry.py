@@ -42,18 +42,19 @@ class ModelRegistry:
         return list(cls._registry.keys())
   
     @classmethod
-    def _load_models_from_directory(cls, directory_path):
+    def _load_models_from_path(cls, model_path):
         """
-        Automatically loads all Python files in the specified directory to register models.
+        Automatically loads from specified directory/file path to register models.
         Args:
-            directory_path (str): The directory from which to load Python files.
+            model_path (str): The directory from which to load Python files.
         """
-        for filename in os.listdir(directory_path):
+        filenames = os.listdir(model_path) if os.path.isdir(model_path) else [model_path]
+        for filename in filenames:
             if filename.endswith('.py') and not filename.startswith('__'):
-                file_path = os.path.join(directory_path, filename)
+                file_path = os.path.join(model_path, filename)
                 spec = importlib.util.spec_from_file_location(filename, file_path)
                 module = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(module)
+                spec.loader.exec_module(module) 
 
     @classmethod
     def load_model(cls, model_name, *init_args, **init_kwargs):
@@ -74,17 +75,17 @@ class ModelRegistry:
         return model_instance
     
     @classmethod
-    def load_model_from_directory(cls, model_name, directory_path, *init_args, **init_kwargs):
+    def load_model_from_path(cls, model_name, directory_path, *init_args, **init_kwargs):
         """
-        Load a model from a directory containing Python files.
+        Load a model from a path (dir/file) containing models.
         Args:
             model_name (str): The name of the model to load.
-            directory_path (str): The directory containing the model file.
+            path (str): Path containing model registration.
             init_args (tuple): Positional arguments to pass to the model's constructor.
             init_kwargs (dict): Keyword arguments to pass to the model's constructor.
 
         Returns:
             An instance of the model.
         """
-        cls._load_models_from_directory(directory_path)
+        cls._load_models_from_path(directory_path)
         return cls.load_model(model_name, *init_args, **init_kwargs)

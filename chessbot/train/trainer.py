@@ -5,6 +5,8 @@ import os
 import sys
 import random
 import time
+from typing import List
+import typer
 import yaml
 import wandb
 import importlib
@@ -43,7 +45,7 @@ class ChessTrainer:
 
         if load_model_from_config:
             self.load_model_from_config()
-            self.initialize_model()
+            # self.initialize_model()
 
         if self.cfg.logging.wandb:
             wandb.init(project=self.cfg.logging.wandb_project)
@@ -77,73 +79,18 @@ class ChessTrainer:
         """
         Load the model dynamically. Prioritize 'model_file' if provided; otherwise, use 'model_hub'.
         """
-        model_file = self.cfg['model'].get("model_file")
-        model_hub_dir = self.cfg['model']['model_hub']
-
-        if model_file:
-            self._import_model_from_file(model_file)
-        elif model_hub_dir:
-            self._import_models_from_hub(model_hub_dir)
-        else:
-            raise ValueError(
-                "No model_file or model_hub directory specified in the configurat.ion."
-            )
-
-    def _import_model_from_file(self, model_file):
-        """
-        Import a model from a user-specified file.
-        """
-        if not os.path.isfile(model_file):
-            raise ValueError(f"Provided model file '{model_file}' does not exist.")
-
-        module_name = os.path.splitext(os.path.basename(model_file))[0]
-
-        self._import_module_from_path(module_name, model_file)
-
-    def _import_models_from_hub(self, model_hub_dir):
-        """
-        Import all Python files from the model hub directory.
-        """
-        if not os.path.isdir(model_hub_dir):
-            raise ValueError(f"Model hub directory '{model_hub_dir}' does not exist.")
-
-        for filename in os.listdir(model_hub_dir):
-            if filename.endswith(".py"):
-                module_name = filename[:-3]
-                module_path = os.path.join(model_hub_dir, filename)
-
-                try:
-                    self._import_module_from_path(module_name, module_path)
-                except Exception as e:
-                    print(f"Failed to load model file '{module_name}': {e}")
-
-    def _import_module_from_path(self, module_name, module_path):
-        """
-        Helper function to import a module from a given path.
-        """
-        if module_name in sys.modules:
-            print(f"Module '{module_name}' is already imported, skipping.")
-            return  # Module is already imported; no need to re-import
-
-        spec = importlib.util.spec_from_file_location(module_name, module_path)
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-
-    def initialize_model(self):
-        """
-        Initialize the model using the registry.
-        """
+        model_path = self.cfg.model.path
         model_name = self.cfg.model.name
+
         model_args = self.cfg.model.get('args', [])
         model_kwargs = self.cfg.model.get('kwargs', {})
 
-        if not ModelRegistry.exists(model_name):
-            raise ValueError(f"Model '{model_name}' is not registered.")
+        model_args = [] if model_args is None else model_args
+        model_kwargs = {} if model_kwargs is None else model_kwargs
 
-        ModelClass = ModelRegistry.get(model_name)
-
-        self.model = ModelClass(*model_args, **model_kwargs)
+        self.model = ModelRegistry.load_model_from_path(model_name, model_path, *model_args, **model_kwargs)
         self.model.to(self.cfg.train.device)
+
 
     def build_optimizer(self):
         self.optimizer = torch.optim.AdamW(
@@ -362,7 +309,7 @@ class ChessTrainer:
             dynamic_ncols=True,
             bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}] {postfix}",
         )
-        
+
         # Each round samples new data from dataset and performs epochs
         for round_num in range(self.cfg.train.rounds):
             self.stats.reset(
@@ -399,46 +346,27 @@ class ChessTrainer:
         progress_bar.close()
 
 
-# if __name__ == "__main__":
-#     import argparse
+def train_fn(config_path: str, override: List[str] = None):
+    """ Used in `chessbot train` cli
+    Load a YAML configuration file using OmegaConf, apply any quick overrides,
+    and train the model.
 
-#     def parse_args():
-#         parser = argparse.ArgumentParser(description="Chess Trainer")
-#         parser.add_argument(
-#             "--config",
-#             type=str,
-#             required=True,
-#             help="Path to the YAML configuration file.",
-#         )
-#         parser.add_argument(
-#             "--override",
-#             nargs="*",
-#             help="Override any config variable using dot notation, e.g., training.lr=0.001.",
-#         )
-#         return parser.parse_args()
+    Args:
+        config_path (str): Path to the YAML configuration file.
+        override (List[str], optional): List of overrides in dot notation,
+                                        e.g., ["training.lr=0.001", "model.hidden_size=256"].
+    """
+    config = OmegaConf.load(config_path)
+    typer.echo(f"Loaded config from {config_path}")
 
-#     def apply_overrides(config, overrides):
-#         if overrides:
-#             for override in overrides:
-#                 keys, value = override.split("=", 1)
-#                 keys = keys.split(".")
-#                 sub_config = config
-#                 for key in keys[:-1]:
-#                     sub_config = sub_config.setdefault(key, {})
-#                 sub_config[keys[-1]] = yaml.safe_load(
-#                     value
-#                 )  # Parse value as YAML for proper typing
-#         return config
+    # Create a config from the dotlist and merge it if present
+    if override:
+        override_conf = OmegaConf.from_dotlist(override)
+        config = OmegaConf.merge(config, override_conf)
+        typer.echo("Applied configuration overrides:" + " ".join(override))
 
-#     args = parse_args()
+    trainer = ChessTrainer(config, load_model_from_config=True)
 
-#     with open(args.config, 'r') as f:
-#         config = yaml.safe_load(f)
-
-#     config = apply_overrides(config, args.override)
-
-#     trainer = ChessTrainer(config)
-
-#     logging.info("Starting Chess Trainer...")
-#     trainer.train()
-#     logging.info("Training completed.")
+    typer.echo("Starting Chess Trainer...")
+    trainer.train()
+    typer.echo("Training completed.")
