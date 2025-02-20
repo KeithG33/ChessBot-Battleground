@@ -85,12 +85,15 @@ from chessnet import YourChessNet
 # Get default cfg and do some basic setup
 cfg = load_default_cfg() # get default cfg
 
-cfg.dataset.data_path = 'ChessBot-Battleground/dataset/'
-cfg.dataset.size_train = 25 # num files to sample for train set
-cfg.dataset.size_test = 5 # num files to sample for test set
+cfg.train.rounds = 1 # num times to sample a dataset
+cfg.train.epochs = 25 # num epochs on sampled dataset
 cfg.train.batch_size = 128
 cfg.train.lr = 0.001
 cfg.train.output_dir = 'output/'
+
+cfg.dataset.data_path = 'ChessBot-Battleground/dataset/'
+cfg.dataset.size_train = 25 # num files to sample for train set
+cfg.dataset.size_test = 5 # num files to sample for test set
 
 model = YourChessNet()
 
@@ -142,7 +145,7 @@ class SimpleChessNet(BaseChessModel):
 
 As long as your model has these inputs and outputs, then all the features of the library are available. If you need to break that input/output format, then you'll have to write your own training and inference code.
 
-The model registry is a simple helper for the library to find and load your chess models from a path and name. If the decorator input is empty as in the example, `@ModelRegistry.register()`, then the model will automatically be registered with the class name `SimpleChessNet`. This helps find and load models for command line scripts.
+The model registry is a simple helper for the library to load your chess models from a path and name. If the decorator input is empty as in the example, `@ModelRegistry.register()`, then the model will automatically be registered with the class name `SimpleChessNet`. This helps find and load models for command line scripts.
 ## 🦾 Inference & Battling
 
 Take your models to the battleground!  
@@ -151,21 +154,25 @@ The library depends on an **Adversarial Gym Environment** designed for two-playe
 
 ```python
 from example_model.simple_chessnet import SimpleChessNet
-from chessbot.inference import selfplay, play_match
+from chessbot.inference import selfplay, duel
 
 # Run selfplay. Returns value in [-1,0,1] for white's outcome
 model = SimpleChessNet()
 outcome = selfplay(model, visualize=True)
 
-# Play a match with two models, use MCTS
+# Watch a match between two models, use MCTS
 model1 = SimpleChessNet()
 model2 = SimpleChessNet()
-scores = play_match(model1, model2, best_of=11, search=True, visualize=True) # Returns (score1, score2)
+scores = duel(model1, model2, best_of=11, search=True, visualize=True) # Returns (score1, score2)
 ```
 
-Use the search flag to harness **Monte Carlo Tree Search (MCTS)** for search during inference. *MCTS training code coming soon!*
+Use the search flag to harness **Monte Carlo Tree Search (MCTS)** for search during inference. *MCTS training code coming soon!* The [Chess Battle GIF](#chess-battle-gif) at the beginning is an example of visualizing the game with the Chess-env, and using MCTS for test-time powered inference. 
 
-The [Chess Battle GIF](#chess-battle-gif) at the beginning is an example of visualizing the game with the Chess-env, and using MCTS for test-time powered inference. 
+There is even a simple app for playing against your model. Run it with
+
+```bash
+chessbot play "your_chessnet" --model-dir /path/to/dir --model-weights /path/to/weights.pt
+```
 
 
 

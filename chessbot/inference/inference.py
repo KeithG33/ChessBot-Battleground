@@ -21,7 +21,7 @@ def score_function(outcome, perspective) -> float | int:
     return 0
 
 
-def play_match(
+def duel(
     player1: BaseChessModel,
     player2: BaseChessModel,
     best_of=7,
