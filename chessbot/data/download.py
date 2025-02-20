@@ -19,7 +19,7 @@ GITHUB_TAGS_URL = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/tags"
 
 # Get highest numbered ChessBot-Dataset-* directory
 def get_latest_dataset_dir():
-    source_dataset_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "dataset"))
+    source_dataset_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "dataset"))
     dataset_dirs = [d for d in os.listdir(source_dataset_dir) if d.startswith("ChessBot-dataset-")]
     if not dataset_dirs:
         return None
