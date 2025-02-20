@@ -36,7 +36,7 @@ Source = "https://github.com/yourusername/ChessBot-Battleground"
 Tracker = "https://github.com/yourusername/ChessBot-Battleground/issues"
 
 [tool.setuptools]
-packages = ["chessbot"]
+packages = ["chessbot", "webapp"]
 
 [project.scripts]
 chessbot = "chessbot.cli:app"

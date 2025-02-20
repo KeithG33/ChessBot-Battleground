@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Chess Bot Battleground</title>
+  <!-- Chessboard.js CSS from CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.css">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #363636;
+      margin: 0;
+      padding: 0;
+      color: #fff;
+    }
+    /* Top Banner */
+    #banner {
+      background: linear-gradient(135deg, #003366, #336699);
+      color: #fff;
+      text-align: center;
+      padding: 15px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+    #banner h1 {
+      margin: 0;
+      font-size: 28px;
+    }
+    #move-counter {
+      font-size: 16px;
+      margin-top: 5px;
+    }
+    /* Main Container */
+    #game-container {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: center;
+      margin: 20px;
+    }
+    /* Thin vertical bars for captures */
+    .capture-bar {
+      width: 60px;
+      min-height: 420px;
+      background: #4a4a4a;
+      border-radius: 8px;
+      margin: 0 10px;
+      padding: 10px 5px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+    }
+    .capture-bar img {
+      width: 28px;
+      height: 28px;
+      margin: 2px;
+    }
+    .capture-item {
+      position: relative;
+      display: inline-block;
+      margin: 2px;
+    }
+    .capture-item img {
+      width: 28px;
+      height: 28px;
+    }
+    .capture-count {
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      background: rgba(0, 0, 0, 0.7);
+      color: #fff;
+      font-size: 10px;
+      padding: 1px 3px;
+      border-radius: 3px;
+    }
+    /* Board Container (a "card" style) */
+    #board-container {
+      background: #fafafa;
+      border-radius: 10px;
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+      padding: 10px;
+    }
+    #board {
+      width: 400px;
+      height: 400px;
+      border-radius: 8px;
+    }
+    /* Modal overlay (common to all modals) */
+    #modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 900;
+    }
+    /* Start Modal styling */
+    #start-modal {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #fff;
+      padding: 20px 30px;
+      border: 2px solid #333;
+      border-radius: 8px;
+      z-index: 1000;
+      text-align: center;
+      color: #000;
+    }
+    .side-btn {
+      cursor: pointer;
+      width: 80px;
+      height: 80px;
+      margin: 10px;
+      border: 2px solid #ccc;
+      border-radius: 8px;
+      transition: border-color 0.3s;
+    }
+    .side-btn:hover {
+      border-color: #336699;
+    }
+    /* Promotion Modal styling */
+    #promotion-modal {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #fff;
+      padding: 20px 30px;
+      border: 1px solid #333;
+      border-radius: 8px;
+      z-index: 1000;
+      text-align: center;
+      color: #000;
+    }
+    .promo-btn {
+      margin: 5px;
+      cursor: pointer;
+      width: 50px;
+      height: 50px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+    }
+    /* Game Over Modal styling */
+    #gameover-modal {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #fff;
+      padding: 20px 30px;
+      border: 2px solid #333;
+      border-radius: 8px;
+      z-index: 1000;
+      text-align: center;
+      color: #000;
+    }
+    #gameover-modal h3 {
+      margin-bottom: 20px;
+    }
+    #restart-btn {
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      background: #336699;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      transition: background 0.3s;
+    }
+    #restart-btn:hover {
+      background: #285280;
+    }
+  </style>
+</head>
+<body>
+  <!-- Top Banner -->
+  <div id="banner">
+    <h1>Chess Bot Battleground</h1>
+  </div>
+  
+  <!-- Main Container -->
+  <div id="game-container">
+    <!-- Left bar (captures) -->
+    <div id="left-captures" class="capture-bar"></div>
+
+    <!-- Board Container -->
+    <div id="board-container">
+      <div id="board"></div>
+    </div>
+
+    <!-- Right bar (captures) -->
+    <div id="right-captures" class="capture-bar"></div>
+  </div>
+  
+  <!-- Modal overlay -->
+  <div id="modal-overlay"></div>
+
+  <!-- Start Modal for side selection -->
+  <div id="start-modal">
+    <h3>Choose Your Side</h3>
+    <img src="https://chessboardjs.com/img/chesspieces/wikipedia/wK.png" data-side="w" class="side-btn">
+    <img src="https://chessboardjs.com/img/chesspieces/wikipedia/bK.png" data-side="b" class="side-btn">
+  </div>
+  
+  <!-- Promotion Modal -->
+  <div id="promotion-modal">
+    <h3>Select Promotion Piece</h3>
+    <img id="promo-q" data-piece="q" class="promo-btn" src="" alt="Queen">
+    <img id="promo-r" data-piece="r" class="promo-btn" src="" alt="Rook">
+    <img id="promo-b" data-piece="b" class="promo-btn" src="" alt="Bishop">
+    <img id="promo-n" data-piece="n" class="promo-btn" src="" alt="Knight">
+  </div>
+  
+  <!-- Game Over Modal -->
+  <div id="gameover-modal">
+    <h3 id="gameover-message">Game Over</h3>
+    <button id="restart-btn">Restart</button>
+  </div>
+  
+  <!-- Dependencies -->
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <!-- Chess.js from CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+  <!-- Chessboard.js from CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.js"></script>
+  
+  <script>
+    // Global variable for player's color (default "w" until set).
+    var playerColor = "w";
+    var orientation = "white";
+    
+    // Initialize the chess game with the starting FEN from the server.
+    var game = new Chess("{{ fen }}");
+    
+    // Global variables for pending promotion move.
+    var pendingSource = null;
+    var pendingTarget = null;
+    
+    // Initialize the board.
+    var board = Chessboard("board", {
+      draggable: true,
+      position: game.fen(),
+      orientation: orientation,
+      onDragStart: onDragStart,
+      onDrop: onDrop,
+      onSnapEnd: onSnapEnd,
+      pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png'
+    });
+    
+    // Show the start modal on page load.
+    $(document).ready(function() {
+      $("#modal-overlay").show();
+      $("#start-modal").show();
+      updateMoveCounter();
+      updateCapturedPanels();
+    });
+    
+    // Handle side selection.
+    $(".side-btn").on("click", function() {
+      var chosenSide = $(this).data("side");  // "w" or "b"
+      $.ajax({
+        url: "/set_side",
+        method: "POST",
+        contentType: "application/json",
+        data: JSON.stringify({ side: chosenSide }),
+        success: function(response) {
+          playerColor = response.player_color;  // "w" or "b"
+          orientation = (playerColor === "b") ? "black" : "white";
+          board.orientation(orientation);
+          game.load(response.fen);
+          board.position(game.fen());
+          board.resize(); // Force a board redraw
+          
+          // Update promotion modal images based on the player's color.
+          var pieces = ['q', 'r', 'b', 'n'];
+          pieces.forEach(function(piece) {
+            var url = 'https://chessboardjs.com/img/chesspieces/wikipedia/' + playerColor + piece.toUpperCase() + '.png';
+            $("#promo-" + piece).attr("src", url);
+          });
+          
+          $("#start-modal").hide();
+          $("#modal-overlay").hide();
+          updateMoveCounter();
+          updateCapturedPanels();
+        },
+        error: function(xhr) {
+          $("#start-modal").hide();
+          $("#modal-overlay").hide();
+        }
+      });
+    });
+    
+    function onDragStart(source, piece, position, orientation) {
+      if (game.game_over()) return false;
+      // Allow only moves from pieces that match the player's side.
+      if ((playerColor === "w" && piece.charAt(0) !== "w") ||
+          (playerColor === "b" && piece.charAt(0) !== "b")) {
+        return false;
+      }
+    }
+    
+    function onDrop(source, target) {
+      var piece = game.get(source);
+      // Check if a pawn is moving to the last rank (promotion needed).
+      if (piece && piece.type === 'p') {
+        var targetRank = target.charAt(1);
+        if ((piece.color === 'w' && targetRank === '8') ||
+            (piece.color === 'b' && targetRank === '1')) {
+          pendingSource = source;
+          pendingTarget = target;
+          showPromotionModal();
+          return 'snapback';
+        }
+      }
+      // Otherwise, send move without promotion.
+      sendMove(source, target, "");
+      return 'snapback';
+    }
+    
+    function onSnapEnd() {
+      board.position(game.fen());
+    }
+    
+    // Send move to backend.
+    function sendMove(source, target, promotion) {
+      $.ajax({
+        url: "/move",
+        method: "POST",
+        contentType: "application/json",
+        data: JSON.stringify({ source: source, target: target, promotion: promotion }),
+        success: function(response) {
+          game.load(response.fen);
+          board.position(game.fen());
+          updateMoveCounter();
+          updateCapturedPanels();
+          if (response.status === "game over") {
+            showGameOverModal();
+          }
+        },
+        error: function(xhr) {
+          board.position(game.fen());
+        }
+      });
+    }
+    
+    // Promotion modal functions.
+    function showPromotionModal() {
+      $("#modal-overlay").show();
+      $("#promotion-modal").show();
+    }
+    function hidePromotionModal() {
+      $("#promotion-modal").hide();
+      $("#modal-overlay").hide();
+    }
+    $(".promo-btn").on("click", function() {
+      var promo = $(this).data("piece");
+      hidePromotionModal();
+      sendMove(pendingSource, pendingTarget, promo);
+      pendingSource = null;
+      pendingTarget = null;
+    });
+    
+    // Game Over modal functions.
+    function showGameOverModal() {
+      var message = "";
+      if (game.in_draw()) {
+        message = "Game Over: Draw!";
+      } else if (game.in_checkmate()) {
+        message = "Game Over: " + (game.turn() === "w" ? "Black wins!" : "White wins!");
+      } else {
+        message = "Game Over!";
+      }
+      $("#gameover-message").text(message);
+      $("#modal-overlay").show();
+      $("#gameover-modal").show();
+    }
+    // Restart button: call /restart, then re-prompt for side selection.
+    $("#restart-btn").on("click", function() {
+      $.ajax({
+        url: "/restart",
+        method: "POST",
+        contentType: "application/json",
+        success: function(response) {
+          game.load(response.fen);
+          board.position(game.fen());
+          updateMoveCounter();
+          updateCapturedPanels();
+          // Reset player's color so that a new side must be chosen.
+          playerColor = "";
+          // Hide game over modal, then show start modal again.
+          $("#gameover-modal").hide();
+          $("#modal-overlay").show();
+          $("#start-modal").show();
+        },
+        error: function(xhr) {
+          window.location.reload();
+        }
+      });
+    });
+    
+    // Update move counter display.
+    function updateMoveCounter() {
+      var moves = game.history();
+      $("#move-counter").text("Moves: " + moves.length);
+    }
+    
+    /**
+     * Update captured pieces so that the user's captured pieces (the pieces of the opponent)
+     * always appear in the right bar, and the opponent's captured pieces in the left bar.
+     */
+    function updateCapturedPanels() {
+      // Count initial counts for each piece.
+      var initialCount = {
+        wK: 1, wQ: 1, wR: 2, wB: 2, wN: 2, wP: 8,
+        bK: 1, bQ: 1, bR: 2, bB: 2, bN: 2, bP: 8
+      };
+      
+      var boardState = game.board();
+      var whiteCount = { k:0, q:0, r:0, b:0, n:0, p:0 };
+      var blackCount = { k:0, q:0, r:0, b:0, n:0, p:0 };
+      
+      boardState.forEach(function(row) {
+        row.forEach(function(square) {
+          if (square) {
+            if (square.color === "w") {
+              whiteCount[square.type] += 1;
+            } else {
+              blackCount[square.type] += 1;
+            }
+          }
+        });
+      });
+      
+      // Black captured = white pieces missing (captured by Black).
+      var blackCaptured = {
+        wK: initialCount.wK - whiteCount.k,
+        wQ: initialCount.wQ - whiteCount.q,
+        wR: initialCount.wR - whiteCount.r,
+        wB: initialCount.wB - whiteCount.b,
+        wN: initialCount.wN - whiteCount.n,
+        wP: initialCount.wP - whiteCount.p
+      };
+      
+      // White captured = black pieces missing (captured by White).
+      var whiteCaptured = {
+        bK: initialCount.bK - blackCount.k,
+        bQ: initialCount.bQ - blackCount.q,
+        bR: initialCount.bR - blackCount.r,
+        bB: initialCount.bB - blackCount.b,
+        bN: initialCount.bN - blackCount.n,
+        bP: initialCount.bP - blackCount.p
+      };
+      
+      // Build HTML for captures using helper.
+      var blackHTML = buildCaptureImages(blackCaptured); // white pieces captured by opponent
+      var whiteHTML = buildCaptureImages(whiteCaptured); // black pieces captured by opponent
+      
+      // User's captures always appear on the right bar.
+      if (playerColor === "w") {
+        $("#left-captures").html( blackHTML );
+        $("#right-captures").html( whiteHTML );
+      } else {
+        $("#left-captures").html( whiteHTML );
+        $("#right-captures").html( blackHTML );
+      }
+    }
+    
+    // Helper to build HTML for captured pieces with multiplier if count > 1.
+    function buildCaptureImages(capturedObj) {
+      var html = "";
+      for (var pieceKey in capturedObj) {
+        var count = capturedObj[pieceKey];
+        if (count > 0) {
+          html += '<div class="capture-item">';
+          html += '<img src="https://chessboardjs.com/img/chesspieces/wikipedia/' 
+              + pieceKey.charAt(0) + pieceKey.charAt(1) + '.png" alt="' + pieceKey + '">';
+          if (count > 1) {
+            html += '<span class="capture-count">x' + count + '</span>';
+          }
+          html += '</div>';
+        }
+      }
+      return html;
+    }
+  </script>
+</body>
+</html>
