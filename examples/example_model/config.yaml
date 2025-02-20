@@ -1,36 +1,43 @@
 # Model configuration
 model:
-  model_hub: chessbot/models/model_example.py  # Path to the model file
-  model_class: ChessTransformer                      # Name of the model class
-  save_path: chessbot/models/saved_model.pt    # Path to save the trained model
-
+  path: examples/example_model/simple_chessnet.py                            # Path to the directory containing models
+  name: simple_chessnet                            # Name of the model class
+  weights: null                         # Path to the model weights
+  args: null                            # Model arguments
+  kwargs: null                          # Model keyword arguments
+   
 # Dataset configuration
 dataset:
-  train_path: /home/kage/chess_workspace/PGN_dataset/Dataset-new/train  # Path to training PGN dataset
-  test_path: /home/kage/chess_workspace/PGN_dataset/Dataset-new/test    # Path to test PGN dataset
-  samples_train: 500                                                    # Number of training sample files
-  samples_test: 20                                                      # Number of test sample files
-  num_threads: 20                                                       # Number of threads for dataset loading
+  data_path: dataset/ChessBot-dataset-0.0.0                   # Path dataset containing train/ and test/ directories
+  size_train: 1                       # Number of files to sample and train on
+  size_test: 1                         # Number of files to sample and test on.
+  num_threads: 4                        # Number of threads for dataset loading
 
 # Training configuration
-training:
-  batchsize_train: 3072                 # Training batch size
-  batchsize_test: 3072                  # Validation batch size
+train:
+  rounds: 1                             # Number of times to sample from dataset
+  epochs: 1                             # Number of epochs to train on sampled data
+  batch_size: 1024                      # Batch size (test/train)
+  validation_every: 0                   # Validate the model every N iterations
   lr: 0.0005                            # Learning rate
+  min_lr: 0.00005                       # Minimum learning rate
+  scheduler: cosine                     # Learning rate scheduler ('linear' or 'cosine')
   warmup_lr: 0.00005                    # Initial learning rate during warmup
-  warmup_iters: 200                     # Number of warmup iterations
+  warmup_iters: 0                       # Number of iterations going from warmup_lr to lr
   warmup_strategy: cos                  # Warmup strategy
-  scheduler_iters: 100000               # Total scheduler steps
-  num_rounds: 50                        # Number of training rounds
+  scheduler_iters: 100000               # Total scheduler steps (in iterations)
   optimizer: adamw                      # Optimizer
-  compile: true                         # Compile the model
-  amp: true                             # Enable automatic mixed precision
+  compile: false                        # Compile the model
+  amp: 'no'                             # automatic mixed precision: 'no','fp16','bf16' or 'fp8'
   grad_clip: 1.0                        # Gradient clipping norm value.
+  grad_accum: 0                         # Gradient accumulation steps. Greater than 0 to enable
+  device: cuda                          # Device to train on
+  output_dir: ./                        # Output directory for training artifacts
+  checkpoint_dir: null                  # Checkpoint directory to load from previous training
 
 # Logging configuration
 logging:
   log_every: 200                        # Log metrics every N iterations
-  validation_every: 20000               # Validate the model every N iterations
-  wandb: true                           # Enable logging to Weights & Biases
+  wandb: false                          # Enable logging to Weights & Biases
   wandb_project: chessbot               # W&B project name
 
