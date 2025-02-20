@@ -16,14 +16,14 @@
 
 ##  Introduction
 
-This repository contains a gigantic curated chess dataset meant for machine learning, along with the supporting code to train, infer, and display games. All you need to do is design a model, and you can take advantage of any of the available features. In total this library provides support for:
+This repository contains a gigantic curated chess dataset meant for machine learning, along with the supporting code to train, infer, and display games. Just design a model and you can take advantage of any of the available features. This library provides support for:
 
 - **Dataset/Training:** PyTorch dataset and training code
-- **Gym Environment:** Gym environment for inference and self-play
-- **Dueling:** Functionality for best-of-N matches between saved models
-- **MCTS:** Simple implementation to give your supervised models search capability (*with training coming soon*).
+- **Evaluation**: Compare performance on the dataset. *Leaderboard coming soon*
 - **Visualization:** Watch your models in action as they play and adapt on the board.
-- **Evaluation**: Compare performance on the dataset. Leaderboard coming soon?
+- **Dueling:** Functionality for best-of-N matches between saved models
+- **MCTS:** Simple implementation to give your supervised models search capability. *Training coming soon*.
+- **Game App:**  Play a game against your model with the `chessbot play` tool. Can it beat you?
 
 See a model in action below:
 
@@ -167,13 +167,6 @@ Use the search flag to harness **Monte Carlo Tree Search (MCTS)** for search dur
 
 The [Chess Battle GIF](#chess-battle-gif) at the beginning is an example of visualizing the game with the Chess-env, and using MCTS for test-time powered inference. 
 
-## 📈 Future Plans
-
-- Clean and deduplicate the dataset
-- Expand the dataset, add Stockfish generated data, get to an epic milestone of **1 billion positions**.  
-- Release **MCTS training pipelines**.  
-- Add enhanced tools for training and visualization and evaluation.
-- Add a leaderboard
 
 
 ## Getting Started
@@ -239,18 +232,30 @@ num_threads = 8
 dataset_dir = 'path/to/dataset/'
 evaluate_model(model, pgn_dir, batch_size, num_threads, device='cuda')
 ```
-<!-- 
-From the command line:
+
+#### 5. Playing Your ChessBot
+One of the more important questions in the history of humankind is:   *can my model beat me?*` 
+
 
 ```bash
-# For list of options
-chessbot evaluate --help 
+chessbot play "your_chessnet" --model-dir /path/to/dir --model-weights /path/to/weights.pt
+```
+<div align="center">
+<img src="assets/battleground.png" style="width: 75%; height: auto;">  
+  <p><em> Punishing a beautiful queen sac from a randomly initialized model</em></p>
+</div>
 
-# Default: register 'my_model' from 'path/to/model_dir', load data from 'ChessBot-Battleground/dataset'
-chessbot evaluate "my_model" --model-dir "path/to/model_dir/" 
-```  -->
+## 📈 Future Plans
+
+- Clean and deduplicate the dataset
+- Expand the dataset, add Stockfish generated data, get to an epic milestone of **1 billion positions**.  
+- Release **MCTS training pipelines**.  
+- Add enhanced tools for training and visualization and evaluation.
+- Add a leaderboard
 
 
+## Contributing
 
+If you have ideas, improvements, or bug fixes, feel free to open an issue or submit a pull request. For any questions or further discussion, don't hesitate to reach out!
 
 
