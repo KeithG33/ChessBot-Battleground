@@ -57,7 +57,7 @@ class ModelRegistry:
                 spec.loader.exec_module(module) 
 
     @classmethod
-    def load_model(cls, model_name, *init_args, **init_kwargs):
+    def _load_model(cls, model_name, *init_args, **init_kwargs):
         """
         Load a model from the registry.
         Args:
@@ -68,24 +68,23 @@ class ModelRegistry:
         Returns:
             An instance of the model.
         """
-        if model_name not in cls._registry:
-            raise KeyError(f"Model '{model_name}' is not registered.")
-        ModelClass = cls._registry[model_name]
+        ModelClass = cls.get(model_name)
         model_instance = ModelClass(*init_args, **init_kwargs)
         return model_instance
     
     @classmethod
-    def load_model_from_path(cls, model_name, directory_path, *init_args, **init_kwargs):
+    def load_model(cls, model_name, model_path=None, *init_args, **init_kwargs):
         """
-        Load a model from a path (dir/file) containing models.
+        Load a model from the registry or a path containing models.
         Args:
             model_name (str): The name of the model to load.
-            path (str): Path containing model registration.
+            model_path (str, optional): Path containing model registration.
             init_args (tuple): Positional arguments to pass to the model's constructor.
             init_kwargs (dict): Keyword arguments to pass to the model's constructor.
 
         Returns:
             An instance of the model.
         """
-        cls._load_models_from_path(directory_path)
-        return cls.load_model(model_name, *init_args, **init_kwargs)
+        if model_path:
+            cls._load_models_from_path(model_path)
+        return cls._load_model(model_name, *init_args, **init_kwargs)

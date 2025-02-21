@@ -32,12 +32,15 @@ train:
   grad_clip: 1.0                        # Gradient clipping norm value.
   grad_accum: 0                         # Gradient accumulation steps. Greater than 0 to enable
   device: cuda                          # Device to train on
-  output_dir: ./                        # Output directory for training artifacts
+  output_dir: null                      # Output directory for training artifacts
   checkpoint_dir: null                  # Checkpoint directory to load from previous training
+  resume_from_checkpoint: false         # Will reuse experiment directory
 
 # Logging configuration
 logging:
   log_every: 200                        # Log metrics every N iterations
   wandb: false                          # Enable logging to Weights & Biases
   wandb_project: chessbot               # W&B project name
+  wandb_run_name: null                  # W&B run name. Randomly generated if null
+  wandb_run_id: null                    # W&B run ID used to resume training
 

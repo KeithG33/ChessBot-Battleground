@@ -31,7 +31,7 @@ def find_and_load_from_register(model_name, model_dir, model_args=None, model_kw
     try:
         from chessbot.models.registry import ModelRegistry
         # Pass both positional and keyword arguments to load_model
-        model = ModelRegistry.load_model_from_path(model_name, model_dir, *model_args, **extra_kwargs)
+        model = ModelRegistry.load_model(model_name, model_dir, *model_args, **extra_kwargs)
         typer.echo("Model loaded successfully.")
     except Exception as e:
         typer.echo(f"Error loading model: {e}")

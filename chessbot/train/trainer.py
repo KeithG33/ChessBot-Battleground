@@ -33,29 +33,45 @@ class ChessTrainer:
     """
 
     def __init__(self, config, model=None, load_model_from_config=False):
+        # Setup config and model
         config = OmegaConf.load(config) if isinstance(config, str) else config
         self.cfg = load_default_cfg()
         self.cfg = OmegaConf.merge(self.cfg, config)
 
+        self.model = model
+        load_model_from_config = True if model is None else load_model_from_config
+        
+        if load_model_from_config:
+            self.load_model_from_config()
+
         self.optimizer = None
         self.scheduler = None
 
-        self.model = model
-        load_model_from_config = True if model is None else load_model_from_config
-
-        if load_model_from_config:
-            self.load_model_from_config()
-            # self.initialize_model()
-
+        # Setup wandb if enabled
         if self.cfg.logging.wandb:
-            wandb.init(project=self.cfg.logging.wandb_project)
+            resume = 'must' if self.cfg.logging.wandb_run_id else None
+            wandb.init(
+                project=self.cfg.logging.wandb_project, 
+                name=self.cfg.logging.wandb_run_name,
+                id=self.cfg.logging.wandb_run_id,
+                resume=resume,                
+            )
 
-        # Automatically use dated experiment directory
-        self.cfg.train.output_dir = os.path.join(
-            self.cfg.train.output_dir, f"{time.strftime('%Y-%m-%d_%H-%M')}-experiment"
-        )
+        # Setup output directory and checkpoint directory
+        if self.cfg.train.resume_from_checkpoint:
+            print(f"Resuming from checkpoint!")
+            if not self.cfg.train.output_dir:
+                self.cfg.train.output_dir = os.path.dirname(self.cfg.train.checkpoint_dir)
+                print(f"Resuming from checkpoint using output directory: {self.cfg.train.output_dir}")
+        else:
+            if not self.cfg.train.output_dir:
+                self.cfg.train.output_dir = os.path.join(
+                    './' , f"{time.strftime('%Y-%m-%d_%H-%M')}-experiment"
+                )
+            
         self.checkpoint_dir = os.path.join(self.cfg.train.output_dir, "checkpoint")
 
+        # Dump config to output, setup model save paths
         os.makedirs(self.cfg.train.output_dir, exist_ok=True)
         with open(os.path.join(self.cfg.train.output_dir, "config.yaml"), "w") as f:
             OmegaConf.save(self.cfg, f)
@@ -63,6 +79,7 @@ class ChessTrainer:
         self.latest_model_path = os.path.join(self.cfg.train.output_dir, "model_latest")
         self.best_model_path = os.path.join(self.cfg.train.output_dir, "model_best")
 
+        # Setup stats tracker for running averages
         self.stats = MetricsTracker()
         self.stats.add(
             [
@@ -88,9 +105,8 @@ class ChessTrainer:
         model_args = [] if model_args is None else model_args
         model_kwargs = {} if model_kwargs is None else model_kwargs
 
-        self.model = ModelRegistry.load_model_from_path(model_name, model_path, *model_args, **model_kwargs)
+        self.model = ModelRegistry.load_model(model_name, model_path, *model_args, **model_kwargs)
         self.model.to(self.cfg.train.device)
-
 
     def build_optimizer(self):
         self.optimizer = torch.optim.AdamW(
@@ -292,7 +308,7 @@ class ChessTrainer:
             self.model is not None
         ), "Model not initialized. Please set up your model before calling .train()"
 
-        # Sets optimizer and scheduler if not already set
+        # Sets optimizer and scheduler from config if not already set
         if not self.optimizer:
             self.build_optimizer()
 
