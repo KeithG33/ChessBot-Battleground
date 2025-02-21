@@ -127,7 +127,7 @@ def main():
 
     bot_model = None
     if args.model_dir and args.model_name:
-        bot_model = ModelRegistry.load_model_from_path(args.model_name, args.model_dir)
+        bot_model = ModelRegistry.load_model(args.model_name, args.model_dir)
         if args.model_weights:
             state_dict = torch.load(args.model_weights)
             bot_model.load_state_dict(state_dict).cuda()
