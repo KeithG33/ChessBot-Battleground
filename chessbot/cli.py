@@ -6,7 +6,7 @@ import torch
 import typer
 
 from chessbot.data.download import DEFAULT_DATASET_DIR, download as download_fn
-from chessbot.inference.evaluate import evaluate_model as evaluate_fn
+from chessbot.inference.evaluate import evaluate_model
 from chessbot.train.trainer import train_fn
 
 from webapp.app import play as play_fn
@@ -68,7 +68,7 @@ def evaluate(
         model.load_state_dict(torch.load(model_weights))
 
     # Evaluate the model (replace with your actual evaluation logic)
-    results = evaluate_fn(model, data_dir, batch_size=batch_size, num_threads=num_threads)
+    results = evaluate_model(model, data_dir, batch_size=batch_size, num_threads=num_threads)
     typer.echo(f"Evaluation results: {results}")
 
 

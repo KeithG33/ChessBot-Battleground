@@ -2,7 +2,7 @@
 model:
   path: null                            # Path to the directory containing models
   name: null                            # Name of the model class
-  weights: null                         # Path to the model weights
+  weights: null                         # Path to the model weights. Use checkpoint_dir to load weights if training
   args: null                            # Model arguments
   kwargs: null                          # Model keyword arguments
    
