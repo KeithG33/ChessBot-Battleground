@@ -179,3 +179,10 @@ stockfish*
 # wandb
 **/wandb/
 **/**/*.wandb/
+
+# pytorch / python 
+*.pt
+*.pth
+*.bin
+*.pkl
+*.safetensors
