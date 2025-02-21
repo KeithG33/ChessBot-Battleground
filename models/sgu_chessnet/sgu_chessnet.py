@@ -5,8 +5,7 @@ import numpy as np
 from adversarial_gym.chess_env import ChessEnv
 
 
-from chessbot.models.base import BaseChessModel
-
+from chessbot.models import BaseChessModel, ModelRegistry
 
 class ResidualBlock(nn.Module):
     def __init__(self, input_dim, hidden_dim, dropout=0.):
@@ -149,6 +148,7 @@ class SGUBlock(nn.Module):
         return x
 
 
+@ModelRegistry.register("sgu_chessnet")
 class SpatialGatingChessNet(BaseChessModel):
     """ Spatial Gating Units (SGU) paired with residual MLP blocks for global feature processing."""
 
