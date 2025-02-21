@@ -21,7 +21,6 @@ This repository contains a gigantic curated chess dataset meant for machine lear
 - **Dataset/Training:** PyTorch dataset and training code
 - **Evaluation**: Compare performance on the dataset. *Leaderboard coming soon*
 - **Visualization:** Watch your models in action as they play and adapt on the board.
-- **Dueling:** Functionality for best-of-N matches between saved models
 - **MCTS:** Simple implementation to give your supervised models search capability. *Training coming soon*.
 - **Game App:**  Play a game against your model with the `chessbot play` tool. Can it beat you?
 
@@ -80,7 +79,6 @@ Here's a somewhat realistic example of using it:
 ```python
 from chessbot.config import load_default_cfg()
 from chessbot.train import ChessTrainer
-from chessnet import YourChessNet
 
 # Get default cfg and do some basic setup
 cfg = load_default_cfg() # get default cfg
@@ -95,7 +93,7 @@ cfg.dataset.data_path = 'ChessBot-Battleground/dataset/'
 cfg.dataset.size_train = 25 # num files to sample for train set
 cfg.dataset.size_test = 5 # num files to sample for test set
 
-model = YourChessNet()
+model = YourChessModel()
 
 trainer = ChessTrainer(cfg, model)
 trainer.train()
@@ -106,7 +104,7 @@ See [`chessbot/train/config.yaml`](chessbot/train/config.yaml) for a list and de
 
 ## 🤖 Models
 
-To take advantage of the training and inference code, models should subclass the `BaseChessModel` class. The expected format is:
+Design your model and see how it does! To take advantage of the training and inference code, models should subclass the `BaseChessModel` class and follow the expected format:
 1. **Input**: `(B, 1, 8, 8)` tensor for position
 2. **Output**: a policy distribution of shape `(B, 4672)`, and expected value of shape `(B, 1)`.
 
@@ -114,7 +112,7 @@ A minimal example of writing a model:
 ```python
 from chessbot.models import BaseChessModel, ModelRegistry
 
-@ModelRegistry.register()
+@ModelRegistry.register('simple_chessnet')
 class SimpleChessNet(BaseChessModel):
   """ One layer backbone and one layer prediction heads """
     
@@ -143,53 +141,38 @@ class SimpleChessNet(BaseChessModel):
         return action_logits, board_val
 ```
 
-As long as your model has these inputs and outputs, then all the features of the library are available. If you need to break that input/output format, then you'll have to write your own training and inference code.
-
-The model registry is a simple helper for the library to load your chess models from a path and name. If the decorator input is empty as in the example, `@ModelRegistry.register()`, then the model will automatically be registered with the class name `SimpleChessNet`. This helps find and load models for command line scripts.
+The `ModelRegistry` is a helper for the library to load chess models from a path and name. The model will be registered with the name provided, or the class name if none is provided. This helps find and load models for command line tools.
 ## 🦾 Inference & Battling
 
 Take your models to the battleground!  
 
-The library depends on an **Adversarial Gym Environment** designed for two-player turn-based games, that can be used to visualize model inference. To visualize your models playing, you can check out the functions in [`chessbot.inference`](chessbot/inference/):
+The library depends on an **Adversarial Gym Environment** designed for two-player turn-based games, that can be used to visualize model inference. Check out the functions in [`chessbot.inference`](chessbot/inference/):
 
 ```python
-from example_model.simple_chessnet import SimpleChessNet
 from chessbot.inference import selfplay, duel
 
-# Run selfplay. Returns value in [-1,0,1] for white's outcome
-model = SimpleChessNet()
+# Selfplay. Returns value in [-1,0,1] for white's outcome
+model   = YourChessModel()
 outcome = selfplay(model, visualize=True)
 
-# Watch a match between two models, use MCTS
-model1 = SimpleChessNet()
-model2 = SimpleChessNet()
-scores = duel(model1, model2, best_of=11, search=True, visualize=True) # Returns (score1, score2)
+# Match between two models, use MCTS. Returns (score1,score2)
+model1 = YourChessModel()
+model2 = YourChessModel()
+scores = duel(model1, model2, best_of=11, search=True, visualize=True)
 ```
 
 Use the search flag to harness **Monte Carlo Tree Search (MCTS)** for search during inference. *MCTS training code coming soon!* The [Chess Battle GIF](#chess-battle-gif) at the beginning is an example of visualizing the game with the Chess-env, and using MCTS for test-time powered inference. 
 
-And a historically important question for humankind: *Can your model beat you?*
 
+## ✨ Getting Started
 
-```bash
-chessbot play "your_chessnet" \
-              --model-dir /path/to/dir \
-              --model-weights /path/to/weights.pt
-```
-<div align="center">
-<img src="assets/battleground.png" style="width: 70%; height: auto;">  
-  <p><em> Punishing a beautiful queen sac from a randomly initialized model ;)</em></p>
-</div>
+### 1. Installation: 
 
-
-## Getting Started
-**1. Installation:**  
-
-Before installing the library, first install the [Adversarial Gym](https://github.com/OperationBeatMeChess/adversarial-gym) chess environment:
+First install the [Adversarial Gym](https://github.com/OperationBeatMeChess/adversarial-gym) chess environment:
   ```bash
   pip install adversarial-gym
   ```
-Now install ChessBot-Battleground
+Then install ChessBot-Battleground
 
    ```bash
    # Either install from source...
@@ -202,13 +185,34 @@ Now install ChessBot-Battleground
    pip install ChessBot-Battleground
    ```
 
+Once you've got the library installed check out the `chessbot` cli tool for a quick overview of things you can do:
+```bash
+kage@pop-os:~/chess_workspace$ chessbot --help
+                                                                                                                                                                                                                                      
+ Usage: chessbot [OPTIONS] COMMAND [ARGS]...                                                                                                                                                                                          
+                                                                                                                                                                                                                                      
+ ChessBot CLI Tool                                                                                                                                                                                                                    
+                                                                                                                                                                                                                                      
+╭─ Options ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ --install-completion          Install completion for the current shell.                                                                                                                                                            │
+│ --show-completion             Show completion for the current shell, to copy it or customize the installation.                                                                                                                     │
+│ --help                        Show this message and exit.                                                                                                                                                                          │
+╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ evaluate   Evaluate a model. Pass additional positional arguments with --model-arg and keyword arguments as a JSON string via --model-kwargs.                                                                                      │
+│ download   Download a dataset from a GitHub release.                                                                                                                                                                               │
+│ play       Play a game against the bot using a loaded model. Pass additional positional arguments with --model-arg and keyword arguments as a JSON string via --model-kwargs.                                                      │
+│ train      Train a model using the provided configuration file and optional overrides.                                                                                                                                             │
+╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
 
-**2. Download the Dataset:**  
+
+### 2. Download the Dataset:
 *[Releases available for download here](https://github.com/KeithG33/ChessBot-Battleground/releases)* 
 
 The dataset is provided as a downloadable .zip file with each release. Either use the link and your browser, or the `chessbot` cli tool:
 ```bash
-# For list of options
+# For options and help
 chessbot download --help 
 
 # Default: download latest release to cwd if pip installed, or ChessBot-Battleground/dataset if source installed
@@ -221,7 +225,25 @@ chessbot download v0.0.0 \
 
 By default, the latest release will be downloaded into the `ChessBot-Battleground/dataset/` directory, or the current working directory if the package has been pip installed.  
 
-#### 3. Leaderboard / Evaluation
+### 3. Models & Training
+After installation and downloading, it's time to write a model and let it gobble up data. Writing a model and training was covered above, so first check that out. Here I'll show the CLI version of training. First register your model, and then configure `model.path` and `model.name` to load the model. Either set this in the config file, or use the command overrides
+
+```bash
+# For options and help
+chessbot train --help
+
+# Train from config, and any overrides in command
+chessbot train /path/to/config.yaml
+              -o model.path path/to/model
+              -o model.name YourChessModel
+              -o train.epochs 10
+              -o train.lr 0.001
+```
+
+Additionally, `model.args` and `model.kwargs` can be used for the model init, with a list and dictionary, respectively.
+
+
+### 4. Leaderboard / Evaluation
 Share your model's results on the test set. Compare your scores against the leaderboard. Once you've trained a model run the provided evaluate script to get your test set metrics.
 
 ```python
@@ -233,8 +255,8 @@ model = ChessModel()
 # Evaluate the model
 batch_size = 3072
 num_threads = 8
-dataset_dir = 'path/to/dataset/'
-evaluate_model(model, pgn_dir, batch_size, num_threads, device='cuda')
+data_dir = 'path/to/dataset/'
+evaluate_model(model, data_dir, batch_size, num_threads)
 ```
 
 Or if your model is registered, using the `chessbot` cli tool:
@@ -250,13 +272,27 @@ chessbot evaluate "your_chessnet" \
                   --num-threads 8 \
 ```
 
-**4. Examples**  
+### 5. Play Your ChessBot
+And once you've written a model and trained...A historically important question for humankind: *Can your model beat you?*
 
-1. There is a simple and complete example in [examples](examples/) to get you started. Check out the `SimpleChessNet` for an example of the model interface; use `example_training.ipynb` to train the model; use `example_inference.ipynb` to either run inference with the base model, or with an MCTS wrapper for a test-time-powerup.
 
-2. For actual models check out the [models](models/) directory.
+```bash
+chessbot play "your_chessnet" \
+              --model-dir /path/to/dir \
+              --model-weights /path/to/weights.pt
+```
+<div align="center">
+<img src="assets/battleground.png" style="width: 70%; height: auto;">  
+  <p><em> Punishing a beautiful queen sac from a randomly initialized model ;)</em></p>
+</div>
 
-3. Additionally, an `example_sf_datagen.ipynb` exists to show how one might add data to the dataset. Unfortunately stockfish is slow so this is a hopeful crumb that I leave for the crowd
+### 6. Examples
+
+There is a simple and complete example in [examples](examples/) to get you started. Check out the `SimpleChessNet` for an example of the model interface; use `example_training.ipynb` to train the model; use `example_inference.ipynb` to either run inference with the base model, or with an MCTS wrapper for a test-time-powerup.
+
+For actual models check out the [models](models/) directory.
+
+Additionally, an `example_sf_datagen.ipynb` exists to show how one might add data to the dataset. Unfortunately stockfish is slow so this is a hopeful crumb that I leave for the crowd.
 
 
 
@@ -269,6 +305,6 @@ chessbot evaluate "your_chessnet" \
 - Add a leaderboard
 
 
-## Contributing
+## 🛠️ Contributing
 
 If you have ideas, improvements, or bug fixes, feel free to open an issue or submit a pull request. For any questions or further discussion, don't hesitate to reach out!
