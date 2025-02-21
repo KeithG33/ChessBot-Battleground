@@ -1,29 +1,44 @@
 # Spatial Gating ChessNet
-
-## Relevant Papers and Research
-Link to papers or research that influenced or are directly related to the model:
-- [Pay Attention to MLPs](https://arxiv.org/pdf/2105.08050v2)
-- [Deep Residual Learning for Image Recognition](https://arxiv.org/abs/1512.03385)
-
+Implements spatial gating with attention (a-MLP) from the paper [Pay Attention to MLPs](https://arxiv.org/pdf/2105.08050v2)
 
 ## Architecture
-The main block of the SGU ChessNet consists of two components: A gMLP module and a linear residual module that acts on the flattened features. The gMLP implementation is taken from the pseudocode of the paper, and uses an attention module as suggested by the authors. However to spice things up, the attention module is less tiny and uses 1D relative position bias for better performance.
+The main block of the SGU ChessNet consists of two components:
+1. A gMLP module: implementation is taken from the pseudocode of the paper, and uses the attention module suggested by the authors. However it is less tiny and uses 1D relative position bias for better performance.
+2. Global MLP: a normal mlp with LayerNorm, GELU, linear layers, and residual connection between input and output. Acts on flattened features to attend globally
+
 
 <div align="center"  id="image.png">
   <img src="image.png" style="width: 75%; height: auto;">
   <p><em>Pseudo code from paper. Original diagram modified to show tiny-attention module, used in the SGU ChessNet.</em></p>
 </div>
 
-The second part is a straightforward MLP with LayerNorm, GELU, linear layers, and a residual connection between input and output. For global mixing, features are flattened and reshaped before and after the MLP.
+
+```python
+# Pseudo-code for SGU block as used in SGU ChessNet
+def sgu_block(x):
+  x = x + gmlp(x)
+  x = x + mlp(x.flatten()).unflatten()
+```
+
+**Stats**:
+- Layers: 24
+- Hidden shape: (B, 64, 32)
 
 
-### Training Plots
+### Training Plots and Scores
 *Coming soon*
 <!-- ![Training Plot](path_to_training_plot.png) -->
 
 ## Usage
-Provide instructions on how to use the model, including how to load and run predictions, if applicable.
+Play against the model with the following command
 
 ```bash
-# Example command to run predictions
-python predict.py --model path_to_model --input path_to_input_data
+chessbot play "sgu_chessnet" \
+              --model-dir path_to_model \
+              --model-weights path_to_weights
+
+chessbot evaluate "sgu_chessnet" \
+              --model-dir path_to_model \
+              --model-weights path_to_weights
+              --data-dir path_to_dataset
+              --batch-sz 3072
