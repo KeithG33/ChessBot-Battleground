@@ -1,23 +1,18 @@
 
 import sys
-from chessbot.data import ChessDataset
 import os
-import torch
-import torch.nn.functional as F
 import logging
-from torch.utils.data import DataLoader
 from tqdm import tqdm
+
 from sklearn.metrics import accuracy_score
 
+import torch
+import torch.nn.functional as F
+from torch.utils.data import DataLoader
 
-# Configure logging
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s - %(levelname)s - %(message)s',
-                    datefmt='%Y-%m-%d %H:%M:%S',
-                    handlers=[
-                        logging.FileHandler("evaluation.log"),
-                        logging.StreamHandler(sys.stdout)
-                    ])
+from chessbot.data import ChessDataset
+from chessbot.common import setup_logger
+
 
 _logger = logging.getLogger(__name__)
 
@@ -41,7 +36,7 @@ def evaluate_model(
     all_files = [f.path for f in os.scandir(test_data) if f.name.endswith(".pgn")]
     
     if chunk_size is None:
-        chunk_size = len(all_files)  # Process all at once if memory allows
+        chunk_size = len(all_files)
 
     model.eval()
 

@@ -19,11 +19,18 @@ from torch.utils.data import DataLoader
 from omegaconf import OmegaConf
 from accelerate import Accelerator
 
+from chessbot.common import setup_logger
 from chessbot.data.dataset import ChessDataset
 from chessbot.train.utils import WarmupLR, MetricsTracker
 from chessbot.train.config import load_default_cfg
 from chessbot.models.registry import ModelRegistry
 
+import logging
+
+
+# ANSI escape sequence for green text
+GREEN = "\033[1;32m"
+RESET = "\033[0m"
 
 class ChessTrainer:
     """Chess trainer for training a chess model with the ChessBot dataset
@@ -33,16 +40,23 @@ class ChessTrainer:
     """
 
     def __init__(self, config, model=None, load_model_from_config=False):
+        self._logger = setup_logger("chessbot.trainer", level=logging.INFO)
+
         # Setup config and model
         config = OmegaConf.load(config) if isinstance(config, str) else config
         self.cfg = load_default_cfg()
         self.cfg = OmegaConf.merge(self.cfg, config)
+
+        self._logger.info(f"Loaded configuration: \n {OmegaConf.to_yaml(self.cfg)}")
 
         self.model = model
         load_model_from_config = True if model is None else load_model_from_config
         
         if load_model_from_config:
             self.load_model_from_config()
+
+        self._logger.info(f"Training with model: {self.model.__class__.__name__}")
+        self._logger.info(self.model)
 
         self.optimizer = None
         self.scheduler = None
@@ -59,15 +73,15 @@ class ChessTrainer:
 
         # Setup output directory and checkpoint directory
         if self.cfg.train.resume_from_checkpoint:
-            print(f"Resuming from checkpoint!")
             if not self.cfg.train.output_dir:
                 self.cfg.train.output_dir = os.path.dirname(self.cfg.train.checkpoint_dir)
-                print(f"Resuming from checkpoint using output directory: {self.cfg.train.output_dir}")
         else:
             if not self.cfg.train.output_dir:
                 self.cfg.train.output_dir = os.path.join(
                     './' , f"{time.strftime('%Y-%m-%d_%H-%M')}-experiment"
                 )
+
+        self._logger.info(f"Saving training outputs to: {self.cfg.train.output_dir} - Resuming: {self.cfg.train.resume_from_checkpoint}")
             
         self.checkpoint_dir = os.path.join(self.cfg.train.output_dir, "checkpoint")
 
@@ -91,6 +105,13 @@ class ChessTrainer:
                 "val_vloss",
             ]
         )
+        self.progress_bar = tqdm(
+            desc=f"{GREEN}Training{RESET}",
+            total=0,
+            leave=True,
+            dynamic_ncols=True,
+            bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}] {postfix}",
+        )
 
     def load_model_from_config(self):
         """
@@ -100,9 +121,8 @@ class ChessTrainer:
         model_name = self.cfg.model.name
 
         model_args = self.cfg.model.get('args', [])
-        model_kwargs = self.cfg.model.get('kwargs', {})
-
         model_args = [] if model_args is None else model_args
+        model_kwargs = self.cfg.model.get('kwargs', {})
         model_kwargs = {} if model_kwargs is None else model_kwargs
 
         self.model = ModelRegistry.load_model(model_name, model_path, *model_args, **model_kwargs)
@@ -205,7 +225,7 @@ class ChessTrainer:
             self.stats.get_average('val_vloss'),
         )
 
-    def training_round(self, train_loader, accelerator, progress_bar, round):
+    def training_round(self, train_loader, accelerator, round):
         """
         Perform a single training round.
         """
@@ -287,9 +307,9 @@ class ChessTrainer:
                         accelerator.save_model(self.model, self.best_model_path, safe_serialization=False)   
                         accelerator.save_state(output_dir=self.checkpoint_dir)
                     
-                    progress_bar.refresh()
+                    self.progress_bar.refresh()
 
-                progress_bar.set_postfix(
+                self.progress_bar.set_postfix(
                     {
                         "Round": f"{round + 1}/{self.cfg.train.rounds}",
                         "Epoch": f"{epoch + 1}/{self.cfg.train.epochs}",
@@ -298,7 +318,7 @@ class ChessTrainer:
                         "Val Loss": f"{val_loss:.4f}",
                     }
                 )
-                progress_bar.update(1)
+                self.progress_bar.update(1)
 
             accelerator.save_model(self.model, self.latest_model_path, safe_serialization=False)
             accelerator.save_state(output_dir=self.checkpoint_dir)
@@ -318,15 +338,8 @@ class ChessTrainer:
             dynamo_backend='INDUCTOR' if self.cfg.train.compile else None,
         )
 
-        progress_bar = tqdm(
-            desc="Training",
-            total=0,
-            leave=True,
-            dynamic_ncols=True,
-            bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}] {postfix}",
-        )
-
         # Each round samples new data from dataset and performs epochs
+        self._logger.info(f"Chess Trainer starting...")
         for round_num in range(self.cfg.train.rounds):
             self.stats.reset(
                 [
@@ -340,11 +353,12 @@ class ChessTrainer:
             )
 
             train_loader = self.build_train_loader(self.cfg)
-            print(f"Loaded {len(train_loader.dataset.data)} positions")
+            self._logger.info(f"Loaded {len(train_loader.dataset.data)} positions")
+
 
             total_iters = len(train_loader) * self.cfg.train.epochs
-            progress_bar.total += total_iters
-            progress_bar.refresh()
+            self.progress_bar.total += total_iters
+            self.progress_bar.refresh()
 
             self.model, self.optimizer, train_loader, self.scheduler = (
                 accelerator.prepare(
@@ -354,12 +368,13 @@ class ChessTrainer:
             if self.cfg.train.checkpoint_dir and round_num == 0:
                 accelerator.load_state(self.cfg.train.checkpoint_dir)
 
-            self.training_round(train_loader, accelerator, progress_bar, round_num)
+            self.training_round(train_loader, accelerator, round_num)
 
             # reduce memory spikes
             del train_loader
 
-        progress_bar.close()
+        self._logger.info(f"Training complete!")
+        self.progress_bar.close()
 
 
 def train_fn(config_path: str, override: List[str] = None):
@@ -373,16 +388,11 @@ def train_fn(config_path: str, override: List[str] = None):
                                         e.g., ["training.lr=0.001", "model.hidden_size=256"].
     """
     config = OmegaConf.load(config_path)
-    typer.echo(f"Loaded config from {config_path}")
 
     # Create a config from the dotlist and merge it if present
     if override:
         override_conf = OmegaConf.from_dotlist(override)
         config = OmegaConf.merge(config, override_conf)
-        typer.echo("Applied configuration overrides:" + " ".join(override))
 
     trainer = ChessTrainer(config, load_model_from_config=True)
-
-    typer.echo("Starting Chess Trainer...")
     trainer.train()
-    typer.echo("Training completed.")
