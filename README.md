@@ -240,7 +240,7 @@ chessbot train /path/to/config.yaml
               -o train.lr 0.001
 ```
 
-Additionally, `model.args` and `model.kwargs` can be used for the model init, with a list and dictionary, respectively.
+Additionally, `model.args` and `model.kwargs` exist for the model init. Use a list and dictionary, respectively.
 
 
 ### 4. Leaderboard / Evaluation
@@ -259,12 +259,12 @@ data_dir = 'path/to/dataset/'
 evaluate_model(model, data_dir, batch_size, num_threads)
 ```
 
-Or if your model is registered, using the `chessbot` cli tool:
+Or if your model is registered as "my_chessnet", using the `chessbot` cli tool:
 ```bash
 # For options and help:
 chessbot evaluate --help
 
-chessbot evaluate "your_chessnet" \ 
+chessbot evaluate "my_chessnet" \ 
                   --model-dir path/to/dir \
                   --model-weights path/to/weights.pt \
                   --data-dir path/to/dataset \
