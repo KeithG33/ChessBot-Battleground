@@ -10,7 +10,7 @@ from chessbot.inference.evaluate import evaluate_model
 from chessbot.train.trainer import train_fn
 from chessbot.common import DEFAULT_DATASET_DIR
 
-from webapp.app import play as play_fn
+from app.app import play as play_fn
 
 
 app = typer.Typer(help="ChessBot CLI Tool")
