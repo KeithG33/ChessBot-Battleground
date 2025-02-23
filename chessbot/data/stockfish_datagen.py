@@ -11,9 +11,10 @@ import random
 from typing import Optional
 import chess
 import chess.pgn
-from stockfish import Stockfish
 from multiprocessing import Pool
 from functools import partial
+
+from stockfish import Stockfish
 
 
 # Global variable for Stockfish in each worker
@@ -443,23 +444,3 @@ def solve_and_export_random_positions(
 
             print(f"Annotated solutions written to: {output_file}")
 
-
-# if __name__ == "__main__":
-
-#     pgn_directory = "/home/kage/chess_workspace/stockfish_datagen/datagen"
-#     output_directory = "/home/kage/chess_workspace/stockfish_datagen/datagen"
-
-#     threads = 7  # Number of threads to use
-#     num_proc = 2  # Number of processes to use
-#     probability = 0.1  # 10% chance to solve any given position
-#     max_solve_moves = 11  # Maximum number of moves to solve
-
-#     solve_and_export_random_positions(
-#         pgn_dir=pgn_directory,
-#         output_dir=output_directory,
-#         threads=threads,
-#         hash_size=1024*4,
-#         num_proc=num_proc,
-#         p=probability,
-#         max_moves=max_solve_moves
-#     )
