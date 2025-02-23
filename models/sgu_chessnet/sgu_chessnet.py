@@ -4,8 +4,8 @@ import torch.nn.functional as F
 import numpy as np
 from adversarial_gym.chess_env import ChessEnv
 
-
 from chessbot.models import BaseChessModel, ModelRegistry
+
 
 class ResidualBlock(nn.Module):
     def __init__(self, input_dim, hidden_dim, dropout=0.):
