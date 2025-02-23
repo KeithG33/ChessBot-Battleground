@@ -147,7 +147,7 @@ class AttentionBlock(nn.Module):
             q, k, v,
             attn_mask=relative_position_bias,
         )
-
+        attn = self.scale(attn)
         x = attn.transpose(1, 2).reshape(B, N, self.expanded_dim) 
         x = self.proj(x) 
         x = self.dropout(x)
@@ -247,7 +247,6 @@ class ChessTransformer(nn.Module):
         self.value_loss = nn.MSELoss()
         self.policy_loss = nn.CrossEntropyLoss()
 
-    
     def embed_state(self, x):
         x = x.view(x.size(0), -1)  # (B, 1, 8, 8) -> (B, 64)
         x = self.piece_embedding(x + 6)  # (B, 64) -> (B, 64, piece_embed_dim)
