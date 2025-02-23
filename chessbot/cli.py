@@ -5,9 +5,10 @@ from omegaconf import OmegaConf
 import torch
 import typer
 
-from chessbot.data.download import DEFAULT_DATASET_DIR, download as download_fn
+from chessbot.data.download import download as download_fn
 from chessbot.inference.evaluate import evaluate_model
 from chessbot.train.trainer import train_fn
+from chessbot.common import DEFAULT_DATASET_DIR
 
 from webapp.app import play as play_fn
 
@@ -47,6 +48,7 @@ def evaluate(
     data_dir: str = typer.Option(DEFAULT_DATASET_DIR, "--data-dir", help="Directory containing dataset"),
     batch_size: int = typer.Option(1024, "--batch-sz", help="Batch size for evaluation"),
     num_threads: int = typer.Option(1, "--num-threads", help="Number of threads to use"),
+    num_chunks: int = typer.Option(None, "--num-chunks", help="Number of chunks to split the dataset into. Avoids memory issues."),
     model_args: List[str] = typer.Option(
         None,
         "--model-arg",
@@ -67,8 +69,12 @@ def evaluate(
     if model_weights:
         model.load_state_dict(torch.load(model_weights))
 
+    if data_dir is None:
+        typer.echo("No dataset directory provided, and no source directory found.")
+        raise typer.Exit(code=1)
+
     # Evaluate the model (replace with your actual evaluation logic)
-    results = evaluate_model(model, data_dir, batch_size=batch_size, num_threads=num_threads)
+    results = evaluate_model(model, data_dir, batch_size=batch_size, num_threads=num_threads, num_chunks=num_chunks)
     typer.echo(f"Evaluation results: {results}")
 
 
@@ -76,12 +82,13 @@ def evaluate(
 def download(
     tag: str = typer.Argument(None, help="Tag of the GitHub release (default: latest)"),
     output_dir: str = typer.Option(None, "--output-dir", "-o", help="Path where the dataset should be saved"),
-    dataset_name: str = typer.Option(None, "--dataset-name", "-d", help="Custom dataset filename (default: ChessBot-Dataset-{tag}.zip)")
+    dataset_name: str = typer.Option(None, "--dataset-name", "-d", help="Custom dataset filename (default: ChessBot-Dataset-{tag}.zip)"),
+    keep_raw_data: bool = typer.Option(False, "--keep-raw-data", help="Keep the raw data after extraction. For default source install download"),   
 ):
     """
     Download a dataset from a GitHub release.
     """
-    download_fn(tag, output_dir, dataset_name)
+    download_fn(tag, output_dir, dataset_name, keep_raw_data)
 
 
 @app.command()

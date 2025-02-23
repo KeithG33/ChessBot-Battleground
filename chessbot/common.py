@@ -1,3 +1,4 @@
+import os
 import sys
 import logging
 import colorlog
@@ -51,3 +52,17 @@ def setup_logger(name: str, level: int = logging.INFO, logfile: str = None) -> l
         logger.addHandler(file_handler)
     
     return logger
+
+
+def get_latest_dataset_dir():
+    """ Get highest version dataset directory """
+    source_dataset_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "dataset"))
+    if not os.path.exists(source_dataset_dir):
+        return None
+    
+    dataset_dirs = [d for d in os.listdir(source_dataset_dir) if d.startswith("ChessBot-dataset-")]
+    if not dataset_dirs:
+        return None
+    return os.path.join(source_dataset_dir, sorted(dataset_dirs)[-1])
+
+DEFAULT_DATASET_DIR = get_latest_dataset_dir()
