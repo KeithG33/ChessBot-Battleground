@@ -233,11 +233,11 @@ After installation and downloading, it's time to write a model and let it gobble
 chessbot train --help
 
 # Train from config, and any overrides in command
-chessbot train /path/to/config.yaml
-              -o model.path path/to/model
-              -o model.name YourChessModel
-              -o train.epochs 10
-              -o train.lr 0.001
+chessbot train /path/to/config.yaml \
+              -o model.path path/to/model \
+              -o model.name YourChessModel \
+              -o train.epochs 10 \
+              -o train.lr 0.001 \
 ```
 
 Additionally, `model.args` and `model.kwargs` exist for the model init. Use a list and dictionary, respectively.
