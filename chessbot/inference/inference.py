@@ -95,15 +95,13 @@ def play_game(
             )
 
         obs, reward, done, trunc, _ = env.step(best_action)
-
-        print(f"Reward: {reward}, Done: {done}, Step: {step}, truncated: {trunc}")
         step += 1
 
     return reward
 
 
-def selfplay(model: BaseChessModel, search=True, visualize=False) -> int:
+def selfplay(model: BaseChessModel, search=True, num_sims=250, visualize=False) -> int:
     """
     Run selfplay game with a given model.
     """
-    return play_game(model, model, search=search, visualize=visualize)
+    return play_game(model, model, search=search, num_sims=num_sims, visualize=visualize)
