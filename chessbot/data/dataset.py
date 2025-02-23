@@ -1,10 +1,9 @@
 from pathlib import Path
-from torch.multiprocessing import Pool, set_start_method
 import chess
 import chess.pgn
 
 import torch
-from numba import jit
+from torch.multiprocessing import Pool, set_start_method
 from torch.utils.data import Dataset
 
 from adversarial_gym.chess_env import ChessEnv
