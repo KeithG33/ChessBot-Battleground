@@ -39,11 +39,9 @@ class SimpleChessNet(BaseChessModel):
 
     def forward(self, x):
         """
-        Process the input state and produce action logits and board value. Note the input tensor
-        is shape (B, 8, 8) where each position is an integer representing a piece.
-
+        Process the input state and produce action logits and board value.
         Args:
-            x (torch.Tensor): Input tensor of shape (B, 1, 8, 8)
+            x (torch.Tensor): Input tensor of shape (B, 1, 8, 8), with integer values for pieces
 
         Returns:
             Tuple[torch.Tensor, torch.Tensor]: 
