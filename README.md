@@ -33,7 +33,7 @@ See a model in action below:
 
 
 ## 📂 Dataset
-*[Releases available for download here](https://github.com/KeithG33/ChessBot-Battleground/releases)*  
+*[Datasets available for download here](https://drive.google.com/drive/folders/1RylJnVbJTNRVc8i_XN1lCE0nwX2g_oG9?usp=sharing)*  
 
 Currently the dataset contains approximately **700 million positions** in **PGN format**, split across 1000 files. Huge credits to the following main sources:
 
@@ -64,14 +64,7 @@ results = batch[2]  # (B,)
 If you have your own pgn files and want to make your own dataset, the PyTorch dataset should work with those as well. The moves and results are loaded from each game in the PGN file
 ## 🧠 Training
 
-A `ChessTrainer` class can be used to train ChessBot models. The trainer splits the data loading and training into rounds and epochs. Each round will sample a new subset of `cfg.dataset.size_train` files, and then perform epochs on this subset.   
-
-
-**ChessTrainer**
-- HuggingFace's `accelerate` for easy access to mixed precision, compilation, gradient clipping, gradient accumulation, etc.
-- Warmup LR scheduling and decay (linear or cosine)
-- Validation frequency in iterations
-- Optional logging to wandb 
+A `ChessTrainer` class can be used to train ChessBot models. The trainer splits the data loading and training into rounds and epochs. Each round will sample a new subset of `cfg.dataset.size_train` files, and then perform epochs on this subset. The class utilizes HuggingFace's `accelerate` for easy access AMP, torch.compile,  gradient clipping, gradient accumulation, etc. Check out [`chessbot/train/config.yaml`](chessbot/train/config.yaml) for a list and description of the available options
 
 
 Here's a somewhat realistic example of using it:
@@ -99,7 +92,7 @@ trainer = ChessTrainer(cfg, model)
 trainer.train()
 ```
 
-See [`chessbot/train/config.yaml`](chessbot/train/config.yaml) for a list and description of the available options, and the next section for a brief description of models.
+See [`chessbot/train/config.yaml`](chessbot/train/config.yaml) for a list and description of the available options, and the next section for a brief description of models. The [Getting Started](#-getting-started) section also shows a command-line version of running training
 
 
 ## 🤖 Models
@@ -165,6 +158,7 @@ Use the search flag to harness **Monte Carlo Tree Search (MCTS)** for search dur
 
 
 ## ✨ Getting Started
+The python code was covered above, so for the sake of learning, this Getting-Started will mostly focus on showing the `chessbot` command-line tool version of things. 
 
 ### 1. Installation: 
 
@@ -185,7 +179,7 @@ Then install ChessBot-Battleground
    pip install ChessBot-Battleground
    ```
 
-Once you've got the library installed check out the `chessbot` cli tool for a quick overview of things you can do:
+Once you've got the library installed check out the `chessbot --help` command for a quick overview of things you can do:
 ```bash
 kage@pop-os:~/chess_workspace$ chessbot --help
                                                                                                                                                                                                                                       
@@ -208,7 +202,7 @@ kage@pop-os:~/chess_workspace$ chessbot --help
 
 
 ### 2. Download the Dataset:
-*[Releases available for download here](https://github.com/KeithG33/ChessBot-Battleground/releases)* 
+*[Datasets available for download here](https://drive.google.com/drive/folders/1RylJnVbJTNRVc8i_XN1lCE0nwX2g_oG9?usp=sharing)* 
 
 The dataset is provided as a downloadable .zip file with each release. Either use the link and your browser, or the `chessbot` cli tool:
 ```bash
@@ -218,8 +212,8 @@ chessbot download --help
 # Default: download latest release to cwd if pip installed, or ChessBot-Battleground/dataset if source installed
 chessbot download
 
-# Ex: download release v0.0.0 to output_dir
-chessbot download v0.0.0 \
+# Ex: download specific version to output_dir
+chessbot download -v 0.1.0 \
                   --output-dir /path/to/output_dir
 ```
 
