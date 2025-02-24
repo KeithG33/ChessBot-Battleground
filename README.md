@@ -298,4 +298,4 @@ Additionally, an `example_sf_datagen.ipynb` exists to show how one might add Sto
 
 ## 🛠️ Contributing
 
-If you have ideas, improvements, or bug fixes, feel free to open an issue or submit a pull request. For any questions or further discussion, don't hesitate to reach out!
+If you have ideas, improvements, or bug fixes, feel free to open an issue or submit a pull request. And same with questions or further discussion, don't hesitate to reach out!
