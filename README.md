@@ -243,22 +243,20 @@ Share your model's results on the test set. Compare your scores against the lead
 ```python
 from chessbot.inference.evaluate import evaluate_model
 
-# Load your model
+# Load and evaluate model
 model = ChessModel()
-
-# Evaluate the model
 batch_size = 3072
 num_threads = 8
 data_dir = 'path/to/dataset/'
 evaluate_model(model, data_dir, batch_size, num_threads)
 ```
 
-Or if your model is registered as "my_chessnet", using the `chessbot` cli tool:
+Or if your model is registered as "my_chessmodel", using the `chessbot` cli tool:
 ```bash
 # For options and help:
 chessbot evaluate --help
 
-chessbot evaluate "my_chessnet" \ 
+chessbot evaluate "my_chessmodel" \ 
                   --model-dir path/to/dir \
                   --model-weights path/to/weights.pt \
                   --data-dir path/to/dataset \
@@ -267,7 +265,7 @@ chessbot evaluate "my_chessnet" \
 ```
 
 ### 5. Play Your ChessBot
-And once you've written a model and trained...A historically important question for humankind: *Can your model beat you?*
+A historically important question for humankind: *Can your model beat you?*
 
 
 ```bash
@@ -284,19 +282,18 @@ chessbot play "your_chessnet" \
 
 There is a simple and complete example in [examples](examples/) to get you started. Check out the `SimpleChessNet` for an example of the model interface; use `example_training.ipynb` to train the model; use `example_inference.ipynb` to either run inference with the base model, or with an MCTS wrapper for a test-time-powerup.
 
-For actual models check out the [models](models/) directory.
+For actual successful models check out the [models](models/) directory.
 
-Additionally, an `example_sf_datagen.ipynb` exists to show how one might add data to the dataset. Unfortunately stockfish is slow so this is a hopeful crumb that I leave for the crowd.
+Additionally, an `example_sf_datagen.ipynb` exists to show how one might add Stockfish data to the dataset. Unfortunately stockfish is slow so this is a hopeful crumb that I leave for crowd efforts.
 
 
 
 ## 📈 Future Plans
 
-- Clean and deduplicate the dataset
-- Expand the dataset, add Stockfish generated data, get to an epic milestone of **1 billion positions**.  
-- Release **MCTS training pipelines**.  
-- Add enhanced tools for training and visualization and evaluation.
-- Add a leaderboard
+- Get to an epic milestone of **1 billion positions**
+- Clean, de-duplicate, and expand the dataset with Stockfish data
+- Release **MCTS training pipelines**.
+- Train more models, add a leaderboard
 
 
 ## 🛠️ Contributing

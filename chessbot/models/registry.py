@@ -34,7 +34,7 @@ class ModelRegistry:
     @classmethod
     def get(cls, name):
         if name not in cls._registry:
-            raise KeyError(f"Model '{name}' is not registered.")
+            raise KeyError(f"Model '{name}' is not registered. Currently available models: {cls.list_models()}")
         return cls._registry[name]
 
     @classmethod

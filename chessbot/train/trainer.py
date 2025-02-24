@@ -115,10 +115,13 @@ class ChessTrainer:
 
     def load_model_from_config(self):
         """
-        Load the model dynamically. Prioritize 'model_file' if provided; otherwise, use 'model_hub'.
+        Load the model from config.
         """
         model_path = self.cfg.model.path
         model_name = self.cfg.model.name
+
+        assert model_path is not None, "Model path not provided in config"
+        assert model_name is not None, "Model name not provided in config"
 
         model_args = self.cfg.model.get('args', [])
         model_args = [] if model_args is None else model_args
