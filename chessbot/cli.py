@@ -80,15 +80,14 @@ def evaluate(
 
 @app.command()
 def download(
-    tag: str = typer.Argument(None, help="Tag of the GitHub release (default: latest)"),
+    version: str = typer.Option(None, "--version", "-v", help="Version of the dataset to download"),
     output_dir: str = typer.Option(None, "--output-dir", "-o", help="Path where the dataset should be saved"),
-    dataset_name: str = typer.Option(None, "--dataset-name", "-d", help="Custom dataset filename (default: ChessBot-Dataset-{tag}.zip)"),
     keep_raw_data: bool = typer.Option(False, "--keep-raw-data", help="Keep the raw data after extraction. For default source install download"),   
 ):
     """
     Download a dataset from a GitHub release.
     """
-    download_fn(tag, output_dir, dataset_name, keep_raw_data)
+    download_fn(version, output_dir, keep_raw_data)
 
 
 @app.command()
