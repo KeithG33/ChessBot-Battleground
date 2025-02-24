@@ -11,13 +11,13 @@ dataset:
   data_path: dataset/ChessBot-dataset-0.0.0                   # Path dataset containing train/ and test/ directories
   size_train: 1                       # Number of files to sample and train on
   size_test: 1                         # Number of files to sample and test on.
-  num_threads: 4                        # Number of threads for dataset loading
+  num_threads: 1                        # Number of threads for dataset loading
 
 # Training configuration
 train:
   rounds: 1                             # Number of times to sample from dataset
   epochs: 1                             # Number of epochs to train on sampled data
-  batch_size: 1024                      # Batch size (test/train)
+  batch_size: 2                         # Batch size (test/train)
   validation_every: 0                   # Validate the model every N iterations
   lr: 0.0005                            # Learning rate
   min_lr: 0.00005                       # Minimum learning rate
