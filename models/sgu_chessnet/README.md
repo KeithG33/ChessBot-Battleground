@@ -20,14 +20,18 @@ def sgu_block(x):
   x = x + mlp(x.flatten()).unflatten()
 ```
 
-**Stats**:
-- Layers: 24
-- Hidden shape: (B, 64, 32)
-
 
 ### Training Plots and Scores
 *Coming soon*
 <!-- ![Training Plot](path_to_training_plot.png) -->
+
+<div align="center">
+
+| Model Name   | Layers | Model Shape  | Params      | Weights       |
+|--------------|--------|--------------|-------------|---------------|
+| SGU ChessNet | 24     | (B, 64, 32)  | 222M        | [Download Coming](path_to_model) |
+
+</div>
 
 ## Usage
 Play against the model with the following command
