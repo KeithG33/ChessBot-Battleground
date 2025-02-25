@@ -60,9 +60,14 @@ def get_latest_dataset_dir():
     if not os.path.exists(source_dataset_dir):
         return None
     
-    dataset_dirs = [d for d in os.listdir(source_dataset_dir) if d.startswith("ChessBot-dataset-")]
+    dataset_dirs = [d for d in os.listdir(source_dataset_dir) if d.startswith("ChessBot-Dataset-") and os.path.isdir(os.path.join(source_dataset_dir, d))]
     if not dataset_dirs:
         return None
-    return os.path.join(source_dataset_dir, sorted(dataset_dirs)[-1])
+    
+    latest_dir = sorted(dataset_dirs)[-1]
+    data_path = os.path.join(source_dataset_dir, latest_dir)
+    version = latest_dir.split('-')[-1]
+
+    return os.path.join(data_path, f'dataset-{version}')
 
 DEFAULT_DATASET_DIR = get_latest_dataset_dir()
