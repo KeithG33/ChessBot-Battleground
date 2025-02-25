@@ -126,7 +126,7 @@ class SimpleChessNet(BaseChessModel):
 
     def forward(self, x):
       """ Input is tensor of shape (B,1,8,8) """
-        x             = x.view(B, -1)
+        x             = x.view(B, -1)               # -> (B, 64)
         features      = self.backbone(x)            # -> (B, 256)
         action_logits = self.policy_head(features)  # -> (B, 4672)
         board_val     = self.value_head(features)   # -> (B, 1)
@@ -175,8 +175,8 @@ Then install ChessBot-Battleground
    pip install -r requirements.txt
    pip install e .  
 
-   # Or install via pip (TODO)
-   pip install ChessBot-Battleground
+   # Or install via pip 
+   pip install git+https://github.com/KeithG33/ChessBot-Battleground.git
    ```
 
 Once you've got the library installed check out the `chessbot --help` command for a quick overview of things you can do:
