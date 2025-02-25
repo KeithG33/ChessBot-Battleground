@@ -117,42 +117,11 @@ def make_bot_move(env, bot_model):
     env.board.push(bot_move)
     
 
-
-def main():
-    parser = argparse.ArgumentParser(description="Run Chess Bot Battleground")
-    parser.add_argument("--model_dir", type=str, default=None, help="Directory containing the model")
-    parser.add_argument("--model_name", type=str, default=None, help="Name of the model to load")
-    parser.add_argument("--model_weights", type=str, default=None, help="Path to the model weights file")
-    args = parser.parse_args()
-
-    bot_model = None
-    if args.model_dir and args.model_name:
-        bot_model = ModelRegistry.load_model(args.model_name, args.model_dir)
-        if args.model_weights:
-            state_dict = torch.load(args.model_weights)
-            bot_model.load_state_dict(state_dict).cuda()
-    else:
-        print(f"Please pass a model directory and name to load a model.")
-        sys.exit(1)
-
+def play(bot_model, port=5000):
     app = create_app(bot_model)
 
-    threading.Thread(target=lambda: app.run(port=5000, debug=True, use_reloader=False),
+    threading.Thread(target=lambda: app.run(port=port, debug=True, use_reloader=False),
                      daemon=True).start()
     time.sleep(1)
     webview.create_window("Chess Bot Battleground", "http://127.0.0.1:5000")
     webview.start()
-
-
-def play(bot_model):
-    app = create_app(bot_model)
-
-    threading.Thread(target=lambda: app.run(port=5000, debug=True, use_reloader=False),
-                     daemon=True).start()
-    time.sleep(1)
-    webview.create_window("Chess Bot Battleground", "http://127.0.0.1:5000")
-    webview.start()
-    
-
-if __name__ == "__main__":
-    main()

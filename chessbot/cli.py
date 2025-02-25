@@ -94,7 +94,7 @@ def download(
 def play(
     model_name: str = typer.Argument(..., help="Name of the model to load"),
     model_dir: str = typer.Option(None, "--model-dir", help="Directory with model definitions"),
-    model_weights: str = typer.Option(None, "--model-weights", "-w", help="Path to model weights file"),
+    model_weights: str = typer.Option(None, "--model-weights", "-w", help="Path to model weights file"), 
     model_args: List[str] = typer.Option(
         None,
         "--model-arg",
@@ -107,6 +107,7 @@ def play(
         "-k",
         help="JSON string of extra keyword arguments for the model's constructor",
     ),
+    port: int = typer.Option(5001, "--port", "-p", help="Port to run the game server on"),
 ):
     """
     Play a game against the bot using a loaded model. Pass additional positional arguments with --model-arg and keyword arguments as a JSON string via --model-kwargs.
@@ -116,7 +117,7 @@ def play(
     if model_weights:
         model.load_state_dict(torch.load(model_weights))
 
-    play_fn(model)
+    play_fn(model, port)
 
 
 @app.command()
