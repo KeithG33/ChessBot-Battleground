@@ -16,7 +16,7 @@ The main block of the SGU ChessNet consists of two components:
 ```python
 # Pseudo-code for SGU block as used in SGU ChessNet
 def sgu_block(x):
-  x = x + gmlp(x)
+  x = x + gmlp_block(x)
   x = x + mlp(x.flatten()).unflatten()
 ```
 
