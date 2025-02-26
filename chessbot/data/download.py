@@ -15,7 +15,7 @@ VERSION_TO_DRIVE_URL = {
 
 
 def parse_version(ver_str):
-    """Parse a semantic version string into a tuple of integers."""
+    """Parse semantic version string into a tuple of integers."""
     major, minor, patch = map(int, ver_str.split('.'))
     return (major, minor, patch)
 
@@ -26,7 +26,7 @@ def determine_save_path(user_path=None) -> tuple[str, bool]:
     Returns a tuple: (save_path, is_source_install)
     """
     if user_path:
-        return user_path, False  # User explicitly provided a save path
+        return user_path, False
 
     script_dir = os.path.dirname(os.path.abspath(__file__))
     if "site-packages" in script_dir or "dist-packages" in script_dir:
@@ -55,7 +55,6 @@ def download(version, output_dir, keep_raw_data=False):
 
     # Extract the file id from the drive URL.
     m = re.search(r'/file/d/([^/]+)', drive_url)
-
     file_id = m.group(1)
 
     dataset_name = f"ChessBot-Dataset-{version}.zip"
@@ -66,11 +65,10 @@ def download(version, output_dir, keep_raw_data=False):
         if os.path.exists(zip_path):
             _logger.info(f"Dataset already exists at: {zip_path}")
         else:
-            # Use gdown to download the file.
             gdown.download(id=file_id, output=zip_path, quiet=False)
             _logger.info(f"Dataset downloaded successfully: {zip_path}")
 
-        # If this is a source install, extract the ZIP file.
+        # Extract zip to output dir if source installed.
         if source_install:
             with zipfile.ZipFile(zip_path, 'r') as zip_ref:
                 non_raw_members = [mem for mem in zip_ref.namelist() if f'dataset-{version}/' in mem]

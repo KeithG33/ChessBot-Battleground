@@ -1,6 +1,8 @@
 """ 
-File to generate stockfish data from PGN files. Can generate moves and/or evaluations as comments,
+Some hacky scripts for generating more stockfish data from PGN files. Can generate moves and/or evaluations as comments,
 which can be used as training data. 
+
+
 """
 
 import os
