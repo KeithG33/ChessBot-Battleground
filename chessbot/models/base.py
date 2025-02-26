@@ -25,7 +25,6 @@ class BaseChessModel(nn.Module):
 
         self.action_dim = 4672
 
-        self.validate_flag = True
 
     def get_current_device(self):
         """Get the current device of the model"""
