@@ -60,8 +60,6 @@ def evaluate_model(
     """
     
     test_data = os.path.join(dataset_dir, 'test')
-
-    # glob all PGN files in the test directory
     all_files = [f.path for f in os.scandir(test_data) if f.name.endswith(".pgn")]
     
     _logger.info(f"Found {len(all_files)} PGN files in the test directory.")
