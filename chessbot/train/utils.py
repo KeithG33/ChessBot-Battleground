@@ -95,7 +95,6 @@ class WarmupLR(_LRScheduler):
         self.__dict__.update(state_dict['wrapper'])
         self._scheduler.__dict__.update(state_dict['wrapped'])
 
-
     def _format_param(self):
         # learning rate of each param group will increase
         # from the min_lr to initial_lr

@@ -85,7 +85,7 @@ def download(
     keep_raw_data: bool = typer.Option(False, "--keep-raw-data", help="Keep the raw data after extraction. For default source install download"),   
 ):
     """
-    Download a dataset from a GitHub release.
+    Download a dataset.
     """
     download_fn(version, output_dir, keep_raw_data)
 
