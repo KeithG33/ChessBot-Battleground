@@ -5,10 +5,10 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "chessbot"
 version = "0.1.0"
-description = "A PyTorch-based library for training neural networks on chess datasets."
+description = "A PyTorch-based library for training chess neural networks on a gigantic chess dataset."
 readme = "README.md"
 authors = [
-    { name = "Your Name", email = "your.email@example.com" }
+    { name = "Keith Gordon", email = "keith.gordon9@gmail.com" }
 ]
 license = { file = "LICENSE" }
 keywords = ["chess", "machine-learning", "pytorch", "deep-learning"]
