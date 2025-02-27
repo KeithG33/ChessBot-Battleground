@@ -65,16 +65,16 @@ If you have your own pgn files and want to make your own dataset, the PyTorch da
 
 ## 🤖 Models
 
-Design your model and see how it does! To take advantage of the training and inference code, models should subclass the `BaseChessModel` class and follow the expected format:
+Design your model and see how it does! To take advantage of the training and inference code, models should subclass the `BaseChessBot` class and follow the expected format:
 1. **Input**: `(B, 1, 8, 8)` tensor for position
 2. **Output**: a policy distribution of shape `(B, 4672)`, and expected value of shape `(B, 1)`.
 
 A minimal example of writing a model:
 ```python
-from chessbot.models import BaseChessModel, ModelRegistry
+from chessbot.models import BaseChessBot, ModelRegistry
 
 @ModelRegistry.register('simple_chessnet')
-class SimpleChessNet(BaseChessModel):
+class SimpleChessNet(BaseChessBot):
   """ One layer backbone and one layer prediction heads """
     
     def __init__(self):
@@ -126,7 +126,7 @@ cfg.dataset.data_path = 'ChessBot-Battleground/dataset/'
 cfg.dataset.size_train = 25 # num files to sample for train set
 cfg.dataset.size_test = 5 # num files to sample for test set
 
-model = YourChessModel()
+model = YourChessBot()
 
 trainer = ChessTrainer(cfg, model)
 trainer.train()
@@ -145,11 +145,11 @@ The library depends on an **Adversarial Gym Environment** designed for two-playe
 from chessbot.inference import selfplay, duel
 
 # Selfplay. Returns value in [-1,0,1] for white's outcome
-model1   = YourChessModel()
+model1   = YourChessBot()
 outcome = selfplay(model1, visualize=True)
 
 # Match between two models, use MCTS. Returns (score1,score2)
-model2 = YourChessModel()
+model2 = YourChessBot()
 scores = duel(model1, model2, best_of=11, search=True, visualize=True)
 ```
 
@@ -224,7 +224,7 @@ chessbot train --help
 # Train from config, and any overrides in command
 chessbot train /path/to/config.yaml \
               -o model.path path/to/model \
-              -o model.name YourChessModel \
+              -o model.name YourChessBot \
               -o train.epochs 10 \
               -o train.lr 0.001 \
 ```
@@ -246,12 +246,12 @@ data_dir = 'path/to/dataset/'
 evaluate_model(model, data_dir, batch_size, num_threads)
 ```
 
-Or if your model is registered as "my_chessmodel", using the `chessbot` cli tool:
+Or if your model is registered as "your_chessbot", using the `chessbot` cli tool:
 ```bash
 # For options and help:
 chessbot evaluate --help
 
-chessbot evaluate "my_chessmodel" \ 
+chessbot evaluate "your_chessbot" \ 
                   --model-dir path/to/dir \
                   --model-weights path/to/weights.pt \
                   --data-dir path/to/dataset \
@@ -267,7 +267,7 @@ A historically important question for humankind: *Can your model beat you?*
 # For options and help
 chessbot play --help
 
-chessbot play "your_chessnet" \
+chessbot play "your_chessbot" \
               --model-dir /path/to/dir \
               --model-weights /path/to/weights.pt
 ```
