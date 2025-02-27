@@ -3,7 +3,7 @@ import gym
 import adversarial_gym
 import chess
 
-from chessbot.models.base import BaseChessModel
+from chessbot.models.base import BaseChessBot
 from chessbot.mcts import MonteCarloTreeSearch
 
 
@@ -26,8 +26,8 @@ def score_function(outcome, perspective) -> float | int:
 
 
 def duel(
-    player1: BaseChessModel,
-    player2: BaseChessModel,
+    player1: BaseChessBot,
+    player2: BaseChessBot,
     best_of=7,
     search=False,
     num_sims=250,
@@ -86,8 +86,8 @@ def duel(
 
 
 def play_game(
-    white: BaseChessModel,
-    black: BaseChessModel,
+    white: BaseChessBot,
+    black: BaseChessBot,
     search=False,
     num_sims=250,
     visualize=False,
@@ -131,7 +131,7 @@ def play_game(
 
 
 def selfplay(
-    model: BaseChessModel, search=False, num_sims=250, visualize=False, sample=False
+    model: BaseChessBot, search=False, num_sims=250, visualize=False, sample=False
 ) -> int:
     """
     Conducts a self-play game with the given model.

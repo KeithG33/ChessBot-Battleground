@@ -1,11 +1,11 @@
 import torch
 import torch.nn as nn
-from chessbot.models import BaseChessModel
+from chessbot.models import BaseChessBot
 from chessbot.models import ModelRegistry
 
 
 @ModelRegistry.register("simple_chessnet")
-class SimpleChessNet(BaseChessModel):
+class SimpleChessNet(BaseChessBot):
     """
     A simple example model that extends the BaseChessModel for the ChessBot-Battleground library.
     This model uses a few linear layers to process the input state and produce action logits

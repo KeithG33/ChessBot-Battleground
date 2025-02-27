@@ -62,38 +62,6 @@ results = batch[2]  # (B,)
 ```
 
 If you have your own pgn files and want to make your own dataset, the PyTorch dataset should work with those as well. The moves and results are loaded from each game in the PGN file
-## 🧠 Training
-
-A `ChessTrainer` class can be used to train ChessBot models. The trainer splits the data loading and training into rounds and epochs. Each round will sample a new subset of `cfg.dataset.size_train` files, and then perform epochs on this subset. The class utilizes HuggingFace's `accelerate` for easy access AMP, torch.compile,  gradient clipping, gradient accumulation, etc. Check out [`chessbot/train/config.yaml`](chessbot/train/config.yaml) for a list and description of the available options
-
-
-Here's a somewhat realistic example of using it:
-
-```python
-from chessbot.config import load_default_cfg()
-from chessbot.train import ChessTrainer
-
-# Get default cfg and do some basic setup
-cfg = load_default_cfg() # get default cfg
-
-cfg.train.rounds = 1 # num times to sample a dataset
-cfg.train.epochs = 25 # num epochs on sampled dataset
-cfg.train.batch_size = 128
-cfg.train.lr = 0.001
-cfg.train.output_dir = 'output/'
-
-cfg.dataset.data_path = 'ChessBot-Battleground/dataset/'
-cfg.dataset.size_train = 25 # num files to sample for train set
-cfg.dataset.size_test = 5 # num files to sample for test set
-
-model = YourChessModel()
-
-trainer = ChessTrainer(cfg, model)
-trainer.train()
-```
-
-See [`chessbot/train/config.yaml`](chessbot/train/config.yaml) for a list and description of the available options, and the next section for a brief description of models. The [Getting Started](#-getting-started) section also shows a command-line version of running training
-
 
 ## 🤖 Models
 
@@ -135,6 +103,38 @@ class SimpleChessNet(BaseChessModel):
 ```
 
 The `ModelRegistry` is a helper for the library to load chess models from a path and name. The model will be registered with the name provided, or the class name if none is provided. This helps find and load models for command line tools.
+
+## 🧠 Training
+
+A `ChessTrainer` class can be used to train ChessBot models. The trainer splits the data loading and training into rounds and epochs. Each round will sample a new subset of `cfg.dataset.size_train` files, and then perform epochs on this subset. The class utilizes HuggingFace's `accelerate` for easy access AMP, torch.compile,  gradient clipping, gradient accumulation, etc. Check out [`chessbot/train/config.yaml`](chessbot/train/config.yaml) for a list and description of the available options
+
+
+Here's a somewhat realistic example of using it:
+
+```python
+from chessbot.config import get_cfg()
+from chessbot.train import ChessTrainer
+
+# Get default cfg and do some basic setup
+cfg = get_cfg() # get default cfg
+cfg.train.rounds = 1 # num times to sample a dataset
+cfg.train.epochs = 25 # num epochs on sampled dataset
+cfg.train.batch_size = 128
+cfg.train.lr = 0.001
+cfg.train.output_dir = 'output/'
+cfg.dataset.data_path = 'ChessBot-Battleground/dataset/'
+cfg.dataset.size_train = 25 # num files to sample for train set
+cfg.dataset.size_test = 5 # num files to sample for test set
+
+model = YourChessModel()
+
+trainer = ChessTrainer(cfg, model)
+trainer.train()
+```
+
+See [`chessbot/train/config.yaml`](chessbot/train/config.yaml) for a list and description of the available options. The [Getting Started](#-getting-started) section also shows the command-line method of running training.
+
+
 ## 🦾 Inference & Battling
 
 Take your models to the battleground!  
@@ -145,11 +145,10 @@ The library depends on an **Adversarial Gym Environment** designed for two-playe
 from chessbot.inference import selfplay, duel
 
 # Selfplay. Returns value in [-1,0,1] for white's outcome
-model   = YourChessModel()
-outcome = selfplay(model, visualize=True)
+model1   = YourChessModel()
+outcome = selfplay(model1, visualize=True)
 
 # Match between two models, use MCTS. Returns (score1,score2)
-model1 = YourChessModel()
 model2 = YourChessModel()
 scores = duel(model1, model2, best_of=11, search=True, visualize=True)
 ```
@@ -209,18 +208,14 @@ The dataset is provided as a downloadable .zip file with each release. Either us
 # For options and help
 chessbot download --help 
 
-# Default: download latest release to cwd if pip installed, or ChessBot-Battleground/dataset if source installed
+# Download latest release to cwd if pip installed, or ChessBot-Battleground/dataset if source installed.
 chessbot download
-
-# Ex: download specific version to output_dir
-chessbot download -v 0.1.0 \
-                  --output-dir /path/to/output_dir
 ```
 
-By default, the latest release will be downloaded into the `ChessBot-Battleground/dataset/` directory, or the current working directory if the package has been pip installed.  
+By default, the latest release will be downloaded into the `ChessBot-Battleground/dataset/` directory, or the current working directory if the package has been pip installed. Use `--output-dir` to select the output path.
 
 ### 3. Models & Training
-After installation and downloading, it's time to write a model and let it gobble up data. Writing a model and training was covered above, so first check that out. Here I'll show the CLI version of training. First register your model, and then configure `model.path` and `model.name` to load the model. Either set this in the config file, or use the command overrides
+After installation and downloading, it's time to write a model and let it gobble up data. Writing a model and training was covered above, so first check that out. Here I'll show the CLI version of training. First register your model, and then configure `model.path` and `model.name` to load the model. Either set this in the config file, or use the command overrides:
 
 ```bash
 # For options and help
@@ -269,6 +264,9 @@ A historically important question for humankind: *Can your model beat you?*
 
 
 ```bash
+# For options and help
+chessbot play --help
+
 chessbot play "your_chessnet" \
               --model-dir /path/to/dir \
               --model-weights /path/to/weights.pt

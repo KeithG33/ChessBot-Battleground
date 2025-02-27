@@ -2,7 +2,7 @@ from pathlib import Path
 from omegaconf import OmegaConf
 
 
-def load_default_cfg():
+def get_cfg():
     """ Return a default configuration object """
     # load config.yaml from this file's directory
     cfg_path = Path(__file__).parent / 'config.yaml' 

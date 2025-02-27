@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import numpy as np
 from adversarial_gym.chess_env import ChessEnv
 
-from chessbot.models import BaseChessModel, ModelRegistry
+from chessbot.models import BaseChessBot, ModelRegistry
 
 
 class ResidualBlock(nn.Module):
@@ -149,7 +149,7 @@ class SGUBlock(nn.Module):
 
 
 @ModelRegistry.register("sgu_chessnet")
-class SpatialGatingChessNet(BaseChessModel):
+class SpatialGatingChessNet(BaseChessBot):
     """ Spatial Gating Units (SGU) paired with residual MLP blocks for global feature processing."""
 
     def __init__(self, device='cuda'):

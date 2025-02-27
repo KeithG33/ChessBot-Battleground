@@ -9,7 +9,7 @@ import chess
 from adversarial_gym.chess_env import ChessEnv
 
 
-class BaseChessModel(nn.Module):
+class BaseChessBot(nn.Module):
     """
     Base class for all chess models in the ChessBot-Battleground library.
     Each model should accept an input tensor of shape (B, 1, 8, 8) and produce

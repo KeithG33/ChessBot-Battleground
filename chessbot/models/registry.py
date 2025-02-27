@@ -1,6 +1,6 @@
 import importlib
 import os
-from chessbot.models.base import BaseChessModel
+from chessbot.models.base import BaseChessBot
 
 
 class ModelRegistry:
@@ -18,7 +18,7 @@ class ModelRegistry:
         """
         def decorator(model_cls):
             register_name = name or model_cls.__name__  # Use provided name or class name if None
-            if not issubclass(model_cls, BaseChessModel):
+            if not issubclass(model_cls, BaseChessBot):
                 raise ValueError(f"Model '{register_name}' must inherit from BaseChessModel.")
             if register_name in cls._registry:
                 print(f"Warning: Model '{register_name}' already registered, overwriting previous registration.")
