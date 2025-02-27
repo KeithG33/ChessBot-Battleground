@@ -50,12 +50,11 @@ class StereoScaling(nn.Module):
 class AttentionBlock(nn.Module):
     """ Multi-head self-attention module with optional 1D or 2D relative position bias.
      
-    Using timm Swin Transformer implementation as a reference for the 2d relative position bias. And
-    uses a 1D relative position bias for the transposed attention in the mixer block.
+    Using timm Swin Transformer implementation as a reference for the 2D relative position bias. The
+    1D relative position bias is used in the token attention of the mixer block.
 
-    Also has a learnable stereographic projection as the scale in the attention calculation. In
-    Transformers without Tears paper (I think), they mention learnable normalization may help by
-    smoothing the loss landscape.
+    Also has a learnable stereographic projection as the scale in the attention calculation, mostly for fun,
+    but it also works well.
     """
     def __init__(
             self,
@@ -198,7 +197,7 @@ class ChessTransformer(nn.Module):
     then feeds the output into separate prediction heads for policy, value, and critic outputs.
     """
 
-    def __init__(self, device='cuda', num_mixer_layers=24, dropout=0.0):
+    def __init__(self, device='cuda', dropout=0.0):
         super().__init__()
         self.device = device
         self.action_dim = 4672
@@ -214,9 +213,9 @@ class ChessTransformer(nn.Module):
         torch.nn.init.kaiming_normal_(self.pos_encoding, mode='fan_out', nonlinearity='relu')
 
         # Mixer blocks
-        # params: [num_heads, drop_path] (dropout uses lots of memory)
+        # params: [num_heads, drop_path]
+        # TODO: not hardcode, make stages configurable
         params_config = [(6, 0.05)] * 4 + [(8, 0.1)] * 4 + [(12, 0.15)] * 8 + [(24, 0.2)] * 4
-        assert len(params_config) == num_mixer_layers, "Length of config does not match num_mixer_layers"
         
         self.mixer_layers = nn.Sequential(*[
             MixerBlock(piece_embed_dim, num_heads=params[0], drop_path=params[1])
@@ -254,8 +253,8 @@ class ChessTransformer(nn.Module):
         return x
 
     def forward(self, x):
-        features = self.embed_state(x.long())  # Shape: (B, 64, piece_embed_dim)
-        features = self.mixer_layers(features)  # Shape: (B, piece_embed_dim, 64)
+        features = self.embed_state(x.long())  # -> (B, 64, piece_embed_dim)
+        features = self.mixer_layers(features)  # -> (B, 64, piece_embed_dim)
         features = features.view(features.size(0), -1)
 
         action_logits = self.policy_head(features)
