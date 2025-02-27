@@ -249,7 +249,7 @@ class ChessTrainer:
                     value_loss = self.model.value_loss(value_output.squeeze(), result)
                     loss = policy_loss + value_loss
 
-                    self.optimizer.zero_grad(set_to_none=True)
+                    self.optimizer.zero_grad()
                     accelerator.backward(loss)
 
                     if accelerator.sync_gradients:
