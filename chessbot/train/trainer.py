@@ -22,7 +22,7 @@ from accelerate import Accelerator
 from chessbot.common import setup_logger
 from chessbot.data.dataset import ChessDataset
 from chessbot.train.utils import WarmupLR, MetricsTracker
-from chessbot.train.config import load_default_cfg
+from chessbot.train.config import get_cfg
 from chessbot.models.registry import ModelRegistry
 
 import logging
@@ -44,7 +44,7 @@ class ChessTrainer:
 
         # Setup config and model
         config = OmegaConf.load(config) if isinstance(config, str) else config
-        self.cfg = load_default_cfg()
+        self.cfg = get_cfg()
         self.cfg = OmegaConf.merge(self.cfg, config)
 
         self._logger.info(f"Loaded configuration: \n {OmegaConf.to_yaml(self.cfg)}")
