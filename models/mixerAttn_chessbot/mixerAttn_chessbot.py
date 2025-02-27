@@ -1,12 +1,16 @@
 import math
 import time
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
-from adversarial_gym.chess_env import ChessEnv
 
 from timm.layers import DropPath
+
+from adversarial_gym.chess_env import ChessEnv
+
+from chessbot.models import BaseChessBot
 
 
 class ResidualBlock(nn.Module):
@@ -188,10 +192,10 @@ class MixerBlock(nn.Module):
         return x
 
 
-class ChessTransformer(nn.Module):
+class MixerAttnChessBot(BaseChessBot):
     """
     Creates a ChessNetwork that outputs a value and action for a given
-    state/position using a Mixer-style network.
+    state/position using a Mixer-style network (from MLP-mixer paper).
     
     The network processes the input state using an embedding for pieces and Mixer blocks,
     then feeds the output into separate prediction heads for policy, value, and critic outputs.
