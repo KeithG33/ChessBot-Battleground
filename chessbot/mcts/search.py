@@ -46,11 +46,12 @@ class MonteCarloTreeSearch:
             self._number_of_visits_states_actions.get((action, state), 1e-8)
             for action in legal_actions
         )
-        return {
+        action_probs = {
             action: self._number_of_visits_states_actions.get((action, state), 1e-8)
             / total_visits
             for action in legal_actions
         }
+        return action_probs
 
     def _expand_node(self, state, game_state, game_obs):
         self._legal_actions_states[state] = game_state.action_space.legal_actions
