@@ -9,8 +9,8 @@
 
 [**Getting Started (Installation)**](#getting-started) • [**Dataset**](#-dataset) • [**Training**](#-training) • [**Inference & Battling**](#-inference--battling) • [**Models**](#models)  
 
-[![Hits](https://hits.seeyoufarm.com/api/count/incr/badge.svg?url=https%3A%2F%2Fgithub.com%2FKeithG33%2FChessBot-Battleground&count_bg=%23A7AFB3&title_bg=%23170532&icon=&icon_color=%230019EE&title=views&edge_flat=false)](https://hits.seeyoufarm.com)
-
+[![Hits](https://hits.seeyoufarm.com/api/count/incr/badge.svg?url=https%3A%2F%2Fgithub.com%2FKeithG33%2FChessBot-Battleground&count_bg=%23A7AFB3&title_bg=%23170532&icon=&icon_color=%230019EE&title=views&edge_flat=false)](https://hits.seeyoufarm.com)  
+*[Download the dataset](https://drive.google.com/drive/folders/1RylJnVbJTNRVc8i_XN1lCE0nwX2g_oG9?usp=sharing)*  
 </div>
 <!-- Banner End -->
 
@@ -24,11 +24,11 @@ This repository contains a gigantic curated chess dataset meant for machine lear
 - **MCTS:** Simple implementation to give your supervised models search capability. *Training coming soon*.
 - **Game App:**  Play a game against your model with the `chessbot play` tool. Can it beat you?
 
-See a model in action below:
+A nice consequence of chess data is that the images are only 8x8 and single-channel. This means that - in combination with the abundance of expert data online - it is feasible to train somewhat large models on consumer hardware. Here's one in action:
 
 <div align="center"  id="chess-battle-gif">
   <img src="assets/chessSGU-R8.1-selfplay.gif" style="width: 35%; height: auto;">
-  <p><em>Self-play after a few days of training a 300M parameter network from scratch on an RTX 3090.</em></p>
+  <p><em>Self-play after a few days of training a 300M parameter network from scratch on a single RTX 3090.</em></p>
 </div>
 
 
