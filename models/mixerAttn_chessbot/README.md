@@ -1,19 +1,18 @@
-# Mixer-Attention Chess Net
-Implements a mixer-style architecture from the paper [MLP-Mixer: An all-MLP Architecture for Vision](https://arxiv.org/abs/2105.01601) with attention instead of MLPs. 
+# Mixer-Attention ChessBot
+Implements a mixer-style architecture from the paper [MLP-Mixer: An all-MLP Architecture for Vision](https://arxiv.org/abs/2105.01601) with attention instead of MLPs.
 
 ## Architecture
 The main block of the Mixer-Attn consists of two attention blocks and an MLP, with one of the attention blocks transposing the sequence and token dimensions, in the style of the Mixer-MLP. The standard sequence attention uses 2D relative-pos attention (because chess) and the token attention acting on the transposed features uses 1D relative-pos attention.
 
-An additional learnable scale param is used for training stability. For fun it uses an inverse stereographic projection to scale/map points onto a sphere
+In addition, the two prediction networks contain 4 linear layers, LayerNorm+GELU activation, and a skip connection between the first two layers.
 
 ```python
-# Pseudo-code for SGU block as used in SGU ChessNet
+# Pseudo-code for SGU block as used in SGU ChessBot
 def mixer_attn_block(x):
   x = x + tok_attn(x.T).T
   x = x + seq_attn(x)
   x = x + mlp(x.flatten()).unflatten()
 ```
-
 
 ### Training Plots and Scores
 *Coming soon*

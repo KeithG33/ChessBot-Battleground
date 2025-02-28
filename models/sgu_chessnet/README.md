@@ -1,5 +1,5 @@
-# Spatial Gating ChessNet
-Implements spatial gating with attention (a-MLP) from the paper [Pay Attention to MLPs](https://arxiv.org/pdf/2105.08050v2)
+# Spatial Gating ChessBot
+Implements spatial gating with attention (a-MLP) from the paper [Pay Attention to MLPs](https://arxiv.org/pdf/2105.08050v2) as the backbone of a ChessBot.
 
 ## Architecture
 The main block of the SGU ChessNet consists of two components:
@@ -12,6 +12,7 @@ The main block of the SGU ChessNet consists of two components:
   <p><em>Pseudo code from paper. Original diagram modified to show tiny-attention module, used in the SGU ChessNet.</em></p>
 </div>
 
+In addition, the two prediction networks contain 4 linear layers, LayerNorm+GELU activation, and a skip connection between the first two layers.
 
 ```python
 # Pseudo-code for SGU block as used in SGU ChessNet
