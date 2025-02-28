@@ -24,14 +24,14 @@ This repository contains a gigantic curated chess dataset meant for machine lear
 - **MCTS:** Simple implementation to give your supervised models search capability. *Training coming soon*.
 - **Game App:**  Play a game against your model with the `chessbot play` tool. Can it beat you?
 
-A nice consequence of chess data is that the images are only 8x8 and single-channel. This means that - in combination with the abundance of expert data online - it is feasible to train somewhat large models on consumer hardware. Here's one in action:
+A nice consequence of chess data is that the images are only 8x8 and single-channel. This means that, in combination with the abundance of expert data online, it is feasible to train somewhat large models on consumer hardware. Here's one in action:
 
 <div align="center"  id="chess-battle-gif">
   <img src="assets/chessSGU-R8.1-selfplay.gif" style="width: 35%; height: auto;">
   <p><em>Self-play after a few days of training a 300M parameter network from scratch on a single RTX 3090.</em></p>
 </div>
 
-
+After enough training models will play realistic games, and even beat low-rated players with search.
 ## 📂 Dataset
 *[Datasets available for download here](https://drive.google.com/drive/folders/1RylJnVbJTNRVc8i_XN1lCE0nwX2g_oG9?usp=sharing)*  
 
