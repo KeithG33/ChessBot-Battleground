@@ -19,7 +19,7 @@ from torch.utils.data import DataLoader
 from omegaconf import OmegaConf
 from accelerate import Accelerator
 
-from chessbot.common import setup_logger
+from chessbot.common import setup_logger, GREEN, RESET
 from chessbot.data.dataset import ChessDataset
 from chessbot.train.utils import WarmupLR, MetricsTracker
 from chessbot.train.config import get_cfg
@@ -27,10 +27,6 @@ from chessbot.models.registry import ModelRegistry
 
 import logging
 
-
-# ANSI escape sequence for green text
-GREEN = "\033[1;32m"
-RESET = "\033[0m"
 
 class ChessTrainer:
     """Chess trainer for training a chess model with the ChessBot dataset
@@ -211,8 +207,6 @@ class ChessTrainer:
                             "val_vloss": value_loss.item(),
                         }
                     )
-
-                    # Update the validation progress bar to display current loss.
                     val_bar.set_postfix(
                         {
                             "Val Loss": f"{loss.item():.4f}",
