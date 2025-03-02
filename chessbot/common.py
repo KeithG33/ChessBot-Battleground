@@ -4,6 +4,10 @@ import logging
 import colorlog
 
 
+# ANSI escape sequence for green text
+GREEN = "\033[1;32m"
+RESET = "\033[0m"
+
 def setup_logger(name: str, level: int = logging.INFO, logfile: str = None) -> logging.Logger:
     """
     Set up a logger with colored console output and an optional file handler.
