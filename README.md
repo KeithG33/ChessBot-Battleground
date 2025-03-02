@@ -106,8 +106,7 @@ The `ModelRegistry` is a helper for the library to load chess models from a path
 
 ## 🧠 Training
 
-A `ChessTrainer` class can be used to train ChessBot models. The trainer splits the data loading and training into rounds and epochs. Each round will sample a new subset of `cfg.dataset.size_train` files, and then perform epochs on this subset. The class utilizes HuggingFace's `accelerate` for easy access AMP, torch.compile,  gradient clipping, gradient accumulation, etc. Check out [`chessbot/train/config.yaml`](chessbot/train/config.yaml) for a list and description of the available options
-
+A `ChessTrainer` class can be used to train ChessBot models. The trainer splits the data loading and training into rounds and epochs. Each round will sample a new subset of `cfg.dataset.size_train` files, and then perform epochs on this subset. The class utilizes HuggingFace's `accelerate` for easy access to AMP, torch.compile,  gradient clipping, gradient accumulation, etc.
 
 Here's a somewhat realistic example of using it:
 
@@ -132,7 +131,7 @@ trainer = ChessTrainer(cfg, model)
 trainer.train()
 ```
 
-See [`chessbot/train/config.yaml`](chessbot/train/config.yaml) for a list and description of the available options. The [Getting Started](#-getting-started) section also shows the command-line method of running training.
+Check out [`chessbot/train/config.yaml`](chessbot/train/config.yaml) for a list and description of the available options. The [Getting Started](#-getting-started) section also shows the command-line method of running training.
 
 
 ## 🦾 Inference & Battling
