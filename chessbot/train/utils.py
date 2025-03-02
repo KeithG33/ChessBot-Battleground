@@ -1,49 +1,59 @@
 class MetricsTracker:
-    """ Utility class to keep track of training metrics """
+    """ Utility class to keep track of training metrics
+
+    Uses Welford's algorithm for running mean. Example usage:
+
+        tracker = MetricsTracker('loss', 'accuracy')
+        tracker.update('loss', 0.5)
+        tracker.update({'accuracy': 0.8, 'loss': 0.4})
+        print(tracker.get_average('loss'))
+        print(tracker)  # Displays all averages.
+    """
     
     def __init__(self):
         self.counts = {}
         self.averages = {}
 
-    def add(self, var_names):
-        var_names = [var_names] if isinstance(var_names, str) else var_names
-        for var_name in var_names:
-            if var_name not in self.averages:
-                self.averages[var_name] = 0.0
-                self.counts[var_name] = 0
+    def add(self, *metrics):
+        for metric in metrics:
+            if metric not in self.averages:
+                self.averages[metric] = 0.0
+                self.counts[metric] = 0
 
-    def update(self, var_name, value=None):
-        if isinstance(var_name, dict):
-            for k, v in var_name.items():
+    def _update_metric(self, metric, value):
+        self.counts[metric] += 1
+        self.averages[metric] += (value - self.averages[metric]) / self.counts[metric]
+
+    def update(self, metric, value=None):
+        if isinstance(metric, dict):
+            for k, v in metric.items():
                 if k not in self.averages:
                     print(f"Variable {k} is not being tracked. Use add method to track.")
                     continue
                 self.update(k, v)
         else:
-            if var_name not in self.averages:
-                print(f"Variable {var_name} is not being tracked. Use add method to track.")
+            if metric not in self.averages:
+                print(f"Variable {metric} is not being tracked. Use add method to track.")
                 return
-            self.counts[var_name] += 1
-            self.averages[var_name] += (value - self.averages[var_name]) / self.counts[var_name]
+            self._update_metric(metric, value)
 
-    def get_average(self, var_names):
-        if isinstance(var_names, str):
-            return self.averages.get(var_names, None)
+    def get_average(self, *metrics):
+        return {metric: self.averages.get(metric, None) for metric in metrics}
+    
+    def get_all_averages(self):
+        return {var: avg for var, avg in self.averages.items() if self.counts[var] > 0}
 
-        return {var_name: self.averages.get(var_name, None) for var_name in var_names}
-
-    def reset(self, var_names=None):
-        if var_names is None:
+    def reset(self, *metrics):
+        if not metrics:
             self.counts = {}
             self.averages = {}
         else:
-            var_names = [var_names] if isinstance(var_names, str) else var_names
-            for var_name in var_names:
-                if var_name in self.averages:
-                    self.counts[var_name] = 0
-                    self.averages[var_name] = 0.0
+            for metric in metrics:
+                if metric in self.averages:
+                    self.counts[metric] = 0
+                    self.averages[metric] = 0.0
                 else:
-                    print(f"Variable {var_name} is not being tracked.")
+                    print(f"Variable {metric} is not being tracked.")
 
 
 """ 
