@@ -3,3 +3,5 @@ from .inference import (
     duel,
     selfplay,
 )
+
+from .evaluate import evaluate_model
