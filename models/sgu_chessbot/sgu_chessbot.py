@@ -148,8 +148,8 @@ class SGUBlock(nn.Module):
         return x
 
 
-@ModelRegistry.register("sgu_chessnet")
-class SpatialGatingChessNet(BaseChessBot):
+@ModelRegistry.register("sgu_chessbot")
+class SpatialGatingChessBot(BaseChessBot):
     """ Spatial Gating Units (SGU) paired with residual MLP blocks for global feature processing."""
 
     def __init__(self, device='cuda'):
