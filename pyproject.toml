@@ -35,8 +35,8 @@ Homepage = "https://github.com/yourusername/ChessBot-Battleground"
 Source = "https://github.com/yourusername/ChessBot-Battleground"
 Tracker = "https://github.com/yourusername/ChessBot-Battleground/issues"
 
-[tool.setuptools]
-packages = ["chessbot", "app"]
+[tool.setuptools.packages.find]
+where = ["."]
 
 [project.scripts]
 chessbot = "chessbot.cli:app"
