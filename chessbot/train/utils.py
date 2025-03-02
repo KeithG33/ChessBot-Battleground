@@ -1,8 +1,7 @@
 class MetricsTracker:
-    """ Utility class to keep track of training metrics
-
-    Uses Welford's algorithm for running mean. Example usage:
-
+    """ Utility class for tracking metrics. Uses Welford's algorithm for running mean.
+    
+    Example usage:
         tracker = MetricsTracker('loss', 'accuracy')
         tracker.update('loss', 0.5)
         tracker.update({'accuracy': 0.8, 'loss': 0.4})
@@ -20,6 +19,18 @@ class MetricsTracker:
                 self.averages[metric] = 0.0
                 self.counts[metric] = 0
 
+    def reset(self, *metrics):
+        if not metrics:
+            self.counts = {}
+            self.averages = {}
+        else:
+            for metric in metrics:
+                if metric in self.averages:
+                    self.counts[metric] = 0
+                    self.averages[metric] = 0.0
+                else:
+                    print(f"Variable {metric} is not being tracked.")
+  
     def _update_metric(self, metric, value):
         self.counts[metric] += 1
         self.averages[metric] += (value - self.averages[metric]) / self.counts[metric]
@@ -38,23 +49,19 @@ class MetricsTracker:
             self._update_metric(metric, value)
 
     def get_average(self, *metrics):
-        return {metric: self.averages.get(metric, None) for metric in metrics}
+        metrics = {metric: self.averages.get(metric, None) for metric in metrics}
+        if len(metrics) == 1:
+            return next(iter(metrics.values()))
+        return metrics
     
     def get_all_averages(self):
         return {var: avg for var, avg in self.averages.items() if self.counts[var] > 0}
 
-    def reset(self, *metrics):
-        if not metrics:
-            self.counts = {}
-            self.averages = {}
-        else:
-            for metric in metrics:
-                if metric in self.averages:
-                    self.counts[metric] = 0
-                    self.averages[metric] = 0.0
-                else:
-                    print(f"Variable {metric} is not being tracked.")
-
+    def __str__(self):
+        averages = self.get_all_averages()
+        return ", ".join(
+            f"{name}: {avg:.4f}" for name, avg in averages.items()
+        )
 
 """ 
 Taken from: https://github.com/lehduong/torch-warmup-lr/blob/master/torch_warmup_lr/wrappers.py

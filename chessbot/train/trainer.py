@@ -92,14 +92,12 @@ class ChessTrainer:
         # Setup stats tracker for running averages
         self.stats = MetricsTracker()
         self.stats.add(
-            [
-                "train_loss",
-                "train_ploss",
-                "train_vloss",
-                "val_loss",
-                "val_ploss",
-                "val_vloss",
-            ]
+            "train_loss",
+            "train_ploss",
+            "train_vloss",
+            "val_loss",
+            "val_ploss",
+            "val_vloss",
         )
         self.progress_bar = tqdm(
             desc=f"{GREEN}Training{RESET}",
@@ -185,7 +183,7 @@ class ChessTrainer:
             bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}] {postfix}",
         ) as val_bar:
             self.model.eval()
-            self.stats.reset(["val_loss", "val_ploss", "val_vloss"])
+            self.stats.reset("val_loss", "val_ploss", "val_vloss")
 
             with torch.no_grad():
                 for state, action, result in val_loader:
@@ -339,14 +337,12 @@ class ChessTrainer:
         self._logger.info(f"Chess Trainer starting...")
         for round_num in range(self.cfg.train.rounds):
             self.stats.reset(
-                [
-                    "train_loss",
-                    "train_ploss",
-                    "train_vloss",
-                    "val_loss",
-                    "val_ploss",
-                    "val_vloss",
-                ]
+                "train_loss",
+                "train_ploss",
+                "train_vloss",
+                "val_loss",
+                "val_ploss",
+                "val_vloss"
             )
 
             train_loader = self.build_train_loader(self.cfg)
@@ -376,8 +372,7 @@ class ChessTrainer:
 
 def train_fn(config_path: str, override: List[str] = None):
     """ Used in `chessbot train` cli
-    Load a YAML configuration file using OmegaConf, apply any quick overrides,
-    and train the model.
+    Load a YAML configuration file, apply any quick overrides, train the model.
 
     Args:
         config_path (str): Path to the YAML configuration file.
