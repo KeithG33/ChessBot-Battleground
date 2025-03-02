@@ -1,28 +1,3 @@
-
-import sys
-import os
-import logging
-from tqdm import tqdm
-
-import torch
-import torch.nn.functional as F
-from torch.utils.data import DataLoader
-
-from chessbot.data import ChessDataset
-from chessbot.common import setup_logger
-
-
-_logger = setup_logger('chessbot.evaluate')
-
-
-# TODO: double check this
-def mean_reciprocal_rank(logits, targets):
-    """Compute the Mean Reciprocal Rank (MRR) for ranked predictions."""
-    sorted_preds = torch.argsort(logits, dim=1, descending=True)
-    ranks = (sorted_preds == targets.unsqueeze(1)).nonzero(as_tuple=True)[1] + 1  # 1-based index
-    return (1.0 / ranks.float()).mean().item()
-
-
 import sys
 import os
 import logging
