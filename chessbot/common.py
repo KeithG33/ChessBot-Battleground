@@ -24,7 +24,6 @@ def setup_logger(name: str, level: int = logging.INFO, logfile: str = None) -> l
     logger.setLevel(level)
     logger.propagate = False # Stops double printing
     
-    # Clear existing handlers
     if logger.hasHandlers():
         logger.handlers.clear()
     

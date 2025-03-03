@@ -63,6 +63,7 @@ class MetricsTracker:
             f"{name}: {avg:.4f}" for name, avg in averages.items()
         )
 
+
 """ 
 Taken from: https://github.com/lehduong/torch-warmup-lr/blob/master/torch_warmup_lr/wrappers.py
 Copied due to install issues
