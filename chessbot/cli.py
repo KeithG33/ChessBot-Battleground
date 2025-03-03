@@ -21,9 +21,11 @@ def parse_kwargs(kwargs_str: str) -> Dict:
         return json.loads(kwargs_str)
     except json.JSONDecodeError as e:
         raise typer.BadParameter(f"Invalid JSON for kwargs: {e}")
-    
 
-def find_and_load_from_register(model_name, model_dir, model_args=None, model_kwargs="{}"):
+
+def find_and_load_from_register(
+    model_name, model_dir, model_args=None, model_kwargs="{}"
+):
     extra_kwargs = parse_kwargs(model_kwargs)
 
     if model_args is None:
@@ -31,8 +33,10 @@ def find_and_load_from_register(model_name, model_dir, model_args=None, model_kw
 
     try:
         from chessbot.models.registry import ModelRegistry
-        # Pass both positional and keyword arguments to load_model
-        model = ModelRegistry.load_model(model_name, model_dir, *model_args, **extra_kwargs)
+
+        model = ModelRegistry.load_model(
+            model_name, model_dir, *model_args, **extra_kwargs
+        )
         typer.echo("Model loaded successfully.")
     except Exception as e:
         typer.echo(f"Error loading model: {e}")
@@ -43,12 +47,26 @@ def find_and_load_from_register(model_name, model_dir, model_args=None, model_kw
 @app.command()
 def evaluate(
     model_name: str = typer.Argument(..., help="Name of the model to load"),
-    model_dir: str = typer.Option(..., "--model-dir", help="Directory with model definitions"),
-    model_weights: str = typer.Option(None, "--model-weights", "-w", help="Path to model weights"),
-    data_dir: str = typer.Option(DEFAULT_DATASET_DIR, "--data-dir", help="Directory containing dataset"),
-    batch_size: int = typer.Option(1024, "--batch-sz", help="Batch size for evaluation"),
-    num_threads: int = typer.Option(1, "--num-threads", help="Number of threads to use"),
-    num_chunks: int = typer.Option(None, "--num-chunks", help="Number of chunks to split the dataset into. Avoids memory issues."),
+    model_dir: str = typer.Option(
+        ..., "--model-dir", help="Directory with model definitions"
+    ),
+    model_weights: str = typer.Option(
+        None, "--model-weights", "-w", help="Path to model weights"
+    ),
+    data_dir: str = typer.Option(
+        DEFAULT_DATASET_DIR, "--data-dir", help="Directory containing dataset"
+    ),
+    batch_size: int = typer.Option(
+        1024, "--batch-sz", help="Batch size for evaluation"
+    ),
+    num_threads: int = typer.Option(
+        1, "--num-threads", help="Number of threads to use"
+    ),
+    num_chunks: int = typer.Option(
+        None,
+        "--num-chunks",
+        help="Number of chunks to split the dataset into. Avoids memory issues.",
+    ),
     model_args: List[str] = typer.Option(
         None,
         "--model-arg",
@@ -73,16 +91,29 @@ def evaluate(
         typer.echo("No dataset directory provided, and no source directory found.")
         raise typer.Exit(code=1)
 
-    # Evaluate the model (replace with your actual evaluation logic)
-    results = evaluate_model(model, data_dir, batch_size=batch_size, num_threads=num_threads, num_chunks=num_chunks)
+    results = evaluate_model(
+        model,
+        data_dir,
+        batch_size=batch_size,
+        num_threads=num_threads,
+        num_chunks=num_chunks,
+    )
     typer.echo(f"Evaluation results: {results}")
 
 
 @app.command()
 def download(
-    version: str = typer.Option(None, "--version", "-v", help="Version of the dataset to download"),
-    output_dir: str = typer.Option(None, "--output-dir", "-o", help="Path where the dataset should be saved"),
-    keep_raw_data: bool = typer.Option(False, "--keep-raw-data", help="Keep the raw data after extraction. For default source install download"),   
+    version: str = typer.Option(
+        None, "--version", "-v", help="Version of the dataset to download"
+    ),
+    output_dir: str = typer.Option(
+        None, "--output-dir", "-o", help="Path where the dataset should be saved"
+    ),
+    keep_raw_data: bool = typer.Option(
+        False,
+        "--keep-raw-data",
+        help="Keep the raw data after extraction. For default source install download",
+    ),
 ):
     """
     Download a dataset.
@@ -93,8 +124,12 @@ def download(
 @app.command()
 def play(
     model_name: str = typer.Argument(..., help="Name of the model to load"),
-    model_dir: str = typer.Option(None, "--model-dir", help="Directory with model definitions"),
-    model_weights: str = typer.Option(None, "--model-weights", "-w", help="Path to model weights file"), 
+    model_dir: str = typer.Option(
+        None, "--model-dir", help="Directory with model definitions"
+    ),
+    model_weights: str = typer.Option(
+        None, "--model-weights", "-w", help="Path to model weights file"
+    ),
     model_args: List[str] = typer.Option(
         None,
         "--model-arg",
@@ -107,13 +142,15 @@ def play(
         "-k",
         help="JSON string of extra keyword arguments for the model's constructor",
     ),
-    port: int = typer.Option(5001, "--port", "-p", help="Port to run the game server on"),
+    port: int = typer.Option(
+        5001, "--port", "-p", help="Port to run the game server on"
+    ),
 ):
     """
     Play a game against the bot using a loaded model. Pass additional positional arguments with --model-arg and keyword arguments as a JSON string via --model-kwargs.
     """
     model = find_and_load_from_register(model_name, model_dir, model_args, model_kwargs)
-    
+
     if model_weights:
         model.load_state_dict(torch.load(model_weights))
 
@@ -127,14 +164,13 @@ def train(
         None,
         "--override",
         "-o",
-        help="Override any config variable using dot notation, e.g., training.lr=0.001. This option can be used multiple times."
-    )
+        help="Override any config variable using dot notation, e.g., training.lr=0.001. This option can be used multiple times.",
+    ),
 ):
     """
     Train a model using the provided configuration file and optional overrides.
     """
     train_fn(config_path, override)
-
 
 
 if __name__ == "__main__":
