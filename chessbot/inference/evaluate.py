@@ -10,16 +10,8 @@ from chessbot.data import ChessDataset
 from chessbot.common import setup_logger
 from chessbot.train.utils import MetricsTracker
 
+
 _logger = setup_logger('chessbot.evaluate')
-
-
-def mean_reciprocal_rank(logits, targets):
-    """Compute the Mean Reciprocal Rank (MRR) for ranked predictions."""
-    sorted_preds = torch.argsort(logits, dim=1, descending=True)
-    ranks = (sorted_preds == targets.unsqueeze(1)).nonzero(as_tuple=True)[
-        1
-    ] + 1  # 1-based index
-    return (1.0 / ranks.float()).mean().item()
 
 
 def evaluate_model(
@@ -60,7 +52,6 @@ def evaluate_model(
         "accuracy",
         "top5_accuracy",
         "top10_accuracy",
-        "mrr",
         "inference_time",
     )
 
@@ -73,6 +64,7 @@ def evaluate_model(
 
     pbar = tqdm(total=0, desc="Evaluating")
 
+    t_eval = time.perf_counter()
     for i, start in enumerate(chunk_starts):
         # Update the description to include current chunk information.
         pbar.set_description(f"Chunk {i+1}/{len(chunk_starts)}")
@@ -117,11 +109,9 @@ def evaluate_model(
             tracker.update("top5_accuracy", top5_accuracy)
             tracker.update("top10_accuracy", top10_accuracy)
 
-            # Mean Reciprocal Rank (MRR).
-            mrr = mean_reciprocal_rank(policy_out, action_inds)
-            tracker.update("mrr", mrr)
-
             pbar.update(1)
+
+    _logger.info(f"Finished evaluation in {time.perf_counter() - t_eval:.2f} seconds.")
 
     pbar.close()
     averages = tracker.get_all_averages()
@@ -130,7 +120,6 @@ def evaluate_model(
     _logger.info(f"  Top-1 Accuracy: {averages['accuracy']:.4f}")
     _logger.info(f"  Top-5 Accuracy: {averages['top5_accuracy']:.4f}")
     _logger.info(f"  Top-10 Accuracy: {averages['top10_accuracy']:.4f}")
-    _logger.info(f"  Mean Reciprocal Rank (MRR): {averages['mrr']:.4f}")
     _logger.info(f"  Cross-Entropy Loss: {averages['policy_loss']:.4f}")
 
     _logger.info("\nRegression (Value) Metrics:")
@@ -148,7 +137,6 @@ def evaluate_model(
         "accuracy": averages["accuracy"],
         "top5_accuracy": averages["top5_accuracy"],
         "top10_accuracy": averages["top10_accuracy"],
-        "mrr": averages["mrr"],
         "mae": averages["mae_loss"],
         "batch_size": batch_size,
         "avg_inference_time": averages["inference_time"],
