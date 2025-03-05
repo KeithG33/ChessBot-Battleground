@@ -78,28 +78,28 @@ class SimpleChessNet(BaseChessBot):
   """ One layer backbone and one layer prediction heads """
     
     def __init__(self):
-        super().__init__()
+      super().__init__()
         
-        # Mini backbone
-        self.backbone = nn.Linear(64, 256)
+      # Mini backbone
+      self.backbone = nn.Linear(64, 256)
 
-        # Policy head
-        self.policy_head = nn.Linear(256, self.action_dim)
+      # Policy head
+      self.policy_head = nn.Linear(256, self.action_dim)
         
-        # Value head
-        self.value_head = nn.Sequential(
-            nn.Linear(256, 1),
-            nn.Tanh()  # Between -1 and 1 for lose, draw, win
-        )
+      # Value head
+      self.value_head = nn.Sequential(
+          nn.Linear(256, 1),
+          nn.Tanh()  # Between -1 and 1 for lose, draw, win
+      )
 
     def forward(self, x):
       """ Input is tensor of shape (B,1,8,8) """
-        x             = x.view(B, -1)               # -> (B, 64)
-        features      = self.backbone(x)            # -> (B, 256)
-        action_logits = self.policy_head(features)  # -> (B, 4672)
-        board_val     = self.value_head(features)   # -> (B, 1)
+      x             = x.view(B, -1)               # -> (B, 64)
+      features      = self.backbone(x)            # -> (B, 256)
+      action_logits = self.policy_head(features)  # -> (B, 4672)
+      board_val     = self.value_head(features)   # -> (B, 1)
 
-        return action_logits, board_val
+      return action_logits, board_val
 ```
 
 The `ModelRegistry` is a helper for the library to load chess models from a path and name. The model will be registered with the name provided, or the class name if none is provided. This helps find and load models for command line tools.
