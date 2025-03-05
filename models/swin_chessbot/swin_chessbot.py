@@ -23,7 +23,7 @@ class ResidualBlock(nn.Module):
         return out
 
 
-class ChessTransformer(nn.Module):
+class SwinTransformer(nn.Module):
     """
     Creates a ChessBot network that outputs a value and action for a given
     state/position. 
@@ -66,9 +66,6 @@ class ChessTransformer(nn.Module):
             nn.Tanh()
         ).to(device)
         
-        self.value_loss = nn.MSELoss()
-        self.policy_loss = nn.CrossEntropyLoss()
-
     def forward(self, x):
         features = self.swin_transformer.forward_features(x) 
         features = features.view(features.size(0), -1)
