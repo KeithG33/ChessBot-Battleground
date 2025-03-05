@@ -57,6 +57,9 @@ class ChessTrainer:
         self.optimizer = None
         self.scheduler = None
 
+        self.policy_loss = torch.nn.CrossEntropyLoss()
+        self.value_loss = torch.nn.MSELoss()
+
         # Setup wandb if enabled
         if self.cfg.logging.wandb:
             resume = 'must' if self.cfg.logging.wandb_run_id else None
@@ -193,8 +196,8 @@ class ChessTrainer:
 
                     policy_output, value_output = self.model(state.unsqueeze(1))
 
-                    policy_loss = self.model.policy_loss(policy_output.squeeze(), action)
-                    value_loss = self.model.value_loss(value_output.squeeze(), result)
+                    policy_loss = self.policy_loss(policy_output.squeeze(), action)
+                    value_loss = self.value_loss(value_output.squeeze(), result)
 
                     loss = policy_loss + value_loss
 
@@ -237,8 +240,8 @@ class ChessTrainer:
                 with accelerator.accumulate():
                     policy_output, value_output = self.model(state.unsqueeze(1))
 
-                    policy_loss = self.model.policy_loss(policy_output.squeeze(), action)
-                    value_loss = self.model.value_loss(value_output.squeeze(), result)
+                    policy_loss = self.policy_loss(policy_output.squeeze(), action)
+                    value_loss = self.value_loss(value_output.squeeze(), result)
                     loss = policy_loss + value_loss
 
                     self.optimizer.zero_grad()

@@ -4,9 +4,11 @@ import numpy as np
 import torch
 import torch.nn as nn
 
+from adversarial_gym.chess_env import ChessEnv
+
 import chess
 
-from adversarial_gym.chess_env import ChessEnv
+from chessbot.models import align_state_dict
 
 
 class BaseChessBot(nn.Module):
@@ -19,12 +21,12 @@ class BaseChessBot(nn.Module):
     def __init__(self):
         super().__init__()
 
-        # Common loss functions for consistency's sake
-        self.policy_loss = nn.CrossEntropyLoss()
-        self.value_loss = nn.MSELoss()
-
         self.action_dim = 4672
 
+    def load_weights(self, path) -> None:
+        """Load weights from a file. Fix added prefix from compilation if needed."""
+        weights = align_state_dict(torch.load(path))
+        self.load_state_dict(weights)
 
     def get_current_device(self):
         """Get the current device of the model"""
