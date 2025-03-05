@@ -63,7 +63,7 @@ def get_latest_dataset_dir():
     if not os.path.exists(source_dataset_dir):
         return None
     
-    dataset_dirs = [d for d in os.listdir(source_dataset_dir) if d.startswith("ChessBot-Dataset-") and os.path.isdir(os.path.join(source_dataset_dir, d))]
+    dataset_dirs = [entry.name for entry in os.scandir(source_dataset_dir) if entry.is_dir() and entry.name.startswith("ChessBot-Dataset-")]
     if not dataset_dirs:
         return None
     
