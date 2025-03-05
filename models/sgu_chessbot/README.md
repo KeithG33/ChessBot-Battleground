@@ -15,27 +15,40 @@ The main block of the SGU ChessNet consists of two components:
 In addition, the two prediction networks contain 4 linear layers, LayerNorm+GELU activation, and a skip connection between the first two layers.
 
 ```python
-# Pseudo-code for SGU block as used in SGU ChessNet
+# Pseudo-code for main SGU block as used in SGU ChessNet
 def sgu_block(x):
-  x = x + gmlp_block(x)
+  x = x + amlp_block(x)
   x = x + mlp(x.flatten()).unflatten()
 ```
 
 
-### Training Plots and Scores
-*Coming soon*
+<!-- ### Training Plots and Scores -->
 <!-- ![Training Plot](path_to_training_plot.png) -->
 
+## Model Overview
+### Stats
 <div align="center">
 
 | Model Name   | Layers | Model Shape  | Params      | Weights       |
 |--------------|--------|--------------|-------------|---------------|
-| SGU ChessNet | 24     | (B, 64, 32)  | 222M        | [Download Coming](path_to_model) |
+| SGU ChessNet | 24     | (B, 64, 32)  | 283M        | [Download Coming](path_to_model) |
+
+</div>
+
+### Performance
+<div align="center">
+
+| Metric Type | Top-1  | Top-5  | Top-10 | Cross-Entropy | MSE    | MAE    |
+|-------------|--------|--------|--------|---------------|--------|--------|
+| **Policy**  | 46.21% | 86.28% | 96.09% | 1.6186        | -      | -      |
+| **Value**   | -      | -      | -      | -             | 0.3844 | 0.4362 |
 
 </div>
 
 ## Usage
-Play against the model with the following command
+*Coming soon*
+
+ Play against the model with the following command
 
 ```bash
 chessbot play "sgu_chessnet" \
