@@ -73,8 +73,8 @@ A minimal example of writing a model:
 ```python
 from chessbot.models import BaseChessBot, ModelRegistry
 
-@ModelRegistry.register('simple_chessnet')
-class SimpleChessNet(BaseChessBot):
+@ModelRegistry.register('simple_chessbot')
+class SimpleChessBot(BaseChessBot):
   """ One layer backbone and one layer prediction heads """
     
     def __init__(self):
@@ -108,7 +108,7 @@ The `ModelRegistry` is a helper for the library to load chess models from a path
 
 A `ChessTrainer` class can be used to train ChessBot models. The trainer splits the data loading and training into rounds and epochs. Each round will sample a new subset of `cfg.dataset.size_train` files, and then perform epochs on this subset. The class utilizes HuggingFace's `accelerate` for easy access to AMP, torch.compile,  gradient clipping, gradient accumulation, etc.
 
-Here's a somewhat realistic example of using it:
+Here's a somewhat realistic example of setting up a config and using it:
 
 ```python
 from chessbot.config import get_cfg()
