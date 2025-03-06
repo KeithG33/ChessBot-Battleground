@@ -8,8 +8,6 @@ from adversarial_gym.chess_env import ChessEnv
 
 import chess
 
-from chessbot.models import align_state_dict
-
 
 def align_state_dict(state_dict, prefix="_orig_mod.", new_prefix=""):
     """ Fix keys of a compiled model's state_dict, which have _orig_mod. prefixed to start """
