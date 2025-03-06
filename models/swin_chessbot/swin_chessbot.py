@@ -23,7 +23,7 @@ class ResidualBlock(nn.Module):
         return out
 
 
-class SwinTransformer(nn.Module):
+class SwinChessBot(nn.Module):
     """
     Creates a ChessBot network that outputs a value and action for a given
     state/position. 
@@ -32,7 +32,7 @@ class SwinTransformer(nn.Module):
     prediction heads for action and value.
     """
 
-    def __init__(self, device = 'cuda', base_lr = 0.0009, max_lr = 0.009):
+    def __init__(self, device = 'cuda'):
         super().__init__()
         
         self.swin_transformer = timm.create_model(
