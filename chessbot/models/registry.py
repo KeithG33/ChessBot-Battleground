@@ -1,7 +1,8 @@
+import glob
 import importlib
 import os
 from chessbot.models.base import BaseChessBot
-
+from chessbot.common import DEFAULT_MODEL_DIR
 
 class ModelRegistry:
     """
@@ -44,14 +45,14 @@ class ModelRegistry:
     @classmethod
     def _load_models_from_path(cls, model_path):
         """
-        Automatically loads from specified directory/file path to register models.
+        Recursively loads Python files from specified directory/file path to register models using glob.
         Args:
             model_path (str): The directory from which to load Python files.
         """
-        filenames = os.listdir(model_path) if os.path.isdir(model_path) else [model_path]
-        for filename in filenames:
-            if filename.endswith('.py') and not filename.startswith('__'):
-                file_path = os.path.join(model_path, filename)
+        pattern = os.path.join(model_path, '**', '*.py')
+        for file_path in glob.iglob(pattern, recursive=True):
+            if not file_path.endswith('__init__.py'):
+                filename = os.path.basename(file_path)
                 spec = importlib.util.spec_from_file_location(filename, file_path)
                 module = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(module) 
@@ -85,6 +86,9 @@ class ModelRegistry:
         Returns:
             An instance of the model.
         """
+        if model_name and not model_path and not cls.exists(model_name):
+            model_path = DEFAULT_MODEL_DIR
+
         if model_path:
             cls._load_models_from_path(model_path)
         return cls._load_model(model_name, *init_args, **init_kwargs)

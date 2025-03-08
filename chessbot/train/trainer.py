@@ -46,7 +46,9 @@ class ChessTrainer:
         self._logger.info(f"Loaded configuration: \n {OmegaConf.to_yaml(self.cfg)}")
 
         self.model = model
-        load_model_from_config = True if model is None else load_model_from_config
+        assert (
+            model is not None or self.cfg.model.name is not None
+        ), "Model not provided in config or as an argument"
         
         if load_model_from_config:
             self.load_model_from_config()
@@ -117,8 +119,7 @@ class ChessTrainer:
         model_path = self.cfg.model.path
         model_name = self.cfg.model.name
 
-        assert model_path is not None, "Model path not provided in config"
-        assert model_name is not None, "Model name not provided in config"
+        assert model_name is not None or model_name is not None, "Model name or path not provided in config"
 
         model_args = self.cfg.model.get('args', [])
         model_args = [] if model_args is None else model_args
