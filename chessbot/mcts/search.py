@@ -53,7 +53,7 @@ class MonteCarloTreeSearch:
         }
         return action_probs
 
-    def _expand_node(self, state, game_state, game_obs):
+    def _expand(self, state, game_state, game_obs):
         self._legal_actions_states[state] = game_state.action_space.legal_actions
         self._number_of_visits_states[state] = 1e-8
         self._current_player[state] = game_state.current_player
@@ -90,7 +90,7 @@ class MonteCarloTreeSearch:
             return winner, predicted_outcome
 
         if state not in self._legal_actions_states:
-            return self._expand_node(state, game_state, game_obs)
+            return self._expand(state, game_state, game_obs)
 
         best_action, best_ucb = self.best_action(state, root=root, c_param=c_param)
 
