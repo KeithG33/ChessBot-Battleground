@@ -6,8 +6,7 @@ import gdown
 from chessbot.common import setup_logger
 
 
-_logger = setup_logger("chessbot.download")
-
+LOGGER = setup_logger("chessbot.download")
 
 VERSION_TO_DRIVE_URL = {
     "0.1.0": "https://drive.google.com/file/d/1ywfMXdTwd2xhSfCuQbyPg3OZuTSST_rD/view?usp=sharing",
@@ -30,9 +29,13 @@ def determine_save_path(user_path=None) -> tuple[str, bool]:
 
     script_dir = os.path.dirname(os.path.abspath(__file__))
     if "site-packages" in script_dir or "dist-packages" in script_dir:
-        _logger.info("Detected pip install. Defaulting to current working directory")
+        LOGGER.info("Detected pip install. Defaulting to current working directory")
         return os.getcwd(), False
-
+    
+    if not os.path.exists(os.path.join(script_dir, "../../dataset")):
+        LOGGER.info(f"Creating dataset directory at: {os.path.join(script_dir, '../../dataset')}")
+        os.makedirs(os.path.join(script_dir, "../../dataset"), exist_ok=True)  
+    
     source_dataset_dir = os.path.abspath(os.path.join(script_dir, "../../dataset"))
     return source_dataset_dir, True
 
@@ -50,7 +53,7 @@ def download(version, output_dir, keep_raw_data=False):
     drive_url = VERSION_TO_DRIVE_URL.get(version)
 
     if not drive_url:
-        _logger.error("Version URL not found for the version provided.")
+        LOGGER.error("Version URL not found for the version provided.")
         return
 
     # Extract the file id from the drive URL.
@@ -63,10 +66,10 @@ def download(version, output_dir, keep_raw_data=False):
 
     try:
         if os.path.exists(zip_path):
-            _logger.info(f"Dataset already exists at: {zip_path}")
+            LOGGER.info(f"Dataset already exists at: {zip_path}")
         else:
             gdown.download(id=file_id, output=zip_path, quiet=False)
-            _logger.info(f"Dataset downloaded successfully: {zip_path}")
+            LOGGER.info(f"Dataset downloaded successfully: {zip_path}")
 
         # Extract zip to output dir if source installed.
         if source_install:
@@ -74,7 +77,7 @@ def download(version, output_dir, keep_raw_data=False):
                 non_raw_members = [mem for mem in zip_ref.namelist() if f'dataset-{version}/' in mem]
                 members = zip_ref.namelist() if keep_raw_data else non_raw_members
                 zip_ref.extractall(output_dir, members=members)
-            _logger.info(f"Dataset extracted successfully in: {output_dir}")
+            LOGGER.info(f"Dataset extracted successfully in: {output_dir}")
 
     except Exception as e:
-        _logger.error(f"Failed to download the dataset using gdown. Error: {e}")
+        LOGGER.error(f"Failed to download the dataset using gdown. Error: {e}")
