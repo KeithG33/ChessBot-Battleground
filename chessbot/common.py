@@ -4,7 +4,7 @@ import logging
 import colorlog
 
 
-# ANSI escape sequence for green text
+# ANSI escape sequence for colored text
 GREEN = "\033[1;32m"
 RESET = "\033[0m"
 
@@ -56,7 +56,7 @@ def setup_logger(name: str, level: int = logging.INFO, logfile: str = None) -> l
     
     return logger
 
-
+# Helper function and global variable for default dataset directory
 def get_latest_dataset_dir():
     """ Get highest version dataset directory """
     source_dataset_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "dataset"))
@@ -74,3 +74,6 @@ def get_latest_dataset_dir():
     return os.path.join(data_path, f'dataset-{version}')
 
 DEFAULT_DATASET_DIR = get_latest_dataset_dir()
+
+
+DEFAULT_MODEL_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "models"))
