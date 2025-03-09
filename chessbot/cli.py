@@ -6,7 +6,7 @@ import typer
 from chessbot.data.download import download as download_fn
 from chessbot.inference.evaluate import evaluate_model
 from chessbot.train.trainer import train_fn
-from chessbot.common import DEFAULT_DATASET_DIR
+from chessbot.common import DEFAULT_DATASET_DIR, DEFAULT_MODEL_DIR
 
 from chessbot.app import play as play_fn
 
@@ -45,7 +45,7 @@ def find_and_load_from_register(
 def evaluate(
     model_name: str = typer.Argument(..., help="Name of the model to load"),
     model_dir: str = typer.Option(
-        ..., "--model-dir", help="Directory with model definitions"
+        None, "--model-dir", help="Directory with model definitions"
     ),
     model_weights: str = typer.Option(
         None, "--model-weights", "-w", help="Path to model weights"
@@ -140,7 +140,7 @@ def play(
         help="JSON string of extra keyword arguments for the model's constructor",
     ),
     port: int = typer.Option(
-        5001, "--port", "-p", help="Port to run the game server on"
+        5000, "--port", "-p", help="Port to run the game server on"
     ),
 ):
     """

@@ -107,6 +107,8 @@ class SimpleChessBot(BaseChessBot):
 
 Now we can automatically load this model for training or inference by setting `cfg.model.name = "simple_chessbot"`, and with `cfg.model.args` or `cfg.model.kwargs` as needed.
 
+>**Note:** models in the `models/` directory will be auto-registered for easy loading
+
 
 ## 4. Training Your ChessBot
 
@@ -187,69 +189,91 @@ Loading from config with CLI functions the same as with python. Use `cfg.model.n
 One warning is that the test set is quite large and evaluation may take some time depending on model and hardware.
 ```python
 from chessbot.inference import evaluate_model
-from chessbot.common import DEFAULT_MODEL_DIR
+from chessbot.common import DEFAULT_DATASET_DIR
+from simple_chessbot import SimpleChessBot
+
+if __name__ == "__main__":    
+    dataset_dir = DEFAULT_DATASET_DIR
+    model = SimpleChessBot(hidden_dim=512)
+    evaluate_model(
+        model,
+        dataset_dir=DEFAULT_DATASET_DIR,
+        device="cuda",
+        batch_size=64, # batch size
+        num_processes=4, # number of processes to load dataset
+        num_chunks=None, # num dataset chunks to iterate over
+    )
+```
+Use the `num_chunks` parameter to split the dataset into smaller chunks and iterate to reduce the amount of memory used when testing. The whole test set is just over 32Gb of RAM.
+
+Using the CLI,
+```bash
+chessbot evaluate "simple_chessbot" \ 
+                  --model-weights models/example_chessbot/output/model_best/pytorch_model.bin \
+                  --batch-sz 3072 \
+                  --num-threads 8 \
+                  --num_chunks 0
+```
+
+Don't forget to share your scores! The evaluation script covers:
+1. Policy Metrics (classification - accuracy, top5, top10, cross entropy)
+2. Value Metrics (regression - mse, mae)
+
+## 6. Running Games with ChessBots
+
+The `chessbot.inference` package contains functions for playing games with your trained bots. To run self-play with your model use the `selfplay` function:
+
+
+```python
+from chessbot.inference import selfplay
 from simple_chessbot import SimpleChessBot
 
 model = SimpleChessBot(hidden_dim=512)
-evaluate_model(
-    model,
-    dataset_dir=DEFAULT_MODEL_DIR,
-    batch_size=64,
-    num_processes=4,
-    device="cuda",
-    num_chunks=None,
+model.load_state_dict(torch.load('pytorch_model.bin'))
+
+outcome = selfplay(
+  model, 
+  search=True, # Use MCTS search
+  num_sims=250, # How many simulations to run
+  visualize=True # Display the game
 )
 ```
 
-Or if your model is registered as "your_chessbot", using the `chessbot` cli tool:
-```bash
-# For options and help:
-chessbot evaluate --help
-
-chessbot evaluate "your_chessbot" \ 
-                  --model-dir path/to/dir \
-                  --model-weights path/to/weights.pt \
-                  --data-dir path/to/dataset \
-                  --batch-sz 3072 \
-                  --num-threads 8 \
-```
-
-
-## 6. Using Your ChessBot for Play
-
-Instructions for integrating your trained ChessBot into real gameplay scenarios or platforms.
+The outcome will correspond to losing-drawing-winning with white. To play a match between two models and see which is better, use the `duel` function. :
 
 ```python
-# Gameplay integration example
+from chessbot.inference import duel
+from simple_chessbot import SimpleChessBot
+
+p1 = SimpleChessBot(hidden_dim=512)
+p1.load_state_dict(torch.load('pytorch_model1.bin'))
+
+p2 = SimpleChessBot(hidden_dim=512)
+p2.load_state_dict(torch.load('pytorch_model2.bin'))
+
+scores = duel(
+  p1, # player1 model
+  p2, # player2 model
+  best_of=7, # Best-of 
+  search=False, # Use MCTS search
+  num_sims=250, # Num sims if searching
+  visualize=True # Display the game
+  sample=False, # Sample or select best from policy distribution
+)
 ```
 
-## 7. Advanced Configuration
+The returned `scores` will be a tuple of `(p1_score, p2_score)` with the usual +1 for win, 0.5 for draw, and 0 for loss. 
 
-Explore advanced customization options for hyperparameters, architectures, and optimization.
+## 7. GamePlay App
 
-```python
-# Advanced configuration examples
-```
-
-## 8. Troubleshooting & FAQ
-
-Answers to common issues and frequently asked questions.
+Of course the most important thing is playing your bot and seeing it it beats you..
 
 ```bash
-# Common troubleshooting commands
+chessbot play "simple_chessbot" \
+              --model-weights /path/to/weights.bin \
+              --model-kwargs '{"hidden_dim": 512}' \ # optional args and kwargs
 ```
 
----
+This will start a simple and hacky game app to play against your model.
 
-## Contributing
-
-We welcome contributions! Please follow the [contributing guidelines](CONTRIBUTING.md) to suggest improvements or new features.
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-Happy training, and enjoy your ChessBot!
-
+Happy training and battling!
