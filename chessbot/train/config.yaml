@@ -11,7 +11,7 @@ dataset:
   data_path: null                       # Path dataset containing train/ and test/ directories
   size_train: 1                         # Number of files to sample and train on
   size_test: 1                          # Number of files to sample and test on.
-  num_threads: 1                        # Number of threads for dataset loading
+  num_processes: 1                        # Number of threads for dataset loading
 
 # Training configuration
 train:
