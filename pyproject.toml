@@ -28,6 +28,7 @@ dependencies = [
     "numpy",
     "pyyaml>=6.0",
     "wandb>=0.12.0"
+    "adversarial-gym"
 ]
 
 [project.urls]

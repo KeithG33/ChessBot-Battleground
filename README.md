@@ -160,11 +160,7 @@ The python code was covered above, so for the sake of learning, this Getting-Sta
 
 ### 1. Installation: 
 
-First install the [Adversarial Gym](https://github.com/OperationBeatMeChess/adversarial-gym) chess environment:
-  ```bash
-  pip install adversarial-gym
-  ```
-Then install ChessBot-Battleground
+Install ChessBot-Battleground:
 
   ```bash
   # Either install from source...
@@ -177,10 +173,11 @@ Then install ChessBot-Battleground
   pip install git+https://github.com/KeithG33/ChessBot-Battleground.git
   ```
 
-Once you've got the library installed check out the `chessbot --help` command for a quick overview of things you can do:
+Verify:
+
 ```bash
-kage@pop-os:~/chess_workspace$ chessbot --help
-                                                                                                                                                                                                                                      
+$ chessbot --help
+                                                                                                       
  Usage: chessbot [OPTIONS] COMMAND [ARGS]...                                                                                                                                                                                          
                                                                                                                                                                                                                                       
  ChessBot CLI Tool                                                                                                                                                                                                                    

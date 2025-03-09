@@ -9,16 +9,6 @@ The example model and training script are in [model/example_chessbot](../models/
 
 ## 🚀 1. Setup & Installation
 
-### Prerequisites
-
-First install [Adversarial Gym](https://github.com/OperationBeatMeChess/adversarial-gym):
-
-```bash
-pip install adversarial-gym
-```
-
-### Install ChessBot-Battleground
-
 **Recommended (source install):**
 ```bash
 git clone https://github.com/KeithG33/ChessBot-Battleground.git
