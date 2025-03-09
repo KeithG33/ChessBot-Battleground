@@ -16,7 +16,15 @@ import chess.pgn
 from multiprocessing import Pool
 from functools import partial
 
-from stockfish import Stockfish
+from chessbot.common import setup_logger
+
+LOGGER = setup_logger('SFDataGen')
+
+try:
+    from stockfish import Stockfish
+except ImportError:
+    LOGGER.debug("Stockfish (python) not installed. Install before using datagen")
+    Stockfish = None
 
 
 # Global variable for Stockfish in each worker
