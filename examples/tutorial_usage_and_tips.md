@@ -219,6 +219,8 @@ Don't forget to share your scores! The evaluation script covers:
 1. Policy Metrics (classification - accuracy, top5, top10, cross entropy)
 2. Value Metrics (regression - mse, mae)
 
+***Note***: if torch.compile is used for training the output weights may have mismatching keys. Use `model.load_weights('weights.bin')` to automatically handle this.
+
 ## 6. Running Games with ChessBots
 
 The `chessbot.inference` package contains functions for playing games with your trained bots. To run self-play with your model use the `selfplay` function:
@@ -275,5 +277,13 @@ chessbot play "simple_chessbot" \
 ```
 
 This will start a simple and hacky game app to play against your model.
+
+## 8. Generating Data
+
+Future goals are to add lots more data using stockfish as the teacher. However generating data with my personal computer is prohibitively slow so I am leaving code as a little breadcrumb/bait for the community.
+
+See [example_sf_datagen.ipynb](../examples/example_sf_datagen.ipynb)
+
+--- 
 
 Happy training and battling!
