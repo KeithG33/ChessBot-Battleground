@@ -1,22 +1,18 @@
-import argparse
 import logging
 import os
-
-import sys
 import random
 import time
 from typing import List
-import typer
-import yaml
-import wandb
-import importlib
 
 from tqdm import tqdm
+from omegaconf import OmegaConf
+import wandb
 
 import torch
 from torch.utils.data import DataLoader
 
-from omegaconf import OmegaConf
+from timm.optim import create_optimizer_v2, list_optimizers
+
 from accelerate import Accelerator
 
 from chessbot.common import setup_logger, GREEN, RESET, DEFAULT_DATASET_DIR
@@ -25,7 +21,6 @@ from chessbot.train.utils import WarmupLR, MetricsTracker
 from chessbot.train.config import get_cfg
 from chessbot.models.registry import ModelRegistry
 
-import logging
 
 
 class ChessTrainer:
@@ -134,9 +129,26 @@ class ChessTrainer:
         self.model.to(self.cfg.train.device)
 
     def build_optimizer(self):
-        self.optimizer = torch.optim.AdamW(
-            self.model.parameters(), lr=self.cfg.train.lr
-        )
+        optimizer_str = self.cfg.train.optimizer.lower()
+        assert optimizer_str in list_optimizers(), f"Optimizer {optimizer_str} not valid - must be one of: {list_optimizers()}"
+        
+        if optimizer_str == 'adamw':
+            self.optimizer = torch.optim.AdamW(
+                self.model.parameters(), 
+                lr=self.cfg.train.lr
+            )
+        elif optimizer_str == 'sgd':
+            self.optimizer = torch.optim.SGD(
+                self.model.parameters(), 
+                lr=self.cfg.train.lr, 
+                momentum=0.9
+            )
+        else:
+            self.optimizer = create_optimizer_v2(
+                self.model.parameters(),
+                opt=optimizer_str,
+                lr=self.cfg.train.lr
+            )
         self.scheduler = None
 
         if self.cfg.train.scheduler == "linear":
