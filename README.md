@@ -166,16 +166,16 @@ First install the [Adversarial Gym](https://github.com/OperationBeatMeChess/adve
   ```
 Then install ChessBot-Battleground
 
-   ```bash
-   # Either install from source...
-   git clone https://github.com/KeithG33/ChessBot-Battleground.git
-   cd ChessBot-Battleground
-   pip install -r requirements.txt
-   pip install e .  
+  ```bash
+  # Either install from source...
+  git clone https://github.com/KeithG33/ChessBot-Battleground.git
+  cd ChessBot-Battleground
+  pip install -r requirements.txt
+  pip install e .  
 
-   # Or install via pip 
-   pip install git+https://github.com/KeithG33/ChessBot-Battleground.git
-   ```
+  # Or install via pip 
+  pip install git+https://github.com/KeithG33/ChessBot-Battleground.git
+  ```
 
 Once you've got the library installed check out the `chessbot --help` command for a quick overview of things you can do:
 ```bash
@@ -229,6 +229,8 @@ chessbot train /path/to/config.yaml \
 ```
 
 Additionally, `model.args` and `model.kwargs` exist for the model init. Use a list and dictionary, respectively.
+
+> **✨ Tip:** If your model is in the `models/` directory then just `model.name` is required. It will be auto-registered.
 
 
 ### 4. Leaderboard / Evaluation
