@@ -37,16 +37,16 @@ class ChessDataset(Dataset):
       - The game result: 1 for win, -1 for loss, 0 for draw
 
     The dataset supports both sequential and parallel processing of PGN files
-    with the `num_threads` argument.
+    with the `num_processes` argument.
     """
 
-    def __init__(self, pgn_files, num_threads = 0):
+    def __init__(self, pgn_files, num_processes = 0):
         super().__init__()
         self.load_pgn_files(pgn_files)
         self.data = (
             self.generate_data()
-            if num_threads <= 1
-            else self.generate_data_parallel(num_threads)
+            if num_processes <= 1
+            else self.generate_data_parallel(num_processes)
         )
 
     def load_pgn_files(self, pgn_files):
@@ -80,13 +80,13 @@ class ChessDataset(Dataset):
             data.extend(self.generate_pgn_data(pgn_file))
         return data
 
-    def generate_data_parallel(self, num_threads):
+    def generate_data_parallel(self, num_processes):
         try:
             set_start_method('spawn', force=True)
         except RuntimeError as err:
             print(f"Warning: {err}")
 
-        with Pool(num_threads) as pool:
+        with Pool(num_processes) as pool:
             results = pool.map(self.generate_pgn_data, self.pgn_files)
 
         return [item for sublist in results for item in sublist]

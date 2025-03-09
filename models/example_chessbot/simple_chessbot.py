@@ -12,15 +12,15 @@ class SimpleChessBot(BaseChessBot):
     and a board value.
     """
     
-    def __init__(self):
+    def __init__(self, hidden_dim=256):
         super().__init__()
         
         # Simple mlp and some prediction heads
         self.layers = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(64, 256),  # Flatten the 8x8 board and process
+            nn.Linear(64, hidden_dim),  # Flatten the 8x8 board and process
             nn.ReLU(),
-            nn.Linear(256, 64),
+            nn.Linear(hidden_dim, 64),
             nn.ReLU(),
             nn.LayerNorm(64)
         )

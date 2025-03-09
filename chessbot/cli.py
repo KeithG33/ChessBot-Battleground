@@ -56,7 +56,7 @@ def evaluate(
     batch_size: int = typer.Option(
         1024, "--batch-sz", help="Batch size for evaluation"
     ),
-    num_threads: int = typer.Option(
+    num_processes: int = typer.Option(
         1, "--num-threads", help="Number of threads to use"
     ),
     num_chunks: int = typer.Option(
@@ -92,7 +92,7 @@ def evaluate(
         model,
         data_dir,
         batch_size=batch_size,
-        num_threads=num_threads,
+        num_processes=num_processes,
         num_chunks=num_chunks,
     )
     typer.echo(f"Evaluation results: {results}")

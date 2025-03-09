@@ -49,9 +49,9 @@ The PyTorch `ChessDataset` is provided in `chessbot/data/dataset.py` to load the
 import chessbot.data.ChessDataset
 
 pgn_files   = 'path/to/pgn_files' # File, directory, or list of files
-num_threads = 8
+num_processes = 8
 
-dataset     = ChessDataset(pgn_files, num_threads=num_threads)
+dataset     = ChessDataset(pgn_files, num_processes=num_processes)
 dataloader  = DataLoader(dataset, batch_size=bsz)
 batch       = next(iter(dataloader))
 
@@ -111,11 +111,11 @@ A `ChessTrainer` class can be used to train ChessBot models. The trainer splits 
 Here's a somewhat realistic example of setting up a config and using it:
 
 ```python
-from chessbot.config import get_cfg()
+from chessbot.train import config
 from chessbot.train import ChessTrainer
 
 # Get default cfg and do some basic setup
-cfg = get_cfg() # get default cfg
+cfg = config.get_cfg() # get default cfg
 cfg.train.rounds = 1 # num times to sample a dataset
 cfg.train.epochs = 25 # num epochs on sampled dataset
 cfg.train.batch_size = 128
@@ -242,9 +242,9 @@ from chessbot.inference.evaluate import evaluate_model
 # Load and evaluate model
 model = ChessModel()
 batch_size = 3072
-num_threads = 8
+num_processes = 8
 data_dir = 'path/to/dataset/'
-evaluate_model(model, data_dir, batch_size, num_threads)
+evaluate_model(model, data_dir, batch_size, num_processes)
 ```
 
 Or if your model is registered as "your_chessbot", using the `chessbot` cli tool:

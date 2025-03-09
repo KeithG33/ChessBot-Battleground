@@ -19,7 +19,7 @@ from torch.utils.data import DataLoader
 from omegaconf import OmegaConf
 from accelerate import Accelerator
 
-from chessbot.common import setup_logger, GREEN, RESET
+from chessbot.common import setup_logger, GREEN, RESET, DEFAULT_DATASET_DIR
 from chessbot.data.dataset import ChessDataset
 from chessbot.train.utils import WarmupLR, MetricsTracker
 from chessbot.train.config import get_cfg
@@ -44,6 +44,10 @@ class ChessTrainer:
         self.cfg = OmegaConf.merge(self.cfg, config)
 
         self._logger.info(f"Loaded configuration: \n {OmegaConf.to_yaml(self.cfg)}")
+
+        if self.cfg.dataset.data_path is None:
+            assert os.path.exists(DEFAULT_DATASET_DIR), f"Dataset not found at {DEFAULT_DATASET_DIR} and no data path provided in config"
+            self.cfg.dataset.data_path = DEFAULT_DATASET_DIR
 
         self.model = model
         assert (
@@ -163,7 +167,7 @@ class ChessTrainer:
         train_path = os.path.join(cfg.dataset.data_path, "train")
         data = [pgn.path for pgn in os.scandir(train_path) if pgn.name.endswith(".pgn")]
         sampled_data = random.sample(data, cfg.dataset.size_train)
-        dataset = ChessDataset(sampled_data, num_threads=cfg.dataset.num_threads)
+        dataset = ChessDataset(sampled_data, num_processes=cfg.dataset.num_processes)
         return DataLoader(dataset, batch_size=cfg.train.batch_size, shuffle=True)
 
     @staticmethod
@@ -171,7 +175,7 @@ class ChessTrainer:
         test_path = os.path.join(cfg.dataset.data_path, "test")
         data = [pgn.path for pgn in os.scandir(test_path) if pgn.name.endswith(".pgn")]
         sampled_data = random.sample(data, cfg.dataset.size_test)
-        dataset = ChessDataset(sampled_data, num_threads=cfg.dataset.num_threads)
+        dataset = ChessDataset(sampled_data, num_processes=cfg.dataset.num_processes)
         return DataLoader(dataset, batch_size=cfg.train.batch_size, shuffle=False)
 
     def run_validation(self):
