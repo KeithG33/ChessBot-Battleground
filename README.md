@@ -160,7 +160,7 @@ The python code was covered above, so for the sake of learning, this Getting-Sta
 
 ### 1. Installation: 
 
-Install ChessBot-Battleground:
+**Install ChessBot-Battleground:**
 
   ```bash
   # Either install from source...
@@ -173,7 +173,7 @@ Install ChessBot-Battleground:
   pip install git+https://github.com/KeithG33/ChessBot-Battleground.git
   ```
 
-Verify:
+**Verify Installation:**
 
 ```bash
 $ chessbot --help

@@ -178,7 +178,19 @@ chessbot train models/example_chessbot/config.yaml \
 
 Loading from config with CLI functions the same as with python. Use `cfg.model.name`, and `cfg.model.path` if it is not inside the `models/` directory. 
 
-> **Note:** `cfg.dataset.data_path` is not used here, which means the `DEFAULT_DATASET_DIR` is used. Set this to another dataset path if needed.
+> **Note:** `cfg.dataset.data_path` is not set here, meaning `DEFAULT_DATASET_DIR` is used. Set this to another dataset path if needed.
+
+#### Configs
+Definitely check out the [config](../chessbot/train/config.yaml) for all the options, but I'll highlight some of the more valuable ones here.
+1. `cfg.train.grad_accum` - number of gradient accumulation steps to perform before updating
+2. `cfg.train.grad_clip` - default is norm value of 1.0
+3. `cfg.train.compile` - torch.compile your model (currently using INDUCTOR backend). True or False
+4. `cfg.train.amp` - defaults to 'no', but can be set to: 'fp16', 'bf16', 'fp8', 'fp32'
+5. `cfg.train.optimizer` - Use `adamw` or `sgd` or any optimizer from the `timm` package
+5. `cfg.train.warmup_*` - configure warmup learning rate for training
+6. `cfg.train.validation_every` - configure how often (in iters) to validate during training
+7. `cfg.logging.wandb_*` - configure wandb logging. Also see `cfg.logging.log_every` for logging frequency
+
 
 ## 📊 5. Evaluating Your ChessBot
 
