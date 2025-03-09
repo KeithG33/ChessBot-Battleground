@@ -34,7 +34,7 @@ def evaluate_model(
     model,
     dataset_dir,
     batch_size: int,
-    num_threads: int,
+    num_processes: int,
     device: str = "cuda",
     num_chunks: int = None,
 ):
@@ -85,7 +85,7 @@ def evaluate_model(
     pbar = tqdm(total=0, desc="Evaluating")
     for i, start in enumerate(chunk_starts):
         chunk_files = all_files[start : start + chunk_size]
-        dataset = ChessDataset(chunk_files, num_threads=num_threads)
+        dataset = ChessDataset(chunk_files, num_processes=num_processes)
         dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
 
         pbar.set_description(f"Chunk {i+1}/{len(chunk_starts)}")
