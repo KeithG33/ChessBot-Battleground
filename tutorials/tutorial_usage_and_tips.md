@@ -7,27 +7,32 @@ All examples provided are complete, allowing you to follow along and run the cod
 The example model and training script are in [model/example_chessbot](../models/example_chessbot/)
 
 
+## 🚀 1. Setup & Installation
 
-## 1. Setup & Installation
+### Prerequisites
 
-First install the [Adversarial Gym](https://github.com/OperationBeatMeChess/adversarial-gym) chess environment:
-  ```bash
-  pip install adversarial-gym
-  ```
-Then install ChessBot-Battleground. Cloning the repo is suggested so you can take advantage of some quality-of-life features:
+First install [Adversarial Gym](https://github.com/OperationBeatMeChess/adversarial-gym):
 
 ```bash
-# (Recommended) Install from source...
+pip install adversarial-gym
+```
+
+### Install ChessBot-Battleground
+
+**Recommended (source install):**
+```bash
 git clone https://github.com/KeithG33/ChessBot-Battleground.git
 cd ChessBot-Battleground
 pip install -r requirements.txt
-pip install e .  
+pip install -e .
+```
 
-# Or install via pip 
+**Alternative (pip install):**
+```bash
 pip install git+https://github.com/KeithG33/ChessBot-Battleground.git
 ```
 
-As a quick verification, you should now be able to run `chessbot --help` and see the help message.
+**Verification:**
 
 ```bash
 >> chessbot --help
@@ -48,7 +53,8 @@ As a quick verification, you should now be able to run `chessbot --help` and see
 │ train      Train a model using the provided configuration file and optional overrides.                                                                                                                                            │
 ╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
-## 2. Download the Dataset
+
+## ⬇️ 2.  Download the Dataset
 
 *[Datasets available for download here](https://drive.google.com/drive/folders/1RylJnVbJTNRVc8i_XN1lCE0nwX2g_oG9?usp=sharing)* 
 
@@ -58,11 +64,11 @@ It is recommended to have the dataset in `ChessBot-Battleground/dataset/` so you
 # Download to cwd if pip installed, or ChessBot-Battleground/dataset if source installed.
 chessbot download
 ```
+> **Note:** If source-installed, datasets extract automatically into `dataset/`. Otherwise will be in your `$cwd`
 
-If source installed the dataset will be automatically extracted insied the dataset folder, ready for training. Otherwise a `Chessbot-Dataset-{version}.zip` will be in your current working directory.
 
 
-## 3. Creating A ChessBot
+## 🤖 3. Creating A ChessBot
 
 Recall from the main [README](../README.md) that models have the format,
 
@@ -110,7 +116,7 @@ Now we can automatically load this model for training or inference by setting `c
 >**Note:** models in the `models/` directory will be auto-registered for easy loading
 
 
-## 4. Training Your ChessBot
+## 🏋️ 4. Training Your ChessBot
 
 #### Python
 
@@ -165,7 +171,7 @@ cfg.train.resume_from_checkpoint = True
 # Train ...
 ```
 
-#### CLI
+#### Using The CLI
 We can also use the command-line or a bash script to start training. See [train.sh](../models/example_chessbot/train.sh) for an example:
 
 
@@ -184,7 +190,7 @@ Loading from config with CLI functions the same as with python. Use `cfg.model.n
 
 > **Note:** `cfg.dataset.data_path` is not used here, which means the `DEFAULT_DATASET_DIR` is used. Set this to another dataset path if needed.
 
-## 5. Evaluating Your ChessBot
+## 📊 5. Evaluating Your ChessBot
 
 One warning is that the test set is quite large and evaluation may take some time depending on model and hardware.
 ```python
@@ -195,6 +201,8 @@ from simple_chessbot import SimpleChessBot
 if __name__ == "__main__":    
     dataset_dir = DEFAULT_DATASET_DIR
     model = SimpleChessBot(hidden_dim=512)
+    # Need to train to get weights
+    # model.load_weights('models/example_chessbot/output/model_best/pytorch_model.bin')
     evaluate_model(
         model,
         dataset_dir=DEFAULT_DATASET_DIR,
@@ -206,7 +214,7 @@ if __name__ == "__main__":
 ```
 Use the `num_chunks` parameter to split the dataset into smaller chunks and iterate to reduce the amount of memory used when testing. The whole test set is just over 32Gb of RAM.
 
-Using the CLI,
+#### Using The CLI
 ```bash
 chessbot evaluate "simple_chessbot" \ 
                   --model-weights models/example_chessbot/output/model_best/pytorch_model.bin \
@@ -221,17 +229,17 @@ Don't forget to share your scores! The evaluation script covers:
 
 ***Note***: if torch.compile is used for training the output weights may have mismatching keys. Use `model.load_weights('weights.bin')` to automatically handle this.
 
-## 6. Running Games with ChessBots
+## 🥊 6. Battling with ChessBots
+The `chessbot.inference` package contains functions for playing games with your trained bots.
 
-The `chessbot.inference` package contains functions for playing games with your trained bots. To run self-play with your model use the `selfplay` function:
-
+### 🤖 Self-play
 
 ```python
 from chessbot.inference import selfplay
 from simple_chessbot import SimpleChessBot
 
 model = SimpleChessBot(hidden_dim=512)
-model.load_state_dict(torch.load('pytorch_model.bin'))
+# model.load_state_dict(torch.load('pytorch_model.bin'))
 
 outcome = selfplay(
   model, 
@@ -241,17 +249,18 @@ outcome = selfplay(
 )
 ```
 
-The outcome will correspond to losing-drawing-winning with white. To play a match between two models and see which is better, use the `duel` function. :
+The outcome will correspond to losing-drawing-winning with white.
 
+### ⚔️ Duel two models
 ```python
 from chessbot.inference import duel
 from simple_chessbot import SimpleChessBot
 
 p1 = SimpleChessBot(hidden_dim=512)
-p1.load_state_dict(torch.load('pytorch_model1.bin'))
+# p1.load_state_dict(torch.load('pytorch_model1.bin'))
 
 p2 = SimpleChessBot(hidden_dim=512)
-p2.load_state_dict(torch.load('pytorch_model2.bin'))
+# p2.load_state_dict(torch.load('pytorch_model2.bin'))
 
 scores = duel(
   p1, # player1 model
@@ -266,9 +275,9 @@ scores = duel(
 
 The returned `scores` will be a tuple of `(p1_score, p2_score)` with the usual +1 for win, 0.5 for draw, and 0 for loss. 
 
-## 7. GamePlay App
+## 🎮 7. GamePlay App
 
-Of course the most important thing is playing your bot and seeing it it beats you..
+Of course the most important thing is playing your bot and seeing it it beats you.
 
 ```bash
 chessbot play "simple_chessbot" \
@@ -278,7 +287,7 @@ chessbot play "simple_chessbot" \
 
 This will start a simple and hacky game app to play against your model.
 
-## 8. Generating Data
+## 💾 8. Generating Data
 
 Future goals are to add lots more data using stockfish as the teacher. However generating data with my personal computer is prohibitively slow so I am leaving code as a little breadcrumb/bait for the community.
 
@@ -286,4 +295,8 @@ See [example_sf_datagen.ipynb](../examples/example_sf_datagen.ipynb)
 
 --- 
 
-Happy training and battling!
+\
+🎉 **Happy training and battling!**
+
+If you encounter issues, feel free to reach out!
+
