@@ -146,7 +146,6 @@ def split_pgn_files(input_dir, train_dir, test_dir, train_ratio=0.9):
 """
 Generate PGN files from the downloadable Lichess puzzle database, which comes in CSV format.
 """
-import pandas as pd
 import chess
 import chess.pgn
 import os
@@ -154,6 +153,8 @@ import os
 def lichess_csv_to_pgn(input_csv_path, output_dir, chunk_size=1000):
     """ Convert the puzzle csv file from lichess open database into a pgn file"""
 
+    import pandas as pd
+    
     os.makedirs(output_dir, exist_ok=True)
 
     def generate_pgn(row):
