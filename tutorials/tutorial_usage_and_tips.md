@@ -1,4 +1,4 @@
-# ChessBot Tutorial: Usage Guide
+# ♟️ ChessBot Tutorial: Usage Guide
 
 This tutorial provides an overview of the ChessBot repository, and will guide you through an end-to-end example, including any additional information that might be useful.
 
