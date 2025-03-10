@@ -10,7 +10,7 @@
 [**Getting Started (Installation)**](#getting-started) • [**Dataset**](#-dataset) • [**Training**](#-training) • [**Inference & Battling**](#-inference--battling) • [**Models**](#models)  
 
 [![Hits](https://hits.seeyoufarm.com/api/count/incr/badge.svg?url=https%3A%2F%2Fgithub.com%2FKeithG33%2FChessBot-Battleground&count_bg=%23A7AFB3&title_bg=%23170532&icon=&icon_color=%230019EE&title=views&edge_flat=false)](https://hits.seeyoufarm.com)  
-*[Download the dataset](https://drive.google.com/drive/folders/1RylJnVbJTNRVc8i_XN1lCE0nwX2g_oG9?usp=sharing)*  
+*[Download the dataset](https://ishortn.ink/chessbot-dataset)*  
 </div>
 <!-- Banner End -->
 
@@ -33,7 +33,7 @@ A nice consequence of chess data is that the images are only 8x8 and single-chan
 
 After enough training models will play realistic games, and even beat low-rated players with search.
 ## 📂 Dataset
-*[Datasets available for download here](https://drive.google.com/drive/folders/1RylJnVbJTNRVc8i_XN1lCE0nwX2g_oG9?usp=sharing)*  
+*[Datasets available for download here](https://ishortn.ink/chessbot-dataset)*  
 
 Currently the dataset contains approximately **700 million positions** in **PGN format**, split across 1000 files. Huge credits to the following main sources:
 
@@ -197,7 +197,7 @@ $ chessbot --help
 
 
 ### 2. Download the Dataset:
-*[Datasets available for download here](https://drive.google.com/drive/folders/1RylJnVbJTNRVc8i_XN1lCE0nwX2g_oG9?usp=sharing)* 
+*[Datasets available for download here](https://ishortn.ink/chessbot-dataset)* 
 
 The dataset is provided as a downloadable .zip file with each release. Either use the link and your browser, or the `chessbot` cli tool:
 ```bash
