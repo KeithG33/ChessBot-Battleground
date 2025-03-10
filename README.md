@@ -7,7 +7,7 @@
 
 **Chess AI Training & Battleground Platform**
 
-[**Getting Started (Installation)**](#getting-started) • [**Dataset**](#-dataset) • [**Training**](#-training) • [**Inference & Battling**](#-inference--battling) • [**Models**](#models)  
+[**Getting Started**](#getting-started) • [**Tutorial**](./tutorials/tutorial_usage_and_tips.md) • [**Dataset**](#-dataset) • [**Training**](#-training) • [**Inference & Battling**](#-inference--battling) • [**Models**](#models) 
 
 [![Hits](https://hits.seeyoufarm.com/api/count/incr/badge.svg?url=https%3A%2F%2Fgithub.com%2FKeithG33%2FChessBot-Battleground&count_bg=%23A7AFB3&title_bg=%23170532&icon=&icon_color=%230019EE&title=views&edge_flat=false)](https://hits.seeyoufarm.com)  
 *[Download the dataset](https://ishortn.ink/chessbot-dataset)*  
