@@ -134,15 +134,13 @@ def run_duel(new_model_path, old_model_path, num_rounds, file_lock, num_sims=100
     # new_model_state = {k: v.cpu() for k, v in new_model_state.items()} # can't share cuda tensors
     # old_model_state = {k: v.cpu() for k, v in old_model_state.items()} # can't share cuda tensors
     
-    # Arguments for white and black perspectives
+    # Args for white and black
     args_list = [((new_model_state, old_model_state, chess.WHITE, num_sims)) for _ in range(num_rounds)]
     args_list += [((new_model_state, old_model_state, chess.BLACK, num_sims)) for _ in range(num_rounds)]
 
-    # Using a pool of workers to execute duels in parallel
     with Pool(processes=num_processes) as pool:
         scores = pool.map(play_duel_game, args_list)
 
-    # Aggregating results
     for score in scores:
         if   score == 0:    losses += 1
         elif score == 0.5:  draws  += 1
