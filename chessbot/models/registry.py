@@ -4,6 +4,28 @@ import os
 from chessbot.models.base import BaseChessBot
 from chessbot.common import DEFAULT_MODEL_DIR
 
+
+def auto_register_models():
+    """
+    Function to auto-import and register the models in the hall-of-fame models/ director.
+    For easy access to the models.
+
+    Args:
+        model_path (str): Directory path to search for model files.
+    """
+    pattern = os.path.join(DEFAULT_MODEL_DIR, '**', '*.py')
+    for file_path in glob.iglob(pattern, recursive=True):
+        
+        # Auto register the _chessbot.py files 
+        if not file_path.endswith('_chessbot.py'):
+            continue
+                
+        module_name = os.path.splitext(os.path.basename(file_path))[0]
+        spec = importlib.util.spec_from_file_location(module_name, file_path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+
+
 class ModelRegistry:
     """
     Registry for managing and validating models derived from BaseChessModel.
@@ -28,16 +50,6 @@ class ModelRegistry:
 
         return decorator
     
-    @classmethod
-    def exists(cls, name):
-        return name in cls._registry
-        
-    @classmethod
-    def get(cls, name):
-        if name not in cls._registry:
-            raise KeyError(f"Model '{name}' is not registered. Currently available models: {cls.list_models()}")
-        return cls._registry[name]
-
     @classmethod
     def list_models(cls):
         return list(cls._registry.keys())
@@ -69,12 +81,14 @@ class ModelRegistry:
         Returns:
             An instance of the model.
         """
-        ModelClass = cls.get(model_name)
-        model_instance = ModelClass(*init_args, **init_kwargs)
-        return model_instance
-    
+        try:
+            ModelClass = cls._registry[model_name]
+        except KeyError:
+            raise KeyError(f"Model '{model_name}' is not registered. Currently available models: {cls.list_models()}")        
+        return ModelClass(*init_args, **init_kwargs)
+
     @classmethod
-    def load_model(cls, model_name, model_path=None, *init_args, **init_kwargs):
+    def load_model(cls, model_name=None, model_path=None, *init_args, **init_kwargs):
         """
         Load a model from the registry or a path containing models.
         Args:
@@ -86,9 +100,6 @@ class ModelRegistry:
         Returns:
             An instance of the model.
         """
-        if model_name and not model_path and not cls.exists(model_name):
-            model_path = DEFAULT_MODEL_DIR
-
         if model_path:
             cls._load_models_from_path(model_path)
         return cls._load_model(model_name, *init_args, **init_kwargs)
