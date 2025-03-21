@@ -10,7 +10,7 @@ from timm.layers import DropPath
 
 from adversarial_gym.chess_env import ChessEnv
 
-from chessbot.models import BaseChessBot
+from chessbot.models import BaseChessBot, ModelRegistry
 
 
 class ResidualBlock(nn.Module):
@@ -191,7 +191,7 @@ class MixerBlock(nn.Module):
         x = self.out_mlp(x.view(x.size(0), -1)).view(x.size(0), 64, -1)
         return x
 
-
+@ModelRegistry.register("mixer_attn_chessbot")
 class MixerAttnChessBot(BaseChessBot):
     """
     Creates a ChessNetwork that outputs a value and action for a given
