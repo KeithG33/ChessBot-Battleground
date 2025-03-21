@@ -1,10 +1,10 @@
 import torch
 from torch import nn
 import timm
-import numpy as np
-from torch.cuda.amp import GradScaler
-from adversarial_gym.chess_env import ChessEnv
 
+
+
+from chessbot.models import BaseChessBot, ModelRegistry
 
 
 class ResidualBlock(nn.Module):
@@ -23,7 +23,8 @@ class ResidualBlock(nn.Module):
         return out
 
 
-class SwinChessBot(nn.Module):
+@ModelRegistry.register("swin_chessbot")
+class SwinChessBot(BaseChessBot):
     """
     Creates a ChessBot network that outputs a value and action for a given
     state/position. 
