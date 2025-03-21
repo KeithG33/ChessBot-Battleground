@@ -65,7 +65,7 @@ class BaseChessBot(nn.Module):
         """
 
         if isinstance(args[0], np.ndarray):
-            input = torch.as_tensor(args[0], dtype=torch.float32).reshape(
+            input = torch.as_tensor(args[0], dtype=torch.float32, device=self.get_current_device()).reshape(
                 1, 1, *args[0].shape
             )
             args = (input, *args[1:])
