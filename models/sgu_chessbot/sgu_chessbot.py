@@ -174,7 +174,7 @@ class SpatialGatingChessBot(BaseChessBot):
             for params in params_config
         ]).to(device)
 
-        print(f"Num sgu block params: {sum(p.numel() for p in self.blocks.parameters())}")
+        # print(f"Num sgu block params: {sum(p.numel() for p in self.blocks.parameters())}")
 
         # Policy head
         self.policy_head = nn.Sequential(
