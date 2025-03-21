@@ -10,15 +10,17 @@ import torch
 from torch.utils.data import DataLoader, ConcatDataset, Subset, Dataset
 from torch.multiprocessing import Pool, Process, Lock, Event
 
+from timm.optim import create_optimizer_v2, list_optimizers
+
 from chessbot.train.utils import MetricsTracker
 from chessbot.data import ChessDataset
 from chessbot.mcts.search import MonteCarloTreeSearch
 from chessbot.inference import play_game
-from chessbot.models import align_state_dict
+from chessbot.models import align_state_dict, MODEL_REGISTRY
 
 
 # ---------------------------------------------------------------------------
-# Threadsafe model loading and saving
+# Model loading and saving utilities)
 # ---------------------------------------------------------------------------
 
 def torch_safesave(state_dict, path, file_lock):
@@ -27,15 +29,22 @@ def torch_safesave(state_dict, path, file_lock):
 
 def torch_safeload(path, file_lock):
     with file_lock:
-        model_state = torch.load(path)
+        model_state = align_state_dict(torch.load(path))
     return model_state
 
-def safeload_best_model(curr_model_path, best_model_path, file_lock):
-    """ Loads and returns best model from savepath if exists. Otherwise returns initial state."""
-    if os.path.exists(best_model_path):
-        return torch_safeload(best_model_path, file_lock)
-    else:
-        return torch_safeload(curr_model_path, file_lock)
+# def safeload_best_model(curr_model_path, best_model_path, file_lock):
+#     """ Loads and returns best model from savepath if exists. Otherwise returns initial state."""
+#     if os.path.exists(best_model_path):
+#         return torch_safeload(best_model_path, file_lock)
+#     else:
+#         return torch_safeload(curr_model_path, file_lock)
+    
+def load_model(cfg, state_dict, mode='eval'):
+    model = MODEL_REGISTRY.load_model(cfg.MODEL_CLASS, *cfg.MODEL_ARGS, **cfg.MODEL_KWARGS)
+    model.load_state_dict(state_dict)
+    model = model.cuda()
+    model.eval() if mode == 'eval' else model.train() if mode == 'train' else ValueError("Invalid mode")
+    return model
 
 # ---------------------------------------------------------------------------
 # Self-play and training
@@ -53,13 +62,11 @@ def run_games_continuously(
     with Pool(processes=cfg.SELFPLAY_PARALLEL) as pool:
         while not shutdown_event.is_set():
             # Load current best model
-            model_state = safeload_best_model(
-                cfg.CURR_MODEL_PATH, cfg.BEST_MODEL_PATH, file_lock
-            )
+            model_state = torch_safeload(cfg.MODEL_BEST_PATH, file_lock)
 
             # Start games in parallel without blocking. Each game runs in a separate process.
             async_results = [
-                pool.apply_async(run_selfplay_game, args=(model_state, global_counter, cfg.SELFPLAY_SIMS))
+                pool.apply_async(run_selfplay_game, args=(cfg, model_state, global_counter, cfg.SELFPLAY_SIMS))
                 for _ in range(cfg.SELFPLAY_PARALLEL)
             ]
 
@@ -72,11 +79,11 @@ def run_games_continuously(
                 finally:
                     file_lock.release()
 
-def run_selfplay_game(model_state, global_counter, num_simulations=650):
+def run_selfplay_game(cfg, model_state, global_counter, num_simulations=650):
     env = gym.make("Chess-v0")
     observation, info = env.reset()
 
-    model = load_model(model_state, mode='train')
+    model = load_model(cfg, model_state, mode='train')
     tree = MonteCarloTreeSearch(env, model)
 
     terminal = False
@@ -84,13 +91,12 @@ def run_selfplay_game(model_state, global_counter, num_simulations=650):
     game_states = []
     while not terminal:
         state = env.get_string_representation()
-        best_action, action_probs = tree.search(state, observation, simulations_number=num_simulations)
+        best_action, action_probs = tree.search(state, observation, num_simulations=num_simulations)
         game_actions.append(action_probs)
         game_states.append(observation[0])
         observation, reward, terminal, trunc, info = env.step(best_action)
         
     global_counter.increment()
-    print(f"Game {global_counter.count} over")
     return game_states, game_actions, reward
 
 # ---------------------------------------------------------------------------
@@ -108,9 +114,10 @@ def convert_outcome(outcome, perspective):
 
 
 def play_duel_game(args):
-    new_model_state, old_model_state, perspective, num_sims = args
-    new_model = load_model(new_model_state, mode='eval')
-    old_model = load_model(old_model_state, mode='eval')
+    """ Set up and play a duel game between new and old model and return the score. """
+    cfg, new_model_state, old_model_state, perspective, num_sims = args
+    new_model = load_model(cfg, new_model_state, mode='eval')
+    old_model = load_model(cfg, old_model_state, mode='eval')
 
     if perspective == chess.WHITE: # new model is white (from state dict)
         outcome = play_game(new_model, old_model, search=True, num_sims=num_sims)
@@ -121,22 +128,22 @@ def play_duel_game(args):
     return score
 
 
-def run_duel(new_model_path, old_model_path, num_rounds, file_lock, num_sims=100, num_processes=2):
+def run_duel(cfg, new_model_path, old_model_path, num_rounds, file_lock, num_sims=100, num_processes=2):
     """ Duel against the previous best model and return the score using parallel processes. """
     
     scores = []
     wins, losses, draws = 0, 0, 0
 
-    new_model_state = align_state_dict(torch_safeload(new_model_path, file_lock))
-    old_model_state = align_state_dict(torch_safeload(old_model_path, file_lock))
+    new_model_state = torch_safeload(new_model_path, file_lock)
+    old_model_state = torch_safeload(old_model_path, file_lock)
     
     # NOTE: might need this
     # new_model_state = {k: v.cpu() for k, v in new_model_state.items()} # can't share cuda tensors
     # old_model_state = {k: v.cpu() for k, v in old_model_state.items()} # can't share cuda tensors
     
     # Args for white and black
-    args_list = [((new_model_state, old_model_state, chess.WHITE, num_sims)) for _ in range(num_rounds)]
-    args_list += [((new_model_state, old_model_state, chess.BLACK, num_sims)) for _ in range(num_rounds)]
+    args_list = [((cfg, new_model_state, old_model_state, chess.WHITE, num_sims)) for _ in range(num_rounds)]
+    args_list += [((cfg, new_model_state, old_model_state, chess.BLACK, num_sims)) for _ in range(num_rounds)]
 
     with Pool(processes=num_processes) as pool:
         scores = pool.map(play_duel_game, args_list)
@@ -151,12 +158,11 @@ def run_duel(new_model_path, old_model_path, num_rounds, file_lock, num_sims=100
     return {"score": score, "wins": wins, "draws": draws, "losses": losses}
 
 
-
 # ---------------------------------------------------------------------------
 # Training
 # ---------------------------------------------------------------------------
 
-def build_dataset(mp_manager, cfg):
+def build_dataset(replay_buffer, cfg):
     """
     Builds datasets by sampling expert games and combining with selfplay data.
     Prioritizes the use of expert data and fills the remainder with selfplay data.
@@ -169,7 +175,7 @@ def build_dataset(mp_manager, cfg):
     - A combined dataset ready for training.
     """
     # Initialize selfplay dataset
-    train_dataset = ChessReplayDataset(mp_manager.shared_replay_buffer)
+    train_dataset = ChessReplayDataset(replay_buffer)
     selfplay_size = len(train_dataset)
 
     if selfplay_size > cfg.SELFPLAY_BUFFER_SIZE:
@@ -180,7 +186,7 @@ def build_dataset(mp_manager, cfg):
     if cfg.TRAIN_WITH_EXPERT:
         # Fill remaining dataset with expert data, with optional minimum ratio 
         expert_files = [
-            pgn.path for pgn in os.scandir(cfg.PGN_DIR) if pgn.name.endswith(".pgn")
+            pgn.path for pgn in os.scandir(cfg.TRAIN_PGN_DIR) if pgn.name.endswith(".pgn")
         ]
         sampled_expert_files = random.sample(expert_files, cfg.TRAIN_EXPERT_SIZE)
         expert_dataset = ChessDataset(
@@ -195,17 +201,76 @@ def build_dataset(mp_manager, cfg):
 
     return train_dataset
 
-def run_training_epoch(mp_manager, cfg):
+
+def build_optimizer(model, cfg):
+    optimizer_str = cfg.TRAIN_OPTIMIZER.lower()
+    assert (optimizer_str in list_optimizers()) or None, f"Optimizer {optimizer_str} not valid - must be one of: {list_optimizers()}"
+    
+    if optimizer_str == 'adamw':
+        optimizer = torch.optim.AdamW(
+            model.parameters(), 
+            lr=cfg.train.lr
+        )
+    elif optimizer_str == 'sgd':
+        optimizer = torch.optim.SGD(
+            model.parameters(), 
+            lr=cfg.train.lr, 
+            momentum=0.9
+        )
+    elif optimizer_str is not None:
+        optimizer = create_optimizer_v2(
+            model.parameters(),
+            opt=optimizer_str,
+            lr=cfg.train.lr
+        )
+   
+    scheduler = None
+
+    if cfg.train.scheduler == "linear":
+        min_scale = cfg.train.min_lr / cfg.train.lr
+        scheduler = torch.optim.lr_scheduler.LinearLR(
+            optimizer,
+            start_factor=1.0,
+            end_factor=min_scale,
+            total_iters=cfg.train.scheduler_iters,
+        )
+    elif cfg.train.scheduler == "cosine":
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+            optimizer,
+            cfg.train.scheduler_iters,
+            cfg.train.min_lr,
+        )
+    
+    if scheduler is not None and cfg.train.warmup_iters > 0:
+        warmup_scheduler = torch.optim.lr_scheduler.LinearLR(
+            optimizer,
+            start_factor=cfg.train.warmup_lr / cfg.train.lr,
+            end_factor=1.0,
+            total_iters=cfg.train.warmup_iters,
+        )
+        scheduler = torch.optim.lr_scheduler.SequentialLR(
+            optimizer,
+            schedulers=[warmup_scheduler, scheduler],
+            milestones=[cfg.train.warmup_iters]
+        )
+    return optimizer, scheduler
+
+
+# def run_training_epoch(mp_manager, cfg):
+def run_training_epoch(shared_replay_buffer, cfg):
     # Load current model (don't need safeload here)
-    model_state = torch.load(cfg.CURR_MODEL_PATH)
-    model = load_model(model_state, mode='train')
+    model_state = align_state_dict(torch.load(cfg.MODEL_CURR_PATH))
+    model = load_model(cfg, model_state, mode='train')
 
     stats = MetricsTracker()
     stats.add("loss", "policy_loss", "value_loss")
 
-    train_dataset = build_dataset(mp_manager, cfg)
-    train_loader = DataLoader(train_dataset, batch_size=cfg.BATCH_SIZE, shuffle=True)
+    train_dataset = build_dataset(shared_replay_buffer, cfg)
+    train_loader = DataLoader(train_dataset, batch_size=cfg.TRAIN_BATCH_SIZE, shuffle=True)
 
+    optimizer, scheduler = build_optimizer(model, cfg)
+
+    
     for i, (states_batch, actions_batch, values_batch) in enumerate(train_loader):
         states_batch = states_batch.to(model.device).unsqueeze(1)
         actions_batch = actions_batch.to(model.device)
@@ -218,10 +283,10 @@ def run_training_epoch(mp_manager, cfg):
             value_loss = model.value_loss(value_output.squeeze(), values_batch)
             loss = policy_loss + value_loss
 
-        model.optimizer.zero_grad()
+        optimizer.zero_grad()
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-        model.optimizer.step()
+        optimizer.step()
 
         # Record the losses
         stats.update(
@@ -233,7 +298,7 @@ def run_training_epoch(mp_manager, cfg):
         )
 
     # Epoch done - save model for dueling
-    torch.save(model.state_dict(), cfg.CURR_MODEL_PATH)
+    torch.save(model.state_dict(), cfg.MODEL_CURR_PATH)
 
     return stats
 
