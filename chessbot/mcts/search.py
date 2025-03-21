@@ -151,6 +151,6 @@ class MonteCarloTreeSearch:
 
         self.game_state.set_string_representation(init_state)
 
-        action_probs = self.get_action_probabilities(init_state)
+        action_probs = self._get_action_probabilities(init_state)
         best_action = max(action_probs, key=action_probs.get)
         return best_action, action_probs
