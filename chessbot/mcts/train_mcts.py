@@ -9,6 +9,8 @@ import yaml
 import torch
 from torch.multiprocessing import set_start_method, Pool
 
+from timm.optim import create_optimizer_v2, list_optimizers
+
 from chessbot.mcts.train_utils import (
     SelfPlayMultiProcManager,
     run_training_epoch,
@@ -31,31 +33,35 @@ class Config:
     TRAIN_PGN_DIR: str = "/home/kage/chess_workspace/PGN_dataset/Dataset/train"
     TRAIN_TOTAL_GAMES = 1000  # Num of selfplay games before finishing training
     TRAIN_FREQ: int = 1  # Train ever TRAIN_FREQ games
-    TRAIN_OUTPUT_DIR: str = (
-        '/home/kage/chess_workspace/ChessBot-Battleground/models/sgu_chessbot/mcts_training/'
-    )
+    TRAIN_OUTPUT_DIR: str = '/home/kage/chess_workspace/ChessBot-Battleground/models/sgu_chessbot/mcts_training/'
 
     # Supervised training
     TRAIN_WITH_EXPERT = False  # Whether to include expert data in training
-    TRAIN_EPOCHS: int = 10  # Num supervised train epochs
+    TRAIN_EPOCHS: int = 1  # Num supervised train epochs
     TRAIN_DATASET_SIZE: int = 10_000_000  # Num positions in dataset
     TRAIN_EXPERT_SIZE = 1  # Num files of expert data to sample
-    TRAIN_EXPERT_RATIO = 0.1  # Min percent of expert data
-    TRAIN_BATCH_SIZE: int = 2048.
+    TRAIN_EXPERT_RATIO = 0.1  # Min percent of expert data 
+    TRAIN_BATCH_SIZE: int = 2048
     TRAIN_OPTIMIZER = 'adamw'
+    TRAIN_LR = 0.0001
+    TRAIN_MIN_LR = 0.00001
+    TRAIN_SCHEDULER = 'cosine'
+    TRAIN_SCHEDULER_ITERS = 1_000_000
+    TRAIN_WARMUP_LR = 0.00001
+    TRAIN_WARMUP_ITERS = 1000
 
     # Selfplay
-    SELFPLAY_PARALLEL: int = (
-        1  # Num parallel selfplay processes (each running one game)
-    )
+    SELFPLAY_PARALLEL: int = 1  # Num parallel selfplay processes (each running one game)
     SELFPLAY_SIMS: int = 100  # Num sims per move in mcts selfplay
-    SELFPLAY_BUFFER_SIZE: int = 100_000  # Size of replay buffer queue
+    SELFPLAY_BUFFER_SIZE: int = 1_000_000  # Size of replay buffer queue
 
     # Dueling
-    DUEL_ROUNDS: int = 11  # Best-of-DUEL_ROUNDS to decide best model
+    DUEL_ROUNDS: int = 3  # Best-of-DUEL_ROUNDS to decide best model
     DUEL_WINRATE: float = 0.55  # Required winrate to decide best model
     DUEL_SIMS: int = 25  # Num sims per move in mcts dueling
     DUEL_PROCESSES: int = 2  # Num parallel duel processes (each running one game)
+
+    LOG_WANDB = False  # Whether to log to wandb
 
 
 class MCTSTrainer:
@@ -82,11 +88,13 @@ class MCTSTrainer:
             yaml.dump(cfg.__dict__, f)
 
         # Save the initial model to current and best model paths
-        self.setup_model_paths()
+        self.setup_train_paths()
 
-    def setup_model_paths(self):        
+
+    def setup_train_paths(self):        
         self.cfg.MODEL_CURR_PATH = os.path.join(self.cfg.TRAIN_OUTPUT_DIR, 'model_latest.pt')
         self.cfg.MODEL_BEST_PATH = os.path.join(self.cfg.TRAIN_OUTPUT_DIR, 'model_best.pt')
+        self.cfg.TRAIN_STATE_PATH = os.path.join(self.cfg.TRAIN_OUTPUT_DIR, 'train_state.pt')
         
         if not self.cfg.MODEL_WEIGHTS or not os.path.exists(self.cfg.MODEL_WEIGHTS):
             from chessbot.models import MODEL_REGISTRY
@@ -192,6 +200,8 @@ class MCTSTrainer:
             with Pool(1) as pool:
                 stats = pool.apply(run_training_epoch, (self.mp_manager.shared_replay_buffer, self.cfg))
 
+            self.logger.info(f"T")
+
             # Run dueling process to compare current model against best model
             duel_score_dict = run_duel(
                 self.cfg,
@@ -203,7 +213,8 @@ class MCTSTrainer:
                 num_processes=self.cfg.DUEL_PROCESSES,
             )
             self.logger.info(f"Duel scoring: {duel_score_dict}")
-            wandb.log(duel_score_dict)
+            if self.cfg.LOG_WANDB:
+                wandb.log(duel_score_dict)
 
             # Save model as current model if duel score meets the winrate criteria (best model saved at end)
             tmp_best_model_state = self.save_model_if_better(
@@ -220,7 +231,8 @@ class MCTSTrainer:
                 f"Policy Loss: {stats.get_average('policy_loss')} | "
                 f"Value Loss: {stats.get_average('value_loss')}"
             )
-            wandb.log(
+            if self.cfg.LOG_WANDB:
+                wandb.log(
                 {
                     "epoch_loss": stats.get_average('loss'),
                     "epoch_ploss": stats.get_average('policy_loss'),

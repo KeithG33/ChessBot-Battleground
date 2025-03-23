@@ -20,7 +20,7 @@ from chessbot.models import align_state_dict, MODEL_REGISTRY
 
 
 # ---------------------------------------------------------------------------
-# Model loading and saving utilities)
+# Model loading and saving utilities
 # ---------------------------------------------------------------------------
 
 def torch_safesave(state_dict, path, file_lock):
@@ -29,15 +29,8 @@ def torch_safesave(state_dict, path, file_lock):
 
 def torch_safeload(path, file_lock):
     with file_lock:
-        model_state = align_state_dict(torch.load(path))
+        model_state = align_state_dict(torch.load(path, weights_only=True))
     return model_state
-
-# def safeload_best_model(curr_model_path, best_model_path, file_lock):
-#     """ Loads and returns best model from savepath if exists. Otherwise returns initial state."""
-#     if os.path.exists(best_model_path):
-#         return torch_safeload(best_model_path, file_lock)
-#     else:
-#         return torch_safeload(curr_model_path, file_lock)
     
 def load_model(cfg, state_dict, mode='eval'):
     model = MODEL_REGISTRY.load_model(cfg.MODEL_CLASS, *cfg.MODEL_ARGS, **cfg.MODEL_KWARGS)
@@ -91,7 +84,7 @@ def run_selfplay_game(cfg, model_state, global_counter, num_simulations=650):
     game_states = []
     while not terminal:
         state = env.get_string_representation()
-        best_action, action_probs = tree.search(state, observation, num_simulations=num_simulations)
+        best_action, action_probs = tree.search(state, observation, num_simulations)
         game_actions.append(action_probs)
         game_states.append(observation[0])
         observation, reward, terminal, trunc, info = env.step(best_action)
@@ -209,57 +202,56 @@ def build_optimizer(model, cfg):
     if optimizer_str == 'adamw':
         optimizer = torch.optim.AdamW(
             model.parameters(), 
-            lr=cfg.train.lr
+            lr=cfg.TRAIN_LR
         )
     elif optimizer_str == 'sgd':
         optimizer = torch.optim.SGD(
             model.parameters(), 
-            lr=cfg.train.lr, 
+            lr=cfg.TRAIN_LR, 
             momentum=0.9
         )
     elif optimizer_str is not None:
         optimizer = create_optimizer_v2(
             model.parameters(),
             opt=optimizer_str,
-            lr=cfg.train.lr
+            lr=cfg.TRAIN_LR
         )
    
     scheduler = None
 
-    if cfg.train.scheduler == "linear":
-        min_scale = cfg.train.min_lr / cfg.train.lr
+    if cfg.TRAIN_SCHEDULER == "linear":
+        min_scale = cfg.TRAIN_MIN_LR / cfg.TRAIN_LR
         scheduler = torch.optim.lr_scheduler.LinearLR(
             optimizer,
             start_factor=1.0,
             end_factor=min_scale,
-            total_iters=cfg.train.scheduler_iters,
+            total_iters=cfg.TRAIN_SCHEDULER_ITERS,
         )
-    elif cfg.train.scheduler == "cosine":
+    elif cfg.TRAIN_SCHEDULER == "cosine":
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
             optimizer,
-            cfg.train.scheduler_iters,
-            cfg.train.min_lr,
+            cfg.TRAIN_SCHEDULER_ITERS,
+            cfg.TRAIN_MIN_LR,
         )
     
-    if scheduler is not None and cfg.train.warmup_iters > 0:
+    if scheduler is not None and cfg.TRAIN_WARMUP_ITERS > 0:
         warmup_scheduler = torch.optim.lr_scheduler.LinearLR(
             optimizer,
-            start_factor=cfg.train.warmup_lr / cfg.train.lr,
+            start_factor=cfg.TRAIN_WARMUP_LR / cfg.TRAIN_LR,
             end_factor=1.0,
-            total_iters=cfg.train.warmup_iters,
+            total_iters=cfg.TRAIN_WARMUP_ITERS,
         )
         scheduler = torch.optim.lr_scheduler.SequentialLR(
             optimizer,
             schedulers=[warmup_scheduler, scheduler],
-            milestones=[cfg.train.warmup_iters]
+            milestones=[cfg.TRAIN_WARMUP_ITERS]
         )
     return optimizer, scheduler
 
 
-# def run_training_epoch(mp_manager, cfg):
 def run_training_epoch(shared_replay_buffer, cfg):
     # Load current model (don't need safeload here)
-    model_state = align_state_dict(torch.load(cfg.MODEL_CURR_PATH))
+    model_state = align_state_dict(torch.load(cfg.MODEL_CURR_PATH, weights_only=True))
     model = load_model(cfg, model_state, mode='train')
 
     stats = MetricsTracker()
@@ -270,11 +262,16 @@ def run_training_epoch(shared_replay_buffer, cfg):
 
     optimizer, scheduler = build_optimizer(model, cfg)
 
-    
+    # If an optimizer checkpoint exists, load it.
+    if os.path.exists(cfg.TRAIN_STATE_PATH):
+        ckpt = torch.load(cfg.TRAIN_STATE_PATH, weights_only=True)
+        optimizer.load_state_dict(ckpt["optimizer"])
+        scheduler.load_state_dict(ckpt["scheduler"])
+
     for i, (states_batch, actions_batch, values_batch) in enumerate(train_loader):
-        states_batch = states_batch.to(model.device).unsqueeze(1)
-        actions_batch = actions_batch.to(model.device)
-        values_batch = values_batch.to(model.device)
+        states_batch = states_batch.to(model.device, dtype=torch.float32).unsqueeze(1)
+        actions_batch = actions_batch.to(model.device,)
+        values_batch = values_batch.to(model.device, dtype=torch.float32)
 
         # AMP with grad clipping
         with torch.amp.autocast('cuda', dtype=torch.bfloat16):
@@ -297,9 +294,15 @@ def run_training_epoch(shared_replay_buffer, cfg):
             }
         )
 
-    # Epoch done - save model for dueling
+    # Epoch done - save model for dueling, optimizer 
     torch.save(model.state_dict(), cfg.MODEL_CURR_PATH)
-
+    
+    # Save optimizer and scheduler states for the next epoch.
+    torch.save({
+        "optimizer": optimizer.state_dict(),
+        "scheduler": scheduler.state_dict()
+    }, cfg.TRAIN_STATE_PATH)
+    
     return stats
 
 

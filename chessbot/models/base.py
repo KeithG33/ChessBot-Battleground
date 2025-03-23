@@ -34,7 +34,7 @@ class BaseChessBot(nn.Module):
 
     def load_weights(self, path) -> None:
         """Load weights from a file. Fix added prefix from compilation if needed."""
-        weights = align_state_dict(torch.load(path))
+        weights = align_state_dict(torch.load(path, weights_only=True))
         self.load_state_dict(weights)
 
     def get_current_device(self):
