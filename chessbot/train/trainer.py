@@ -45,9 +45,7 @@ class ChessTrainer:
             self.cfg.dataset.data_path = DEFAULT_DATASET_DIR
 
         self.model = model
-        assert (
-            model is not None or self.cfg.model.name is not None
-        ), "Model not provided in config or as an argument"
+        assert model is not None or self.cfg.model.name is not None, "Model not provided in config or as an argument"
         
         if load_model_from_config:
             self.load_model_from_config()
@@ -55,23 +53,22 @@ class ChessTrainer:
         self._logger.info(f"Training with model: {self.model.__class__.__name__}")
         self._logger.info(self.model)
 
+        self.accelerator = Accelerator(
+            cpu=self.cfg.train.device == 'cpu',
+            mixed_precision=self.cfg.train.amp,
+            dynamo_backend='INDUCTOR' if self.cfg.train.compile else None,
+        )
+
         self.optimizer = None
         self.scheduler = None
 
         self.policy_loss = torch.nn.CrossEntropyLoss()
         self.value_loss = torch.nn.MSELoss()
 
-        # Setup wandb if enabled
-        if self.cfg.logging.wandb:
-            resume = 'must' if self.cfg.logging.wandb_run_id else None
-            wandb.init(
-                project=self.cfg.logging.wandb_project, 
-                name=self.cfg.logging.wandb_run_name,
-                id=self.cfg.logging.wandb_run_id,
-                resume=resume,                
-            )
-
-        # Setup output directory and checkpoint directory
+        # Setup output directory and checkpoint directory, dump config
+        self.latest_model_path = os.path.join(self.cfg.train.output_dir, "model_latest")
+        self.best_model_path = os.path.join(self.cfg.train.output_dir, "model_best")
+        self.checkpoint_dir = os.path.join(self.cfg.train.output_dir, "checkpoint")
         if self.cfg.train.resume_from_checkpoint:
             if not self.cfg.train.output_dir:
                 self.cfg.train.output_dir = os.path.dirname(self.cfg.train.checkpoint_dir)
@@ -80,20 +77,21 @@ class ChessTrainer:
                 self.cfg.train.output_dir = os.path.join(
                     './' , f"{time.strftime('%Y-%m-%d_%H-%M')}-experiment"
                 )
-
-        self._logger.info(f"Saving training outputs to: {self.cfg.train.output_dir} - Resuming: {self.cfg.train.resume_from_checkpoint}")
-            
-        self.checkpoint_dir = os.path.join(self.cfg.train.output_dir, "checkpoint")
-
-        # Dump config to output, setup model save paths
         os.makedirs(self.cfg.train.output_dir, exist_ok=True)
         with open(os.path.join(self.cfg.train.output_dir, "config.yaml"), "w") as f:
             OmegaConf.save(self.cfg, f)
 
-        self.latest_model_path = os.path.join(self.cfg.train.output_dir, "model_latest")
-        self.best_model_path = os.path.join(self.cfg.train.output_dir, "model_best")
-
-        # Setup stats tracker for running averages
+        self._logger.info(f"Saving training outputs to: {self.cfg.train.output_dir} - Resuming: {self.cfg.train.resume_from_checkpoint}")
+            
+        # Setup wandb, stats tracker for running averages, progress bar
+        if self.cfg.logging.wandb:
+            resume = 'must' if self.cfg.logging.wandb_run_id else None
+            wandb.init(
+                project=self.cfg.logging.wandb_project, 
+                name=self.cfg.logging.wandb_run_name,
+                id=self.cfg.logging.wandb_run_id,
+                resume=resume,                
+            )
         self.stats = MetricsTracker()
         self.stats.add(
             "train_loss",
@@ -240,7 +238,7 @@ class ChessTrainer:
             self.stats.get_average('val_vloss'),
         )
 
-    def training_round(self, train_loader, accelerator, round):
+    def training_round(self, train_loader, round):
         """
         Perform a single training round.
         """
@@ -254,7 +252,7 @@ class ChessTrainer:
                 state = state.float()
                 result = result.float()
 
-                with accelerator.accumulate():
+                with self.accelerator.accumulate():
                     policy_output, value_output = self.model(state.unsqueeze(1))
 
                     policy_loss = self.policy_loss(policy_output.squeeze(), action)
@@ -262,10 +260,10 @@ class ChessTrainer:
                     loss = policy_loss + value_loss
 
                     self.optimizer.zero_grad()
-                    accelerator.backward(loss)
+                    self.accelerator.backward(loss)
 
-                    if accelerator.sync_gradients:
-                        accelerator.clip_grad_norm_(
+                    if self.accelerator.sync_gradients:
+                        self.accelerator.clip_grad_norm_(
                             self.model.parameters(), max_norm=1.0
                         )
 
@@ -319,8 +317,8 @@ class ChessTrainer:
 
                     if val_loss < best_val_loss:
                         best_val_loss = val_loss
-                        accelerator.save_model(self.model, self.best_model_path, safe_serialization=False)   
-                        accelerator.save_state(output_dir=self.checkpoint_dir)
+                        self.accelerator.save_model(self.model, self.best_model_path, safe_serialization=False)   
+                        self.accelerator.save_state(output_dir=self.checkpoint_dir)
                     
                     self.progress_bar.refresh()
 
@@ -335,8 +333,8 @@ class ChessTrainer:
                 )
                 self.progress_bar.update(1)
 
-            accelerator.save_model(self.model, self.latest_model_path, safe_serialization=False)
-            accelerator.save_state(output_dir=self.checkpoint_dir)
+            self.accelerator.save_model(self.model, self.latest_model_path, safe_serialization=False)
+            self.accelerator.save_state(output_dir=self.checkpoint_dir)
 
     def train(self):
         assert (
@@ -346,12 +344,6 @@ class ChessTrainer:
         # Sets optimizer and scheduler from config if not already set
         if not self.optimizer:
             self.build_optimizer()
-
-        accelerator = Accelerator(
-            cpu=self.cfg.train.device == 'cpu',
-            mixed_precision=self.cfg.train.amp,
-            dynamo_backend='INDUCTOR' if self.cfg.train.compile else None,
-        )
 
         # Each round samples new data from dataset and performs epochs
         self._logger.info(f"Chess Trainer starting...")
@@ -374,14 +366,14 @@ class ChessTrainer:
             self.progress_bar.refresh()
 
             self.model, self.optimizer, train_loader, self.scheduler = (
-                accelerator.prepare(
+                self.accelerator.prepare(
                     self.model, self.optimizer, train_loader, self.scheduler
                 )
             )
             if self.cfg.train.checkpoint_dir and round_num == 0:
-                accelerator.load_state(self.cfg.train.checkpoint_dir)
+                self.accelerator.load_state(self.cfg.train.checkpoint_dir)
 
-            self.training_round(train_loader, accelerator, round_num)
+            self.training_round(train_loader, round_num)
 
             # reduce memory spikes
             del train_loader
