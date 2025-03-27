@@ -20,42 +20,42 @@ class MonteCarloTreeSearch:
         self.game_state = game_state
         self.nnet = nnet
         self._quality_states_actions = {}
-        self._number_of_visits_states_actions = {}
-        self._number_of_visits_states = {}
+        self._state_number_of_visits_actions = {}
+        self._state_number_of_visits = {}
         self._is_terminal_states = {}
-        self._legal_actions_states = {}
-        self._action_probs_states = {}
+        self._state_legal_actions = {}
+        self._state_action_probs = {}
 
         self._current_player = {}
         self._previous_player = {}
 
     def reset(self):
         self._quality_states_actions = {}
-        self._number_of_visits_states_actions = {}
-        self._number_of_visits_states = {}
+        self._state_number_of_visits_actions = {}
+        self._state_number_of_visits = {}
         self._is_terminal_states = {}
-        self._legal_actions_states = {}
-        self._action_probs_states = {}
+        self._state_legal_actions = {}
+        self._state_action_probs = {}
 
         self._current_player = {}
         self._previous_player = {}
 
     def _get_action_probabilities(self, state):
-        legal_actions = self._legal_actions_states[state]
+        legal_actions = self._state_legal_actions[state]
         total_visits = sum(
-            self._number_of_visits_states_actions.get((action, state), 1e-8)
+            self._state_number_of_visits_actions.get((action, state), 1e-8)
             for action in legal_actions
         )
         action_probs = {
-            action: self._number_of_visits_states_actions.get((action, state), 1e-8)
+            action: self._state_number_of_visits_actions.get((action, state), 1e-8)
             / total_visits
             for action in legal_actions
         }
         return action_probs
 
     def _expand(self, state, game_state, game_obs):
-        self._legal_actions_states[state] = game_state.action_space.legal_actions
-        self._number_of_visits_states[state] = 1e-8
+        self._state_legal_actions[state] = game_state.action_space.legal_actions
+        self._state_number_of_visits[state] = 1e-8
         self._current_player[state] = game_state.current_player
         self._previous_player[state] = game_state.previous_player
 
@@ -67,7 +67,7 @@ class MonteCarloTreeSearch:
             action_probs = action_probs.cpu().numpy().flatten()
             predicted_outcome = predicted_outcome.item()
 
-        self._action_probs_states[state] = action_probs
+        self._state_action_probs[state] = action_probs
         return player_at_leaf, predicted_outcome
 
     def _adjust_result(self, state, predicted_outcome, player_at_leaf):
@@ -89,7 +89,7 @@ class MonteCarloTreeSearch:
             predicted_outcome = 1.0
             return winner, predicted_outcome
 
-        if state not in self._legal_actions_states:
+        if state not in self._state_legal_actions:
             return self._expand(state, game_state, game_obs)
 
         best_action, best_ucb = self.best_action(state, root=root, c_param=c_param)
@@ -111,29 +111,29 @@ class MonteCarloTreeSearch:
         if (best_action, state) in self._quality_states_actions:
             q_old = self._quality_states_actions[(best_action, state)]
             self._quality_states_actions[(best_action, state)] = q_old + result
-            self._number_of_visits_states_actions[(best_action, state)] += 1
+            self._state_number_of_visits_actions[(best_action, state)] += 1
         else:
             self._quality_states_actions[(best_action, state)] = result
-            self._number_of_visits_states_actions[(best_action, state)] = 1
+            self._state_number_of_visits_actions[(best_action, state)] = 1
 
-        self._number_of_visits_states[state] += 1
+        self._state_number_of_visits[state] += 1
 
     def best_action(self, state, root=False, c_param=1.4):
         best_ucb = -np.inf
         best_action = None
 
-        N = self._number_of_visits_states[state]
+        N = self._state_number_of_visits[state]
         LOGN = np.log(N)
 
-        action_probs = self._action_probs_states[state].copy()
+        action_probs = self._state_action_probs[state].copy()
         if root: # add dirichlet noise
             action_probs = apply_dirichlet_noise(action_probs)
 
-        for action in self._legal_actions_states[state]:
+        for action in self._state_legal_actions[state]:
             if (action, state) in self._quality_states_actions:
                 p = action_probs[action]
                 q = self._quality_states_actions[(action, state)]
-                n = self._number_of_visits_states_actions[(action, state)]
+                n = self._state_number_of_visits_actions[(action, state)]
                 ucb = (q / n) + c_param * p * np.sqrt(LOGN / n)
             else:
                 ucb = np.inf
