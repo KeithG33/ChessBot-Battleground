@@ -44,8 +44,22 @@ class ChessTrainer:
             assert os.path.exists(DEFAULT_DATASET_DIR), f"Dataset not found at {DEFAULT_DATASET_DIR} and no data path provided in config"
             self.cfg.dataset.data_path = DEFAULT_DATASET_DIR
 
+        # Setup output directory and checkpoint directory, dump config
+        if self.cfg.train.resume_from_checkpoint:
+            if not self.cfg.train.output_dir:
+                self.cfg.train.output_dir = os.path.dirname(self.cfg.train.checkpoint_dir)
+        else:
+            if not self.cfg.train.output_dir:
+                self.cfg.train.output_dir = os.path.join(
+                    './' , f"{time.strftime('%Y-%m-%d_%H-%M')}-experiment"
+                )
+
         self.model = model
         assert model is not None or self.cfg.model.name is not None, "Model not provided in config or as an argument"
+        
+        self.latest_model_path = os.path.join(self.cfg.train.output_dir, "model_latest")
+        self.best_model_path = os.path.join(self.cfg.train.output_dir, "model_best")
+        self.checkpoint_dir = os.path.join(self.cfg.train.output_dir, "checkpoint")
         
         if load_model_from_config:
             self.load_model_from_config()
@@ -65,18 +79,6 @@ class ChessTrainer:
         self.policy_loss = torch.nn.CrossEntropyLoss()
         self.value_loss = torch.nn.MSELoss()
 
-        # Setup output directory and checkpoint directory, dump config
-        self.latest_model_path = os.path.join(self.cfg.train.output_dir, "model_latest")
-        self.best_model_path = os.path.join(self.cfg.train.output_dir, "model_best")
-        self.checkpoint_dir = os.path.join(self.cfg.train.output_dir, "checkpoint")
-        if self.cfg.train.resume_from_checkpoint:
-            if not self.cfg.train.output_dir:
-                self.cfg.train.output_dir = os.path.dirname(self.cfg.train.checkpoint_dir)
-        else:
-            if not self.cfg.train.output_dir:
-                self.cfg.train.output_dir = os.path.join(
-                    './' , f"{time.strftime('%Y-%m-%d_%H-%M')}-experiment"
-                )
         os.makedirs(self.cfg.train.output_dir, exist_ok=True)
         with open(os.path.join(self.cfg.train.output_dir, "config.yaml"), "w") as f:
             OmegaConf.save(self.cfg, f)

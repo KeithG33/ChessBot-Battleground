@@ -11,7 +11,7 @@ dataset:
   data_path: null                       # Path dataset containing train/ and test/ directories
   size_train: 1                         # Number of files to sample and train on
   size_test: 1                          # Number of files to sample and test on.
-  num_processes: 1                        # Number of threads for dataset loading
+  num_processes: 1                       # Number of threads for dataset loading
 
 # Training configuration
 train:
@@ -26,8 +26,8 @@ train:
   warmup_iters: 0                       # Number of iterations going from warmup_lr to lr
   warmup_strategy: cos                  # Warmup strategy
   scheduler_iters: 100000               # Total scheduler steps (in iterations)
-  optimizer: adamw                      # Optimizer
-  compile: false                        # Compile the model
+  optimizer: adamw                      # Optimizer. Any of the names in timm.optim.list_optimizers()
+  compile: false                        # Compile the model. Uses INDUCTOR
   amp: 'no'                             # automatic mixed precision: 'no','fp16','bf16' or 'fp8'
   grad_clip: 1.0                        # Gradient clipping norm value.
   grad_accum: 0                         # Gradient accumulation steps. Greater than 0 to enable
