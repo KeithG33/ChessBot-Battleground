@@ -186,3 +186,6 @@ stockfish*
 *.bin
 *.pkl
 *.safetensors
+
+
+models/**/config.yaml
