@@ -1,22 +1,18 @@
 import os
-import re
 import zipfile
-import gdown
+
+
+from huggingface_hub import hf_hub_download
 
 from chessbot.common import setup_logger
 
 
 LOGGER = setup_logger("chessbot.download")
-
-VERSION_TO_DRIVE_URL = {
-    "0.1.0": "https://drive.google.com/file/d/1ywfMXdTwd2xhSfCuQbyPg3OZuTSST_rD/view?usp=sharing",
+REPO_ID = "KeithG33/ChessBot-Dataset"
+VERSION_LINKS = {
+    "latest": "ChessBot-dataset-0.1.0.zip",
+    "0.1.0": "ChessBot-dataset-0.1.0.zip",
 }
-
-
-def parse_version(ver_str):
-    """Parse semantic version string into a tuple of integers."""
-    major, minor, patch = map(int, ver_str.split('.'))
-    return (major, minor, patch)
 
 
 def determine_save_path(user_path=None) -> tuple[str, bool]:
@@ -40,44 +36,32 @@ def determine_save_path(user_path=None) -> tuple[str, bool]:
     return source_dataset_dir, True
 
 
-def get_version(version):
-    """Return the provided version or the latest version (by semantic versioning)."""
-    if version is not None:
-        return version
-    return max(VERSION_TO_DRIVE_URL.keys(), key=parse_version)
+def download(version: str = None, output_dir: str = None, keep_raw_data: bool = False):
+    version = version or "latest"
 
-
-def download(version, output_dir, keep_raw_data=False):
-    """Download and extract the dataset from Google Drive using gdown."""
-    version = get_version(version)
-    drive_url = VERSION_TO_DRIVE_URL.get(version)
-
-    if not drive_url:
-        LOGGER.error("Version URL not found for the version provided.")
+    if version not in VERSION_LINKS:
+        LOGGER.error(f"Version {version} not found. Available versions: {', '.join(VERSION_LINKS.keys())}")
         return
-
-    # Extract the file id from the drive URL.
-    m = re.search(r'/file/d/([^/]+)', drive_url)
-    file_id = m.group(1)
-
-    dataset_name = f"ChessBot-Dataset-{version}.zip"
+    
+    filename = VERSION_LINKS[version]
     output_dir, source_install = determine_save_path(output_dir)
-    zip_path = os.path.join(output_dir, dataset_name)
+
+    if os.path.exists(os.path.join(output_dir, filename)) or (
+        os.path.exists(os.path.join(output_dir, os.path.splitext(filename)[0]))
+    ):
+        LOGGER.info(f"{filename} already exists in {output_dir}. Skipping download.")
+        return
+        
+    LOGGER.info(f"Downloading {filename} to {output_dir}...")
 
     try:
-        if os.path.exists(zip_path):
-            LOGGER.info(f"Dataset already exists at: {zip_path}")
-        else:
-            gdown.download(id=file_id, output=zip_path, quiet=False)
-            LOGGER.info(f"Dataset downloaded successfully: {zip_path}")
+        hf_hub_download(repo_id=REPO_ID, filename=filename, local_dir=output_dir, repo_type="dataset")
 
-        # Extract zip to output dir if source installed.
-        if source_install:
-            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-                non_raw_members = [mem for mem in zip_ref.namelist() if f'dataset-{version}/' in mem]
-                members = zip_ref.namelist() if keep_raw_data else non_raw_members
+        if source_install: # unzip
+            with zipfile.ZipFile(os.path.join(output_dir, filename), "r") as zip_ref:
+                non_raw_files = [mem for mem in zip_ref.namelist() if f'dataset-{version}/' in mem]
+                members = zip_ref.namelist() if keep_raw_data else non_raw_files
                 zip_ref.extractall(output_dir, members=members)
-            LOGGER.info(f"Dataset extracted successfully in: {output_dir}")
-
+            LOGGER.info(f"Unzipped {filename} to {output_dir}")
     except Exception as e:
-        LOGGER.error(f"Failed to download the dataset using gdown. Error: {e}")
+        LOGGER.error(f"Error downloading {filename} -- {e}")

@@ -9,7 +9,7 @@
 
 [**Getting Started**](#getting-started) • [**Tutorial**](./tutorials/tutorial_usage_and_tips.md) • [**Dataset**](#-dataset) • [**Training**](#-training) • [**Inference & Battling**](#-inference--battling) • [**Models**](#models) 
 
-*[Download the dataset](https://ishortn.ink/chessbot-dataset)*  
+*[Find the dataset on HuggingFace](https://huggingface.co/datasets/KeithG33/ChessBot-Dataset/tree/main)*  
 </div>
 <!-- Banner End -->
 
@@ -32,7 +32,7 @@ A nice consequence of chess data is that the images are only 8x8 and single-chan
 
 After enough training models will play realistic games, and even beat low-rated players with search.
 ## 📂 Dataset
-*[Datasets available for download here](https://ishortn.ink/chessbot-dataset)*  
+Datasets are *[available for download  at HuggingFace.](https://ishortn.ink/chessbot-dataset)*  
 
 Currently the dataset contains approximately **700 million positions** in **PGN format**, split across 1000 files. Huge credits to the following main sources:
 
@@ -196,7 +196,7 @@ $ chessbot --help
 
 
 ### 2. Download the Dataset:
-*[Datasets available for download here](https://ishortn.ink/chessbot-dataset)* 
+*[Download from HuggingFace](https://huggingface.co/datasets/KeithG33/ChessBot-Dataset/tree/main)* 
 
 The dataset is provided as a downloadable .zip file with each release. Either use the link and your browser, or the `chessbot` cli tool:
 ```bash
