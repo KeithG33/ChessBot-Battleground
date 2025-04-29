@@ -148,7 +148,7 @@ The library depends on an **Adversarial Gym Environment** designed for two-playe
 from chessbot.inference import selfplay, duel
 
 # Selfplay. Returns value in [-1,0,1] for white's outcome
-model1   = YourChessBot()
+model1  = YourChessBot()
 outcome = selfplay(model1, visualize=True)
 
 # Match between two models, use MCTS. Returns (score1,score2)
