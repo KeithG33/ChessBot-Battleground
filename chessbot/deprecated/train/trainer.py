@@ -1,6 +1,8 @@
 import logging
 import os
+import random
 import time
+from typing import List
 
 from tqdm import tqdm
 from omegaconf import OmegaConf
@@ -14,7 +16,7 @@ from timm.optim import create_optimizer_v2, list_optimizers
 from accelerate import Accelerator
 
 from chessbot.common import setup_logger, GREEN, RESET, DEFAULT_DATASET_DIR
-from chessbot.data.dataset import HFChessDataset
+from chessbot.data.dataset import ChessDataset
 from chessbot.train.utils import WarmupLR, MetricsTracker
 from chessbot.train.config import get_cfg
 from chessbot.models.registry import ModelRegistry
@@ -22,9 +24,10 @@ from chessbot.models.registry import ModelRegistry
 
 
 class ChessTrainer:
-    """Chess trainer for training a chess model using the ChessBot dataset supplied on HuggingFace.
-    
-    Due to the gigantic size the dataset uses streaming to avoid huge disk and RAM usage.
+    """Chess trainer for training a chess model with the ChessBot dataset
+
+    Due to the size of the dataset, the training is split into rounds and epochs. Each round
+    samples a subset of the training data, and then performs a specified number of epochs.
     """
 
     def __init__(self, config, model=None, load_model_from_config=False):
@@ -36,6 +39,10 @@ class ChessTrainer:
         self.cfg = OmegaConf.merge(self.cfg, config)
 
         self._logger.info(f"Loaded configuration: \n {OmegaConf.to_yaml(self.cfg)}")
+
+        if self.cfg.dataset.data_path is None:
+            assert os.path.exists(DEFAULT_DATASET_DIR), f"Dataset not found at {DEFAULT_DATASET_DIR} and no data path provided in config"
+            self.cfg.dataset.data_path = DEFAULT_DATASET_DIR
 
         # Setup output directory and checkpoint directory, dump config
         if self.cfg.train.resume_from_checkpoint:
@@ -65,10 +72,6 @@ class ChessTrainer:
             mixed_precision=self.cfg.train.amp,
             dynamo_backend='INDUCTOR' if self.cfg.train.compile else None,
         )
-      
-        # Build train loader
-        self.train_loader = self.build_train_loader(self.cfg)
-        self._logger.info(f"Loaded {self.train_loader.dataset} positions for training")
 
         self.optimizer = None
         self.scheduler = None
@@ -102,7 +105,7 @@ class ChessTrainer:
         )
         self.progress_bar = tqdm(
             desc=f"{GREEN}Training{RESET}",
-            total=1,
+            total=0,
             leave=True,
             dynamic_ncols=True,
             bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}] {postfix}",
@@ -173,19 +176,26 @@ class ChessTrainer:
 
     @staticmethod
     def build_train_loader(cfg) -> DataLoader:
-        dataset = HFChessDataset('train', shuffle_buffer=cfg.dataset.shuffle_buffer)
-        return DataLoader(dataset, batch_size=cfg.train.batch_size, num_workers=cfg.dataset.num_workers)
+        train_path = os.path.join(cfg.dataset.data_path, "train")
+        data = [pgn.path for pgn in os.scandir(train_path) if pgn.name.endswith(".pgn")]
+        sampled_data = random.sample(data, cfg.dataset.size_train)
+        dataset = ChessDataset(sampled_data, num_processes=cfg.dataset.num_processes)
+        return DataLoader(dataset, batch_size=cfg.train.batch_size, shuffle=True)
 
     @staticmethod
     def build_val_loader(cfg) -> DataLoader:
-        dataset = HFChessDataset('test', shuffle_buffer=cfg.dataset.shuffle_buffer)
-        return DataLoader(dataset, batch_size=cfg.train.batch_size, num_workers=cfg.dataset.num_workers)  
+        test_path = os.path.join(cfg.dataset.data_path, "test")
+        data = [pgn.path for pgn in os.scandir(test_path) if pgn.name.endswith(".pgn")]
+        sampled_data = random.sample(data, cfg.dataset.size_test)
+        dataset = ChessDataset(sampled_data, num_processes=cfg.dataset.num_processes)
+        return DataLoader(dataset, batch_size=cfg.train.batch_size, shuffle=False)
 
     def run_validation(self):
         val_loader = self.build_val_loader(self.cfg)
+        total_val_steps = len(val_loader)
 
         with tqdm(
-            total=1,
+            total=total_val_steps,
             desc="Validation",
             leave=False,
             dynamic_ncols=True,
@@ -229,83 +239,58 @@ class ChessTrainer:
             self.stats.get_average('val_ploss'),
             self.stats.get_average('val_vloss'),
         )
-    
-    def update_and_log(self, losses: dict, iter: int, train_or_val: str = "train"):
-        self.stats.update(losses)
-        
-        cond = self.cfg.logging.wandb
-        if train_or_val == "train":
-            cond = cond and self.cfg.logging.log_every == 0
 
-        if cond:            
-            avg_dict = {k: self.stats.get_average(k) for k in losses.keys()}
-            wandb.log(
-                {
-                    **avg_dict,
-                    "iter": iter,
-                }   
-            )
-
-    def train_step(self, state, action, result):
-        state = state.float()
-        result = result.float()
-
-        with self.accelerator.accumulate():
-            policy_output, value_output = self.model(state.unsqueeze(1))
-
-            policy_loss = self.policy_loss(policy_output.squeeze(), action)
-            value_loss = self.value_loss(value_output.squeeze(), result)
-            loss = policy_loss + value_loss
-
-            self.optimizer.zero_grad()
-            self.accelerator.backward(loss)
-
-            if self.accelerator.sync_gradients:
-                self.accelerator.clip_grad_norm_(
-                            self.model.parameters(), max_norm=1.0
-                        )
-
-            self.optimizer.step()
-
-            if self.scheduler:
-                self.scheduler.step()
-        return policy_loss,value_loss,loss
-    
-    def train(self):
-        assert (
-            self.model is not None
-        ), "Model not initialized. Please set up your model before calling .train()"
-
-        # Sets optimizer and scheduler from config if not already set. Allows users to init the
-        # trainer and then manually set the optimizer like:
-        #       `trainer.optimizer = torch.optim.AdamW(...)`
-        if not self.optimizer:
-            self.build_optimizer()
-
-        self.model, self.optimizer, self.train_loader, self.scheduler = (
-            self.accelerator.prepare(
-                self.model, self.optimizer, self.train_loader, self.scheduler
-            )
-        )
-        if self.cfg.train.checkpoint_dir:
-            self.accelerator.load_state(self.cfg.train.checkpoint_dir)
-
-        # Run training
+    def training_round(self, train_loader, round):
+        """
+        Perform a single training round.
+        """
         self.model.train()
         best_val_loss = float('inf')
         val_loss = float('inf')
-    
+
         for epoch in range(self.cfg.train.epochs):
-    
-            for iter, data in enumerate(self.train_loader):
-                state, action, result = data[0], data[1], data[2]
-                policy_loss, value_loss, loss = self.train_step(state, action, result)
-                loss_dict = {
-                    "train_loss": loss.item(),
-                    "train_ploss": policy_loss.item(),
-                    "train_vloss": value_loss.item(),
-                }
-                self.update_and_log(loss_dict, iter)
+
+            for iter, (state, action, result) in enumerate(train_loader):
+                state = state.float()
+                result = result.float()
+
+                with self.accelerator.accumulate():
+                    policy_output, value_output = self.model(state.unsqueeze(1))
+
+                    policy_loss = self.policy_loss(policy_output.squeeze(), action)
+                    value_loss = self.value_loss(value_output.squeeze(), result)
+                    loss = policy_loss + value_loss
+
+                    self.optimizer.zero_grad()
+                    self.accelerator.backward(loss)
+
+                    if self.accelerator.sync_gradients:
+                        self.accelerator.clip_grad_norm_(
+                            self.model.parameters(), max_norm=1.0
+                        )
+
+                    self.optimizer.step()
+
+                    if self.scheduler:
+                        self.scheduler.step()
+
+                self.stats.update(
+                    {
+                        "train_loss": loss.item(),
+                        "train_ploss": policy_loss.item(),
+                        "train_vloss": value_loss.item(),
+                    }
+                )
+
+                if self.cfg.logging.wandb and iter % self.cfg.logging.log_every == 0:
+                    wandb.log(
+                        {
+                            "train_loss": self.stats.get_average('train_loss'), 
+                            "train_ploss": self.stats.get_average('train_ploss'), 
+                            "train_vloss": self.stats.get_average('train_vloss'), 
+                            "iter": iter,
+                        }   
+                    )
 
                 # Validation
                 if (
@@ -314,12 +299,23 @@ class ChessTrainer:
                     and iter > 0
                 ):
                     val_loss, val_ploss, val_vloss = self.run_validation()
-                    loss_dict = {
-                        "val_loss": val_loss,
-                        "val_ploss": val_ploss,
-                        "val_vloss": val_vloss,
-                    }
-                    self.update_and_log(loss_dict, iter, train_or_val="val")
+                    self.stats.update(
+                        {
+                            "val_loss": val_loss,
+                            "val_ploss": val_ploss,
+                            "val_vloss": val_vloss,
+                        }
+                    )
+
+                    if self.cfg.logging.wandb:
+                        wandb.log(
+                            {
+                                "val_loss": val_loss,
+                                "val_ploss": val_ploss,
+                                "val_vloss": val_vloss,
+                                "iter": iter,
+                            }
+                        )
 
                     if val_loss < best_val_loss:
                         best_val_loss = val_loss
@@ -330,8 +326,9 @@ class ChessTrainer:
 
                 self.progress_bar.set_postfix(
                     {
+                        "Round": f"{round + 1}/{self.cfg.train.rounds}",
                         "Epoch": f"{epoch + 1}/{self.cfg.train.epochs}",
-                        "Iter": f"{iter + 1}/1",
+                        "Iter": f"{iter + 1}/{len(train_loader)}",
                         "Loss": f"{loss.item():.4f}",
                         "Val Loss": f"{val_loss:.4f}",
                     }
@@ -340,6 +337,48 @@ class ChessTrainer:
 
             self.accelerator.save_model(self.model, self.latest_model_path, safe_serialization=False)
             self.accelerator.save_state(output_dir=self.checkpoint_dir)
+
+    def train(self):
+        assert (
+            self.model is not None
+        ), "Model not initialized. Please set up your model before calling .train()"
+
+        # Sets optimizer and scheduler from config if not already set
+        if not self.optimizer:
+            self.build_optimizer()
+
+        # Each round samples new data from dataset and performs epochs
+        self._logger.info(f"Chess Trainer starting...")
+        for round_num in range(self.cfg.train.rounds):
+            self.stats.reset(
+                "train_loss",
+                "train_ploss",
+                "train_vloss",
+                "val_loss",
+                "val_ploss",
+                "val_vloss"
+            )
+
+            train_loader = self.build_train_loader(self.cfg)
+            self._logger.info(f"Loaded {len(train_loader.dataset.data)} positions")
+
+
+            total_iters = len(train_loader) * self.cfg.train.epochs
+            self.progress_bar.total += total_iters
+            self.progress_bar.refresh()
+
+            self.model, self.optimizer, train_loader, self.scheduler = (
+                self.accelerator.prepare(
+                    self.model, self.optimizer, train_loader, self.scheduler
+                )
+            )
+            if self.cfg.train.checkpoint_dir and round_num == 0:
+                self.accelerator.load_state(self.cfg.train.checkpoint_dir)
+
+            self.training_round(train_loader, round_num)
+
+            # reduce memory spikes
+            del train_loader
 
         self._logger.info(f"Training complete!")
         self.progress_bar.close()

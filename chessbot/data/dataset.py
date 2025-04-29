@@ -1,12 +1,13 @@
 from pathlib import Path
-from typing import List
+import random
+from typing import List, Optional
 import chess
 import chess.pgn
 
 import torch
 from torch.multiprocessing import Pool, set_start_method
-from torch.utils.data import Dataset
-
+from torch.utils.data import Dataset, IterableDataset
+from datasets import load_dataset
 from adversarial_gym.chess_env import ChessEnv
 
 
@@ -25,6 +26,39 @@ def result_to_number(result):
     if result == "0-1":
         return -1
     return 0
+
+
+class HFChessDataset(IterableDataset):
+    """ A wrapper for streaming the ChessBot dataset on Hugging Face """
+    def __init__(
+        self,
+        split: str = "train",
+        streaming: bool = True,
+        shuffle_buffer: Optional[int] = 10_000,
+    ):
+        super().__init__()
+        self.ds = load_dataset(
+            "KeithG33/ChessBot-Dataset",
+            data_files={
+                "train": "train/*.pgn",
+                "test":  "test/*.pgn",
+            },
+            split=split,
+            streaming=streaming,
+            trust_remote_code=True,
+        ).with_format("torch")
+        
+        self.shuffle_buffer = shuffle_buffer
+
+    def __iter__(self):
+        self.ds = self.ds.shuffle(buffer_size=self.shuffle_buffer, seed=random.randint(0, 2**32-1))
+        for example in self.ds:
+            state = example["state"]            # torch.int8 tensor shape [8,8]
+            action = example["action"]          # torch.int16 scalar tensor
+            result = example["result"]          # torch.int8 scalar tensor
+
+            action = torch.nn.functional.one_hot(action.long(), num_classes=4672).to(torch.float32)
+            yield state, action, result
 
 
 class ChessDataset(Dataset):
@@ -132,3 +166,5 @@ class ChessDataset(Dataset):
         action_probs = create_sparse_vector({action: 1.0})
         action_probs = torch.tensor(action_probs, dtype=torch.float32)
         return state, action_probs, result
+
+

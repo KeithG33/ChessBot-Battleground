@@ -9,7 +9,7 @@
 
 [**Getting Started**](#getting-started) • [**Tutorial**](./tutorials/tutorial_usage_and_tips.md) • [**Dataset**](#-dataset) • [**Training**](#-training) • [**Inference & Battling**](#-inference--battling) • [**Models**](#models) 
 
-*[Find the dataset on HuggingFace](https://huggingface.co/datasets/KeithG33/ChessBot-Dataset/tree/main)*  
+*[Dataset now on HuggingFace](https://huggingface.co/datasets/KeithG33/ChessBot-Dataset/tree/main)*  
 </div>
 <!-- Banner End -->
 
@@ -32,7 +32,7 @@ A nice consequence of chess data is that the images are only 8x8 and single-chan
 
 After enough training models will play realistic games, and even beat low-rated players with search.
 ## 📂 Dataset
-Datasets are *[available for download  at HuggingFace.](https://ishortn.ink/chessbot-dataset)*  
+Dataset is *[available on HuggingFace.](https://ishortn.ink/chessbot-dataset)*  
 
 Currently the dataset contains approximately **700 million positions** in **PGN format**, split across 1000 files. Huge credits to the following main sources:
 
@@ -42,26 +42,32 @@ Currently the dataset contains approximately **700 million positions** in **PGN 
 <!-- - (*coming soon*) Stockfish Data: position evaluation, puzzle solutions, best-move sequences   -->
   
       
-The PyTorch `ChessDataset` is provided in `chessbot/data/dataset.py` to load the data for training, which has the following format:
+The PyTorch `HFChessDataset` is a wrapper around the HuggingFace dataset to easily get you started:
 
 ```python
-import chessbot.data.ChessDataset
+from chessbot.data import HFChessDataset
 
-pgn_files   = 'path/to/pgn_files' # File, directory, or list of files
-num_processes = 8
-
-dataset     = ChessDataset(pgn_files, num_processes=num_processes)
-dataloader  = DataLoader(dataset, batch_size=bsz)
+dataset     = HFChessDataset(split='test') # or 'train'
+dataloader  = DataLoader(dataset, batch_size=128, num_workers=4)
 batch       = next(iter(dataloader))
 
-# Check shapes
 states  = batch[0]  # (B, 8, 8),
 actions = batch[1]  # (B, 4672)
 results = batch[2]  # (B,)
 ```
 
-If you have your own pgn files and want to make your own dataset, the PyTorch dataset should work with those as well. The moves and results are loaded from each game in the PGN file
+This will stream the data to avoid large disk and RAM usage. To load pgn files directly, use the `ChessDataset` class. This is useful for smaller datasets or loading your own data:
 
+```python
+import chessbot.data.ChessDataset
+
+pgn_files   = 'path/to/pgn_files' # File, directory, or list of files
+num_proc    = 8                   # Num files to load in parallel
+
+dataset     = ChessDataset(pgn_files, num_processes=num_proc)
+dataloader  = DataLoader(dataset, batch_size=bsz)
+batch       = next(iter(dataloader))
+```
 ## 🤖 Models
 
 Design your model and see how it does! To take advantage of the training and inference code, models should subclass the `BaseChessBot` class and follow the expected format:
@@ -105,7 +111,8 @@ The `ModelRegistry` is a helper for the library to load chess models from a path
 
 ## 🧠 Training
 
-A `ChessTrainer` class can be used to train ChessBot models. The trainer splits the data loading and training into rounds and epochs. Each round will sample a new subset of `cfg.dataset.size_train` files, and then perform epochs on this subset. The class utilizes HuggingFace's `accelerate` for easy access to AMP, torch.compile,  gradient clipping, gradient accumulation, etc.
+
+The `ChessTrainer` class is the easiest way to get started training ChessBot models. This class will efficiently stream the huggingface dataset so you don't have to worry about hardware requirements. The trainer also utilizes HuggingFace's `accelerate` for easy access to AMP, torch.compile, gradient clipping, gradient accumulation, etc.
 
 Here's a somewhat realistic example of setting up a config and using it:
 
@@ -115,14 +122,12 @@ from chessbot.train import ChessTrainer
 
 # Get default cfg and do some basic setup
 cfg = config.get_cfg() # get default cfg
-cfg.train.rounds = 1 # num times to sample a dataset
 cfg.train.epochs = 25 # num epochs on sampled dataset
 cfg.train.batch_size = 128
 cfg.train.lr = 0.001
 cfg.train.output_dir = 'output/'
-cfg.dataset.data_path = 'ChessBot-Battleground/dataset/'
-cfg.dataset.size_train = 25 # num files to sample for train set
-cfg.dataset.size_test = 5 # num files to sample for test set
+cfg.dataset.num_workers = 4 # num processes (with different data)
+cfg.dataset.shuffle_buffer = 100_000 # streaming shuffle buffer
 
 model = YourChessBot()
 
@@ -198,7 +203,7 @@ $ chessbot --help
 ### 2. Download the Dataset:
 *[Download from HuggingFace](https://huggingface.co/datasets/KeithG33/ChessBot-Dataset/tree/main)* 
 
-The dataset is provided as a downloadable .zip file with each release. Either use the link and your browser, or the `chessbot` cli tool:
+If you want to check out the dataset, either use the link or the provided `chessbot` cli tool. Note that this is no longer required for training:
 ```bash
 # For options and help
 chessbot download --help 
@@ -207,7 +212,7 @@ chessbot download --help
 chessbot download
 ```
 
-By default, the latest release will be downloaded into the `ChessBot-Battleground/dataset/` directory, or the current working directory if the package has been pip installed. Use `--output-dir` to select the output path.
+By default, the latest release will be downloaded into the `ChessBot-Battleground/dataset/` directory, or the current working directory if the package has been pip installed.
 
 ### 3. Models & Training
 After installation and downloading, it's time to write a model and let it gobble up data. Writing a model and training was covered above, so first check that out. Here I'll show the CLI version of training. First register your model, and then configure `model.path` and `model.name` to load the model. Either set this in the config file, or use the command overrides:

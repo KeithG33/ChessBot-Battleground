@@ -11,7 +11,9 @@ dataset:
   data_path: null                       # Path dataset containing train/ and test/ directories
   size_train: 1                         # Number of files to sample and train on
   size_test: 1                          # Number of files to sample and test on.
-  num_processes: 1                       # Number of threads for dataset loading
+  num_processes: 1                      # Number of threads for data loading
+  num_workers: 1                        # Number of workers for data loading
+  shuffle_buffer: 10_000                   # Buffer size for shuffling the HF streaming dataset
 
 # Training configuration
 train:
