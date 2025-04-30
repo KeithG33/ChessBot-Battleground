@@ -184,7 +184,7 @@ class BaseChessTrainer:
 
             if self.scheduler:
                 self.scheduler.step()
-                
+
         return policy_loss, value_loss, loss
 
     def run_validation(self):
@@ -237,7 +237,7 @@ class BaseChessTrainer:
         )
     
 
-class ChessHFTrainer(BaseChessTrainer):
+class HFChessTrainer(BaseChessTrainer):
     """Chess trainer for training a chess model using the ChessBot dataset supplied on HuggingFace.
     
     Due to the gigantic size the dataset uses streaming to avoid huge disk and RAM usage.
@@ -339,7 +339,7 @@ class ChessHFTrainer(BaseChessTrainer):
 
 
 
-class ChessPGNTrainer(BaseChessTrainer):
+class PGNChessTrainer(BaseChessTrainer):
     """Chess trainer for training a chess model with the ChessBot dataset
 
     Due to the size of the dataset, the training is split into rounds and epochs. Each round

@@ -1,1 +1,1 @@
-from .trainer import ChessPGNTrainer, ChessHFTrainer
+from .trainer import PGNChessTrainer, HFChessTrainer
