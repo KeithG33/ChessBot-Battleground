@@ -280,9 +280,9 @@ chessbot play "your_chessbot" \
 
 ### 6. Examples
 
-There is a simple and complete example in [examples](examples/) to get you started. Check out the `SimpleChessNet` for an example of the model interface; use `example_training.ipynb` to train the model; use `example_inference.ipynb` to either run inference with the base model, or with an MCTS wrapper for a test-time-powerup.
+There is a simple and complete example in [models/](models/) to get you started. Check out the `example_chessbot` project for an example; use `example_training.ipynb` to train the model; use `example_inference.ipynb` to either run inference with the base model, or with an MCTS wrapper for a test-time-powerup.
 
-For actual successful models check out the [models](models/) directory.
+Otherwise check out the other models in the `models/` directory.
 
 Additionally, an `example_sf_datagen.ipynb` exists to show how one might add Stockfish data to the dataset. Unfortunately stockfish is slow so this is a hopeful crumb that I leave for crowd efforts.
 
