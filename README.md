@@ -203,7 +203,7 @@ $ chessbot --help
 ### 2. Download the Dataset:
 *[Download from HuggingFace](https://huggingface.co/datasets/KeithG33/ChessBot-Dataset/tree/main)* 
 
-If you want to check out the dataset, either use the link or the provided `chessbot` cli tool. Note that this is no longer required for training:
+If you want to check out the dataset, either use the HuggingFace UI in the link or use the `chessbot` cli tool:
 ```bash
 # For options and help
 chessbot download --help 
