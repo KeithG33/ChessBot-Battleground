@@ -96,22 +96,17 @@ def evaluate(
 
 @app.command()
 def download(
-    version: str = typer.Option(
-        None, "--version", "-v", help="Version of the dataset to download"
-    ),
     output_dir: str = typer.Option(
         None, "--output-dir", "-o", help="Path where the dataset should be saved"
     ),
     keep_raw_data: bool = typer.Option(
-        False,
-        "--keep-raw-data",
-        help="Keep the raw data after extraction. For default source install download",
+        False, "--keep-raw-data", "-k", help="Download the original raw pgn data"
     ),
 ):
     """
-    Download a dataset.
+    Download the dataset.
     """
-    download_fn(version, output_dir, keep_raw_data)
+    download_fn(output_dir, keep_raw_data)
 
 
 @app.command()

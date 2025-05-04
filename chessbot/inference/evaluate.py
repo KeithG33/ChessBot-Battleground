@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 import json
 from tqdm import tqdm
@@ -55,11 +56,15 @@ def evaluate_model(
     LOGGER.info(f"Model Parameters: {num_params}")
 
     dataset = HFChessDataset('test')
+    num_examples = dataset.ds.info.splits['test'].num_examples
+    total_batches = (num_examples + batch_size - 1) // batch_size  # Calculate total batches
     test_loader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
+
+    pbar = tqdm(total=total_batches, desc="Evaluating", leave=False)
 
     t_eval = time.perf_counter()
     with torch.inference_mode():
-        for state, action, result in tqdm(test_loader, desc="Evaluating", leave=False):
+        for state, action, result in test_loader:
             state, action, result = state.to(device), action.to(device), result.to(device)
             action_inds = action.argmax(dim=1)
 
@@ -87,6 +92,17 @@ def evaluate_model(
             tracker.update("top5_accuracy", top5_accuracy)
             tracker.update("top10_accuracy", top10_accuracy)
             tracker.update("inference_time", inference_time)
+
+            pbar.update(1)
+            pbar.set_postfix(
+                policy_loss=policy_loss.item(),
+                mse_loss=value_loss_l2.item(),
+                mae_loss=value_loss_l1.item(),
+                accuracy=accuracy,
+                top5_accuracy=top5_accuracy,
+                top10_accuracy=top10_accuracy,
+                inference_time=inference_time,
+            )
 
     LOGGER.info(f"Finished evaluation in {time.perf_counter() - t_eval:.2f} seconds.")
 
@@ -126,8 +142,13 @@ def evaluate_model(
     # Optional save to JSON
     if save_path:
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
+
+        if os.path.isdir(save_path):
+            save_path = os.path.join(save_path, "evaluation_results.json")
+
         with open(save_path, "w") as f:
             json.dump(results, f, indent=2)
+
         LOGGER.info(f"Saved evaluation results to {save_path}")
 
     return results
