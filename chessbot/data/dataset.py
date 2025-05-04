@@ -37,6 +37,7 @@ class HFChessDataset(IterableDataset):
         shuffle_buffer: Optional[int] = 10_000,
     ):
         super().__init__()
+        self.split = split
         self.ds = load_dataset(
             "KeithG33/ChessBot-Dataset",
             data_files={
@@ -51,12 +52,14 @@ class HFChessDataset(IterableDataset):
         self.shuffle_buffer = shuffle_buffer
 
     def __iter__(self):
-        self.ds = self.ds.shuffle(buffer_size=self.shuffle_buffer, seed=random.randint(0, 2**32-1))
+        if self.split == "train":
+            self.ds = self.ds.shuffle(buffer_size=self.shuffle_buffer, seed=random.randint(0, 2**32-1))
+        
         for example in self.ds:
             state = example["state"]            # torch.int8 tensor shape [8,8]
             action = example["action"]          # torch.int16 scalar tensor
             result = example["result"]          # torch.int8 scalar tensor
-
+            
             action = torch.nn.functional.one_hot(action.long(), num_classes=4672).to(torch.float32)
             yield state, action, result
 

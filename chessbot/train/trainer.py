@@ -502,7 +502,7 @@ class PGNChessTrainer(BaseChessTrainer):
         self.progress_bar.close()
 
 
-def train_local_fn(config_path: str, override: List[str] = None):
+def train_fn_local(config_path: str, override: List[str] = None):
     """ Used in `chessbot train` cli
     Load a YAML configuration file, apply any quick overrides, train the model.
 
@@ -518,11 +518,11 @@ def train_local_fn(config_path: str, override: List[str] = None):
         override_conf = OmegaConf.from_dotlist(override)
         config = OmegaConf.merge(config, override_conf)
 
-    trainer = ChessPGNTrainer(config, load_model_from_config=True)
+    trainer = PGNChessTrainer(config, load_model_from_config=True)
     trainer.train()
 
 
-def train_hf_fn(config_path: str, override: List[str] = None):
+def train_fn_hf(config_path: str, override: List[str] = None):
     """ Used in `chessbot train` cli
     Load a YAML configuration file, apply any quick overrides, train the model.
 
@@ -538,5 +538,5 @@ def train_hf_fn(config_path: str, override: List[str] = None):
         override_conf = OmegaConf.from_dotlist(override)
         config = OmegaConf.merge(config, override_conf)
 
-    trainer = ChessHFTrainer(config, load_model_from_config=True)
+    trainer = HFChessTrainer(config, load_model_from_config=True)
     trainer.train()

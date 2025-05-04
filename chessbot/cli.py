@@ -5,8 +5,9 @@ import typer
 
 from chessbot.data.download import download as download_fn
 from chessbot.inference.evaluate import evaluate_model
-from chessbot.train.trainer import train_fn
+from chessbot.train.trainer import train_fn_hf, train_fn_local
 from chessbot.common import DEFAULT_DATASET_DIR, DEFAULT_MODEL_DIR
+from chessbot.models import align_state_dict
 
 from chessbot.app import play as play_fn
 
@@ -50,20 +51,6 @@ def evaluate(
     model_weights: str = typer.Option(
         None, "--model-weights", "-w", help="Path to model weights"
     ),
-    data_dir: str = typer.Option(
-        DEFAULT_DATASET_DIR, "--data-dir", help="Directory containing dataset"
-    ),
-    batch_size: int = typer.Option(
-        1024, "--batch-sz", help="Batch size for evaluation"
-    ),
-    num_processes: int = typer.Option(
-        1, "--num-threads", help="Number of threads to use"
-    ),
-    num_chunks: int = typer.Option(
-        None,
-        "--num-chunks",
-        help="Number of chunks to split the dataset into. Avoids memory issues.",
-    ),
     model_args: List[str] = typer.Option(
         None,
         "--model-arg",
@@ -76,24 +63,33 @@ def evaluate(
         "-k",
         help="JSON string of extra keyword arguments for the model's constructor",
     ),
+    batch_size: int = typer.Option(
+        1024, "--batch-sz", help="Batch size for evaluation"
+    ),
+    num_workers: int = typer.Option(
+        1, "--num-workers", help="Number of workers to use when dataloading"
+    ),
+    save_json: str = typer.Option(
+        None, "--save-json", "-j", help="Path to save evaluation results as JSON"
+    ),
+    device: str = typer.Option(
+        "cuda", "--device", "-d", help="Device to use for evaluation"
+    )
 ):
     """
     Evaluate a model. Pass additional positional arguments with --model-arg and keyword arguments as a JSON string via --model-kwargs.
     """
     model = find_and_load_from_register(model_name, model_dir, model_args, model_kwargs)
     if model_weights:
-        model.load_state_dict(torch.load(model_weights))
-
-    if data_dir is None:
-        typer.echo("No dataset directory provided, and no source directory found.")
-        raise typer.Exit(code=1)
+        weights = align_state_dict(torch.load(model_weights))
+        model.load_state_dict(weights)
 
     results = evaluate_model(
         model,
-        data_dir,
         batch_size=batch_size,
-        num_processes=num_processes,
-        num_chunks=num_chunks,
+        num_workers=num_workers,
+        save_path=save_json,
+        device=device
     )
     typer.echo(f"Evaluation results: {results}")
 
@@ -163,11 +159,21 @@ def train(
         "-o",
         help="Override any config variable using dot notation, e.g., training.lr=0.001. This option can be used multiple times.",
     ),
+    local_training: bool = typer.Option(
+        False,
+        "--local-training",
+        "-l",
+        help="Use local training from pgn files instead of huggingface streaming the dataset",
+    ),
 ):
     """
     Train a model using the provided configuration file and optional overrides.
     """
-    train_fn(config_path, override)
+    if local_training:
+        train_fn_local(config_path, override)
+        return
+
+    train_fn_hf(config_path, override)
 
 
 if __name__ == "__main__":
