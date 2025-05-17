@@ -9,10 +9,11 @@ model:
 # Dataset configuration
 dataset:
   data_path: null                       # Path dataset containing train/ and test/ directories
-  size_train: 1                         # Number of files to sample and train on
-  size_test: 1                          # Number of files to sample and test on.
-  num_processes: 1                      # Number of threads for data loading
-  num_workers: 1                        # Number of workers for data loading
+  size_train: 1                         # Number of files to sample and train on. Used by PGN datasets
+  size_test: 1                          # Number of files to sample and test on. Used by PGN datasets
+  num_processes: 1                      # Number of threads for data loading. Used by PGN datasets
+  num_workers: 1                        # Number of workers for data loading. Used by streaming datasets
+  num_test_samples: 17500000            # Number of samples for testing. Used by streaming datasets
   shuffle_buffer: 10_000                # Buffer size for shuffling the HF streaming dataset
 
 # Training configuration

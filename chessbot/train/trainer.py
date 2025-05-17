@@ -158,10 +158,10 @@ class BaseChessTrainer:
         self.stats.update(losses)
         cond = self.cfg.logging.wandb
         if train_or_val == "train":
-            cond = cond and self.cfg.logging.log_every == 0
+            cond = cond and iter % self.cfg.logging.log_every == 0
         if cond:            
             avg_dict = {k: self.stats.get_average(k) for k in losses.keys()}
-            wandb.log({**avg_dict,"iter": iter,})
+            wandb.log({**avg_dict, "iter": iter})
   
     def train_step(self, state, action, result):
         state = state.float()
@@ -263,7 +263,7 @@ class HFChessTrainer(BaseChessTrainer):
 
     @staticmethod
     def build_val_loader(cfg) -> DataLoader:
-        dataset = HFChessDataset('test', shuffle_buffer=cfg.dataset.shuffle_buffer)
+        dataset = HFChessDataset('test', shuffle_buffer=cfg.dataset.shuffle_buffer, num_test_samples=cfg.dataset.num_test_samples)
         return DataLoader(dataset, batch_size=cfg.train.batch_size, num_workers=cfg.dataset.num_workers)  
     
     def train(self):
@@ -330,6 +330,9 @@ class HFChessTrainer(BaseChessTrainer):
                     }
                 )
                 self.progress_bar.update(1)
+
+                # Reduce gpu power
+                # time.sleep(0.075)
 
             self.accelerator.save_model(self.model, self.latest_model_path, safe_serialization=False)
             self.accelerator.save_state(output_dir=self.checkpoint_dir)

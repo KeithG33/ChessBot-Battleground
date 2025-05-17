@@ -35,6 +35,7 @@ class HFChessDataset(IterableDataset):
         split: str = "train",
         streaming: bool = True,
         shuffle_buffer: Optional[int] = 10_000,
+        num_test_samples: Optional[int] = 10_000_000, # approximately 1/3 of test set
     ):
         super().__init__()
         self.split = split
@@ -50,11 +51,14 @@ class HFChessDataset(IterableDataset):
         ).with_format("torch")
         
         self.shuffle_buffer = shuffle_buffer
+        self.num_test_samples = num_test_samples
 
     def __iter__(self):
-        if self.split == "train":
-            self.ds = self.ds.shuffle(buffer_size=self.shuffle_buffer, seed=random.randint(0, 2**32-1))
-        
+        self.ds = self.ds.shuffle(buffer_size=self.shuffle_buffer, seed=random.randint(0, 2**32-1))
+
+        if self.split == "test" and self.num_test_samples is not None:
+            self.ds = self.ds.take(self.num_test_samples)
+            
         for example in self.ds:
             state = example["state"]            # torch.int8 tensor shape [8,8]
             action = example["action"]          # torch.int16 scalar tensor
