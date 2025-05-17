@@ -46,16 +46,15 @@ pip install git+https://github.com/KeithG33/ChessBot-Battleground.git
 
 ## ⬇️ 2.  Download the Dataset
 
-*[Datasets available for download here](https://drive.google.com/drive/folders/1RylJnVbJTNRVc8i_XN1lCE0nwX2g_oG9?usp=sharing)* 
+> **Note:** Downloading the dataset is no longer required as it is now *[available to be streamed from HuggingFace.](https://ishortn.ink/chessbot-dataset)* 
 
-It is recommended to have the dataset in `ChessBot-Battleground/dataset/` so you can automatically load the dataset. Download or use the chessbot tool:
+
+For those who want to see the data, you can download from HuggingFace or use the chessbot tool:
 
 ```bash
 # Download to cwd if pip installed, or ChessBot-Battleground/dataset if source installed.
 chessbot download
 ```
-> **Note:** If source-installed, datasets extract automatically into `dataset/`. Otherwise will be in your `$cwd`
-
 
 
 ## 🤖 3. Creating A ChessBot
@@ -126,14 +125,12 @@ cfg_load = OmegaConf.load('models/example_chessbot/config.yaml')
 # Override cfg with cfg_load, and add any new keys
 cfg = OmegaConf.merge(cfg, cfg_load)
 
-cfg.train.rounds = 1 # num times to sample a dataset
 cfg.train.epochs = 25 # num epochs on sampled dataset
 cfg.train.batch_size = 128
 cfg.train.lr = 0.001
 cfg.train.output_dir = 'models/example_chessbot/output/'
-
-cfg.dataset.size_train = 25 # num files to sample for train set
-cfg.dataset.size_test = 5 # num files to sample for test set
+cfg.dataset.num_workers = 8
+cfg.dataset.shuffle_buffer = 100_000
 
 # Option 1: Load model from registry
 cfg.model.name = "simple_chessbot"
@@ -172,13 +169,11 @@ chessbot train models/example_chessbot/config.yaml \
               -o train.epochs=10 \
               -o train.lr=0.001 \
               -o train.batch_size=64 \
-              -o dataset.size_train=2 \
-              -o dataset.size_test=1 \
+              -o train.shuffle_buffer=100_000 \
 ```
 
 Loading from config with CLI functions the same as with python. Use `cfg.model.name`, and `cfg.model.path` if it is not inside the `models/` directory. 
 
-> **Note:** `cfg.dataset.data_path` is not set here, meaning `DEFAULT_DATASET_DIR` is used. Set this to another dataset path if needed.
 
 #### Configs
 Definitely check out the [config](../chessbot/train/config.yaml) for all the options, but I'll highlight some of the more valuable ones here.
@@ -210,11 +205,9 @@ if __name__ == "__main__":
         dataset_dir=DEFAULT_DATASET_DIR,
         device="cuda",
         batch_size=64, # batch size
-        num_processes=4, # number of processes to load dataset
-        num_chunks=None, # num dataset chunks to iterate over
     )
 ```
-Use the `num_chunks` parameter to split the dataset into smaller chunks and iterate to reduce the amount of memory used when testing. The whole test set is just over 32Gb of RAM.
+
 
 #### Using The CLI
 ```bash
