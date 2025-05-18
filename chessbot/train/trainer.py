@@ -190,8 +190,14 @@ class BaseChessTrainer:
     def run_validation(self):
         val_loader = self.build_val_loader(self.cfg)
 
+        if self.cfg.train.num_test_samples > 0:
+            total = self.cfg.train.num_test_samples
+        else:
+            total = len(val_loader.dataset)
+
+        # TODO: add total calc
         with tqdm(
-            total=1,
+            total=total,
             desc="Validation",
             leave=False,
             dynamic_ncols=True,
@@ -230,6 +236,9 @@ class BaseChessTrainer:
                     )
                     val_bar.update(1)
 
+                    # Reduce gpu power
+                    time.sleep(0.1)
+
         return (
             self.stats.get_average('val_loss'),
             self.stats.get_average('val_ploss'),
@@ -249,6 +258,7 @@ class HFChessTrainer(BaseChessTrainer):
         self.train_loader = self.build_train_loader(self.cfg)
         self._logger.info(f"Loaded {self.train_loader.dataset} for training")
         
+        # TODO add total calc using known total / batch_size
         self.progress_bar = tqdm(
             desc=f"{GREEN}Training{RESET}",
             leave=True,
@@ -332,7 +342,7 @@ class HFChessTrainer(BaseChessTrainer):
                 self.progress_bar.update(1)
 
                 # Reduce gpu power
-                # time.sleep(0.075)
+                time.sleep(0.1)
 
             self.accelerator.save_model(self.model, self.latest_model_path, safe_serialization=False)
             self.accelerator.save_state(output_dir=self.checkpoint_dir)
