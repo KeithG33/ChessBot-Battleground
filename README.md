@@ -171,7 +171,7 @@ The python code was covered above, so for the sake of learning, this Getting-Sta
   git clone https://github.com/KeithG33/ChessBot-Battleground.git
   cd ChessBot-Battleground
   pip install -r requirements.txt
- pip install -e .
+  pip install -e .
 
   # Or install via pip 
   pip install git+https://github.com/KeithG33/ChessBot-Battleground.git
