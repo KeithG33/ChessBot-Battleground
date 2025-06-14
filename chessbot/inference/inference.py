@@ -9,8 +9,8 @@ from chessbot.mcts import MonteCarloTreeSearch
 
 def score_function(outcome, perspective) -> float | int:
     """
-    Return 1 of white won, -1 if white lost, 0 for draw --> perspective=chess.WHITE
-    Return 1 of black won, -1 if black lost, 0 for draw --> perspective=chess.BLACK
+    Return 1 if white won, -1 if white lost, and 0.5 for a draw --> perspective=chess.WHITE
+    Return 1 if black won, -1 if black lost, and 0.5 for a draw --> perspective=chess.BLACK
     """
     if outcome == 0:
         return 0.5
