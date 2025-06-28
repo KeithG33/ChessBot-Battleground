@@ -145,10 +145,14 @@ class BaseChessTrainer:
                 self.cfg.train.scheduler_iters,
                 self.cfg.train.min_lr,
             )
+        else:
+            scheduler = None
+
+        self.scheduler = scheduler
 
         if self.scheduler is not None and self.cfg.train.warmup_iters > 0:
             self.scheduler = WarmupLR(
-                scheduler,
+                self.scheduler,
                 init_lr=self.cfg.train.warmup_lr,
                 num_warmup=self.cfg.train.warmup_iters,
                 warmup_strategy=self.cfg.train.warmup_strategy,
