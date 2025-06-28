@@ -190,8 +190,8 @@ class BaseChessTrainer:
     def run_validation(self):
         val_loader = self.build_val_loader(self.cfg)
 
-        if self.cfg.train.num_test_samples > 0:
-            total = self.cfg.train.num_test_samples
+        if self.cfg.dataset.num_test_samples > 0:
+            total = self.cfg.dataset.num_test_samples // self.cfg.train.batch_size
         else:
             total = len(val_loader.dataset)
 
