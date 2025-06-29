@@ -1,4 +1,5 @@
 import json
+import os
 from typing import Dict, List
 import torch
 import typer
@@ -8,6 +9,8 @@ from chessbot.inference.evaluate import evaluate_model
 from chessbot.train.trainer import train_fn_hf, train_fn_local
 from chessbot.common import DEFAULT_DATASET_DIR, DEFAULT_MODEL_DIR
 from chessbot.models import align_state_dict
+from chessbot.models.base import BaseChessBot
+from huggingface_hub import hf_hub_download
 
 from chessbot.app import play as play_fn
 
@@ -42,6 +45,22 @@ def find_and_load_from_register(
     return model
 
 
+def load_weights(model: BaseChessBot, weights_id: str, hf_filename: str = "pytorch_model.bin") -> None:
+    """Load weights from a local path or HuggingFace repo."""
+    if os.path.exists(weights_id):
+        weights = align_state_dict(torch.load(weights_id))
+        model.load_state_dict(weights)
+        return
+
+    try:
+        path = hf_hub_download(repo_id=weights_id, filename=hf_filename)
+    except Exception as e:
+        raise typer.BadParameter(f"Could not download weights from {weights_id}: {e}")
+
+    weights = align_state_dict(torch.load(path, weights_only=True))
+    model.load_state_dict(weights)
+
+
 @app.command()
 def evaluate(
     model_name: str = typer.Argument(..., help="Name of the model to load"),
@@ -50,6 +69,12 @@ def evaluate(
     ),
     model_weights: str = typer.Option(
         None, "--model-weights", "-w", help="Path to model weights"
+    ),
+    hf_filename: str = typer.Option(
+        "pytorch_model.bin",
+        "--model-filename",
+        "-f",
+        help="Filename of the model weights to load (default: pytorch_model.bin)",
     ),
     model_args: List[str] = typer.Option(
         None,
@@ -81,8 +106,7 @@ def evaluate(
     """
     model = find_and_load_from_register(model_name, model_dir, model_args, model_kwargs)
     if model_weights:
-        weights = align_state_dict(torch.load(model_weights))
-        model.load_state_dict(weights)
+        load_weights(model, model_weights, hf_filename)
 
     results = evaluate_model(
         model,
@@ -118,6 +142,12 @@ def play(
     model_weights: str = typer.Option(
         None, "--model-weights", "-w", help="Path to model weights file"
     ),
+    hf_filename: str = typer.Option(
+        "pytorch_model.bin",
+        "--model-filename",
+        "-f",
+        help="Filename of the model weights to load (default: pytorch_model.bin)",
+    ),
     model_args: List[str] = typer.Option(
         None,
         "--model-arg",
@@ -140,7 +170,7 @@ def play(
     model = find_and_load_from_register(model_name, model_dir, model_args, model_kwargs)
 
     if model_weights:
-        model.load_state_dict(torch.load(model_weights))
+        load_weights(model, model_weights, hf_filename)
 
     play_fn(model, port)
 

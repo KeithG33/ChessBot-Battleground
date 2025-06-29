@@ -18,16 +18,8 @@ The two prediction networks contain 4 linear layers, LayerNorm+GELU activation, 
 </div>
 
 ## Usage
-*Coming Soon* - 
-Play against the model with the following command
+Play against the model with the following command:
 
 ```bash
-chessbot play "swin_chessbot" \
-              --model-dir path_to_model \
-              --model-weights path_to_weights
-
-chessbot evaluate "swin_chessbot" \
-              --model-dir path_to_model \
-              --model-weights path_to_weights
-              --data-dir path_to_dataset
-              --batch-sz 3072
+chess play "swin_chessbot" --model-weights KeithG33/swin_chessbot
+```

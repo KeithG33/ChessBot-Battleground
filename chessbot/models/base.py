@@ -37,6 +37,17 @@ class BaseChessBot(nn.Module):
         weights = align_state_dict(torch.load(path, weights_only=True))
         self.load_state_dict(weights)
 
+    def load_hf_weights(self, repo_id: str, filename: str = "pytorch_model.bin") -> None:
+        """Download weights from the HuggingFace Hub and load them."""
+        from huggingface_hub import hf_hub_download
+
+        try:
+            weights_path = hf_hub_download(repo_id=repo_id, filename=filename)
+        except Exception as e:
+            raise RuntimeError(f"Unable to download weights from {repo_id}: {e}") from e
+
+        self.load_weights(weights_path)
+
     def get_current_device(self):
         """Get the current device of the model"""
         return next(self.parameters()).device

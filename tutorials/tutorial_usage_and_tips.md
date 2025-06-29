@@ -211,7 +211,7 @@ if __name__ == "__main__":
 
 #### Using The CLI
 ```bash
-chessbot evaluate "simple_chessbot" \ 
+chessbot evaluate "simple_chessbot" \
                   --model-weights models/example_chessbot/output/model_best/pytorch_model.bin \
                   --batch-sz 3072 \
                   --num-threads 8 \
