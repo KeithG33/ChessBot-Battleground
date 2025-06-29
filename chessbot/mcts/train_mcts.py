@@ -26,7 +26,7 @@ class Config:
 
     # Optional pretrained weights
     MODEL_WEIGHTS = (
-        '/home/kage/chess_workspace/ChessBot-Battleground/models/sgu_chessbot/2025-02-19_18-51-experiment/model_latest/pytorch_model.bin'
+        '/home/kage/chess_workspace/ChessBot-Battleground/models/sgu_chessbot/2025-02-19_18-51-experiment/model_latest/model.pt'
     )
 
     # Training
