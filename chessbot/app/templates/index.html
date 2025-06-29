@@ -141,18 +141,6 @@
       height: 400px;
       border-radius: 8px;
     }
-    .move-list {
-      width: 150px;
-      height: 420px;
-      background: #4a4a4a;
-      border-radius: 8px;
-      margin-left: 10px;
-      padding: 10px;
-      overflow-y: auto;
-      color: #fff;
-      font-size: 14px;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-    }
     /* Modal overlay (common to all modals) */
     #modal-overlay {
       display: none;
@@ -292,8 +280,6 @@
     <!-- Right bar (captures) -->
     <div id="right-captures" class="capture-bar"></div>
 
-    <!-- Move list -->
-    <div id="move-list" class="move-list"></div>
   </div>
   
   <!-- Modal overlay -->
@@ -368,7 +354,6 @@
       $("#start-modal").show();
       updateMoveCounter();
       updateCapturedPanels();
-      updateMoveList();
       // Controls
       $("#new-game-btn").on("click", function(){
         $("#restart-btn").click();
@@ -384,7 +369,6 @@
             board.position(game.fen());
             updateMoveCounter();
             updateCapturedPanels();
-            updateMoveList();
             updateWinCounter(resp.playerWins, resp.cpuWins);
             $("#gameover-message").text("You resigned. Player: " + resp.playerWins + "- Bot: " + resp.cpuWins);
             $("#modal-overlay").show();
@@ -431,7 +415,6 @@
           $("#modal-overlay").hide();
           updateMoveCounter();
           updateCapturedPanels();
-          updateMoveList();
         },
         error: function(xhr) {
           $("#start-modal").hide();
@@ -484,7 +467,6 @@
           board.position(game.fen());
           updateMoveCounter();
           updateCapturedPanels();
-          updateMoveList();
           updateWinCounter(response.playerWins, response.cpuWins);
           if (response.status === "game over") {
             showGameOverModal(response.playerWins, response.cpuWins);
@@ -541,7 +523,6 @@
           board.position(game.fen());
           updateMoveCounter();
           updateCapturedPanels();
-          updateMoveList();
           // Reset player's color so that a new side must be chosen.
           playerColor = "";
           // Hide game over modal, then show start modal again.
@@ -560,36 +541,6 @@
       $("#move-counter").text("Moves: " + moveHistory.length);
     }
 
-    function updateMoveList() {
-      var tempGame = new Chess();
-      var html = "";
-      for (var i = 0; i < moveHistory.length; i++) {
-        var moveObj = tempGame.move(moveHistory[i]);
-        if (i % 2 === 0) {
-          html += ((i/2)+1) + ". ";
-        }
-        html += moveObj.san + " ";
-        if (i % 2 === 1) html += "<br>";
-      }
-      $("#move-list").html(html);
-      var el = document.getElementById("move-list");
-      el.scrollTop = el.scrollHeight;
-    }
-
-    function updateMoveList() {
-      var history = game.history();
-      var html = "";
-      for (var i = 0; i < history.length; i++) {
-        if (i % 2 === 0) {
-          html += ((i/2)+1) + ". ";
-        }
-        html += history[i] + " ";
-        if (i % 2 === 1) html += "<br>";
-      }
-      $("#move-list").html(html);
-      var el = document.getElementById("move-list");
-      el.scrollTop = el.scrollHeight;
-    }
     
     /**
      * Update captured pieces so that the user's captured pieces (the pieces of the opponent)
