@@ -64,6 +64,25 @@
       font-size: 16px;
       margin-top: 5px;
     }
+    #controls {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    #controls button {
+      padding: 6px 12px;
+      font-size: 14px;
+      cursor: pointer;
+      background: #336699;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      transition: background 0.3s;
+    }
+    #controls button:hover {
+      background: #285280;
+    }
     /* Main Container */
     #game-container {
       display: flex;
@@ -121,6 +140,18 @@
       width: 400px;
       height: 400px;
       border-radius: 8px;
+    }
+    .move-list {
+      width: 150px;
+      height: 420px;
+      background: #4a4a4a;
+      border-radius: 8px;
+      margin-left: 10px;
+      padding: 10px;
+      overflow-y: auto;
+      color: #fff;
+      font-size: 14px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.3);
     }
     /* Modal overlay (common to all modals) */
     #modal-overlay {
@@ -239,6 +270,15 @@
     </div>
   </div>
 
+  <!-- Controls -->
+  <div id="controls">
+    <button id="new-game-btn">New Game</button>
+    <button id="resign-btn">Resign</button>
+    <button id="flip-btn">Flip Board</button>
+    <button id="quit-btn">Quit</button>
+    <span id="move-counter" style="margin-left:20px;">Moves: 0</span>
+  </div>
+
   <!-- Main Container -->
   <div id="game-container">
     <!-- Left bar (captures) -->
@@ -251,6 +291,9 @@
 
     <!-- Right bar (captures) -->
     <div id="right-captures" class="capture-bar"></div>
+
+    <!-- Move list -->
+    <div id="move-list" class="move-list"></div>
   </div>
   
   <!-- Modal overlay -->
@@ -292,6 +335,7 @@
     
     // Initialize the chess game with the starting FEN from the server.
     var game = new Chess("{{ fen }}");
+    var moveHistory = {{ history|tojson }};
     
     // Global variables for pending promotion move.
     var pendingSource = null;
@@ -314,7 +358,7 @@
   }
     // Show the start modal on page load.
     // Set initial win counter display from server-provided values.
-    $(document).ready(function() {
+  $(document).ready(function() {
       // Set win counter using template variables (if you pass them in your template)
       const initialPlayerWins = "{{ playerWins }}";
       const initialCpuWins = "{{ cpuWins }}";
@@ -324,6 +368,38 @@
       $("#start-modal").show();
       updateMoveCounter();
       updateCapturedPanels();
+      updateMoveList();
+      // Controls
+      $("#new-game-btn").on("click", function(){
+        $("#restart-btn").click();
+      });
+      $("#resign-btn").on("click", function(){
+        if(!confirm("Resign the game?")) return;
+        $.ajax({
+          url: "/resign",
+          method: "POST",
+          success: function(resp){
+            game.load(resp.fen);
+            moveHistory = resp.history;
+            board.position(game.fen());
+            updateMoveCounter();
+            updateCapturedPanels();
+            updateMoveList();
+            updateWinCounter(resp.playerWins, resp.cpuWins);
+            $("#gameover-message").text("You resigned. Player: " + resp.playerWins + "- Bot: " + resp.cpuWins);
+            $("#modal-overlay").show();
+            $("#gameover-modal").show();
+          }
+        });
+      });
+      $("#flip-btn").on("click", function(){
+        board.flip();
+      });
+      $("#quit-btn").on("click", function(){
+        $.post("/quit", function(){
+          window.close();
+        });
+      });
     });
 
     
@@ -340,6 +416,7 @@
           orientation = (playerColor === "b") ? "black" : "white";
           board.orientation(orientation);
           game.load(response.fen);
+          moveHistory = response.history;
           board.position(game.fen());
           board.resize(); // Force a board redraw
           
@@ -354,6 +431,7 @@
           $("#modal-overlay").hide();
           updateMoveCounter();
           updateCapturedPanels();
+          updateMoveList();
         },
         error: function(xhr) {
           $("#start-modal").hide();
@@ -402,9 +480,11 @@
         data: JSON.stringify({ source: source, target: target, promotion: promotion }),
         success: function(response) {
           game.load(response.fen);
+          moveHistory = response.history;
           board.position(game.fen());
           updateMoveCounter();
           updateCapturedPanels();
+          updateMoveList();
           updateWinCounter(response.playerWins, response.cpuWins);
           if (response.status === "game over") {
             showGameOverModal(response.playerWins, response.cpuWins);
@@ -457,9 +537,11 @@
         contentType: "application/json",
         success: function(response) {
           game.load(response.fen);
+          moveHistory = response.history;
           board.position(game.fen());
           updateMoveCounter();
           updateCapturedPanels();
+          updateMoveList();
           // Reset player's color so that a new side must be chosen.
           playerColor = "";
           // Hide game over modal, then show start modal again.
@@ -475,8 +557,38 @@
     
     // Update move counter display.
     function updateMoveCounter() {
-      var moves = game.history();
-      $("#move-counter").text("Moves: " + moves.length);
+      $("#move-counter").text("Moves: " + moveHistory.length);
+    }
+
+    function updateMoveList() {
+      var tempGame = new Chess();
+      var html = "";
+      for (var i = 0; i < moveHistory.length; i++) {
+        var moveObj = tempGame.move(moveHistory[i]);
+        if (i % 2 === 0) {
+          html += ((i/2)+1) + ". ";
+        }
+        html += moveObj.san + " ";
+        if (i % 2 === 1) html += "<br>";
+      }
+      $("#move-list").html(html);
+      var el = document.getElementById("move-list");
+      el.scrollTop = el.scrollHeight;
+    }
+
+    function updateMoveList() {
+      var history = game.history();
+      var html = "";
+      for (var i = 0; i < history.length; i++) {
+        if (i % 2 === 0) {
+          html += ((i/2)+1) + ". ";
+        }
+        html += history[i] + " ";
+        if (i % 2 === 1) html += "<br>";
+      }
+      $("#move-list").html(html);
+      var el = document.getElementById("move-list");
+      el.scrollTop = el.scrollHeight;
     }
     
     /**
