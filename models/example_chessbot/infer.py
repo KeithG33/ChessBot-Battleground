@@ -2,7 +2,7 @@ from chessbot.inference import selfplay, duel
 from simple_chessbot import SimpleChessBot
 
 model = SimpleChessBot(hidden_dim=512)
-# model.load_state_dict(torch.load('pytorch_model.bin'))
+# model.load_state_dict(torch.load('model.pt'))
 
 outcome = selfplay(
   model, 

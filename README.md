@@ -253,7 +253,7 @@ Or if your model is registered as "your_chessbot", using the `chessbot` cli tool
 # For options and help:
 chessbot evaluate --help
 
-chessbot evaluate "your_chessbot" \ 
+  chessbot evaluate "your_chessbot" \
                   --model-dir path/to/dir \
                   --model-weights path/to/weights.pt \
                   --data-dir path/to/dataset \
@@ -272,7 +272,12 @@ chessbot play --help
 chessbot play "your_chessbot" \
               --model-dir /path/to/dir \
               --model-weights /path/to/weights.pt
+
+# Or load weights directly from HuggingFace
+chessbot play "swin_chessbot" \
+              --model-weights KeithG33/swin_chessbot
 ```
+The library expects the weights file on HuggingFace to be named `model.pt`.
 <div align="center">
 <img src="assets/battleground.png" style="width: 70%; height: auto;">  
   <p><em> Punishing a beautiful queen sac from a randomly initialized model ;)</em></p>

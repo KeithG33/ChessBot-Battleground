@@ -199,7 +199,7 @@ if __name__ == "__main__":
     dataset_dir = DEFAULT_DATASET_DIR
     model = SimpleChessBot(hidden_dim=512)
     # Need to train to get weights
-    # model.load_weights('models/example_chessbot/output/model_best/pytorch_model.bin')
+    # model.load_weights('models/example_chessbot/output/model_best/model.pt')
     evaluate_model(
         model,
         dataset_dir=DEFAULT_DATASET_DIR,
@@ -211,8 +211,8 @@ if __name__ == "__main__":
 
 #### Using The CLI
 ```bash
-chessbot evaluate "simple_chessbot" \ 
-                  --model-weights models/example_chessbot/output/model_best/pytorch_model.bin \
+chessbot evaluate "simple_chessbot" \
+                  --model-weights models/example_chessbot/output/model_best/model.pt \
                   --batch-sz 3072 \
                   --num-threads 8 \
                   --num_chunks 0
@@ -234,7 +234,7 @@ from chessbot.inference import selfplay
 from simple_chessbot import SimpleChessBot
 
 model = SimpleChessBot(hidden_dim=512)
-# model.load_state_dict(torch.load('pytorch_model.bin'))
+# model.load_state_dict(torch.load('model.pt'))
 
 outcome = selfplay(
   model, 
