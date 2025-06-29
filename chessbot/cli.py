@@ -45,7 +45,7 @@ def find_and_load_from_register(
     return model
 
 
-def load_weights(model: BaseChessBot, weights_id: str) -> None:
+def load_weights(model: BaseChessBot, weights_id: str, hf_filename: str = "pytorch_model.bin") -> None:
     """Load weights from a local path or HuggingFace repo."""
     if os.path.exists(weights_id):
         weights = align_state_dict(torch.load(weights_id))
@@ -53,7 +53,7 @@ def load_weights(model: BaseChessBot, weights_id: str) -> None:
         return
 
     try:
-        path = hf_hub_download(repo_id=weights_id, filename="pytorch_model.bin")
+        path = hf_hub_download(repo_id=weights_id, filename=hf_filename)
     except Exception as e:
         raise typer.BadParameter(f"Could not download weights from {weights_id}: {e}")
 
@@ -69,6 +69,12 @@ def evaluate(
     ),
     model_weights: str = typer.Option(
         None, "--model-weights", "-w", help="Path to model weights"
+    ),
+    hf_filename: str = typer.Option(
+        "pytorch_model.bin",
+        "--model-filename",
+        "-f",
+        help="Filename of the model weights to load (default: pytorch_model.bin)",
     ),
     model_args: List[str] = typer.Option(
         None,
@@ -100,7 +106,7 @@ def evaluate(
     """
     model = find_and_load_from_register(model_name, model_dir, model_args, model_kwargs)
     if model_weights:
-        load_weights(model, model_weights)
+        load_weights(model, model_weights, hf_filename)
 
     results = evaluate_model(
         model,
@@ -136,6 +142,12 @@ def play(
     model_weights: str = typer.Option(
         None, "--model-weights", "-w", help="Path to model weights file"
     ),
+    hf_filename: str = typer.Option(
+        "pytorch_model.bin",
+        "--model-filename",
+        "-f",
+        help="Filename of the model weights to load (default: pytorch_model.bin)",
+    ),
     model_args: List[str] = typer.Option(
         None,
         "--model-arg",
@@ -158,7 +170,7 @@ def play(
     model = find_and_load_from_register(model_name, model_dir, model_args, model_kwargs)
 
     if model_weights:
-        load_weights(model, model_weights)
+        load_weights(model, model_weights, hf_filename)
 
     play_fn(model, port)
 
