@@ -53,7 +53,7 @@ def load_weights(model: BaseChessBot, weights_id: str) -> None:
         return
 
     try:
-        path = hf_hub_download(repo_id=weights_id, filename="model.pt")
+        path = hf_hub_download(repo_id=weights_id, filename="pytorch_model.bin")
     except Exception as e:
         raise typer.BadParameter(f"Could not download weights from {weights_id}: {e}")
 

@@ -277,7 +277,7 @@ chessbot play "your_chessbot" \
 chessbot play "swin_chessbot" \
               --model-weights KeithG33/swin_chessbot
 ```
-The library expects the weights file on HuggingFace to be named `model.pt`.
+
 <div align="center">
 <img src="assets/battleground.png" style="width: 70%; height: auto;">  
   <p><em> Punishing a beautiful queen sac from a randomly initialized model ;)</em></p>

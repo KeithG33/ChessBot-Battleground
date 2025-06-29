@@ -37,7 +37,7 @@ class BaseChessBot(nn.Module):
         weights = align_state_dict(torch.load(path, weights_only=True))
         self.load_state_dict(weights)
 
-    def load_hf_weights(self, repo_id: str, filename: str = "model.pt") -> None:
+    def load_hf_weights(self, repo_id: str, filename: str = "pytorch_model.bin") -> None:
         """Download weights from the HuggingFace Hub and load them."""
         from huggingface_hub import hf_hub_download
 
