@@ -7,9 +7,10 @@
 
 **Chess AI Training & Battleground Platform**
 
-[**Getting Started**](#getting-started) • [**Tutorial**](./tutorials/tutorial_usage_and_tips.md) • [**Dataset**](#-dataset) • [**Training**](#-training) • [**Inference & Battling**](#-inference--battling) • [**Models**](#models) 
+[**Getting Started**](#getting-started) • [**Tutorial**](./tutorials/tutorial_usage_and_tips.md) • [**Dataset**](#-dataset) • [**Training**](#-training) • [**Inference & Battling**](#-inference--battling) • [**Models**](#models)
 
-*[Dataset now on HuggingFace](https://huggingface.co/datasets/KeithG33/ChessBot-Dataset/tree/main)*  
+*[Dataset now on HuggingFace](https://huggingface.co/datasets/KeithG33/ChessBot-Dataset/tree/main)*
+*[Models on HuggingFace](https://huggingface.co/KeithG33) — `swin_chessbot`, `sgu_chessbot` (play: `chessbot play "swin_chessbot" --model-weights KeithG33/swin_chessbot`)*
 </div>
 <!-- Banner End -->
 
