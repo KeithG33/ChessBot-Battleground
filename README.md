@@ -7,15 +7,20 @@
 
 **Chess AI Training & Battleground Platform**
 
-[**Getting Started**](#getting-started) • [**Tutorial**](./tutorials/tutorial_usage_and_tips.md) • [**Dataset**](#-dataset) • [**Training**](#-training) • [**Inference & Battling**](#-inference--battling) • [**Models**](#models) 
+[**Getting Started**](#getting-started) • [**Tutorial**](./tutorials/tutorial_usage_and_tips.md) • [**Dataset**](#-dataset) • [**Training**](#-training) • [**Inference & Battling**](#-inference--battling) • [**Models**](#models)
 
-*[Dataset now on HuggingFace](https://huggingface.co/datasets/KeithG33/ChessBot-Dataset/tree/main)*  
+*[Dataset now on HuggingFace](https://huggingface.co/datasets/KeithG33/ChessBot-Dataset/tree/main)* 
+
+*[Models on HuggingFace:](https://huggingface.co/collections/KeithG33/chessbot-battleground-68604718dc092ec82e3a2c42)*
+
+`swin_chessbot`, `sgu_chessbot` 
+
 </div>
 <!-- Banner End -->
 
 ##  Introduction
 
-This repository contains a gigantic curated chess dataset meant for machine learning, along with the supporting code to train, infer, and display games. Just design a model and you can take advantage of any of the available features. This library provides support for:
+This repository contains a gigantic curated chess dataset meant for machine learning, along with the supporting code to train, infer, display, and play games. Just design a model and you can take advantage of any of the available features. This library provides support for:
 
 - **Dataset/Training:** PyTorch dataset and training code
 - **Evaluation**: Compare performance on the dataset. *Leaderboard coming soon*
@@ -23,14 +28,13 @@ This repository contains a gigantic curated chess dataset meant for machine lear
 - **MCTS:** Simple implementation to give your supervised models search capability. *Training coming soon*.
 - **Game App:**  Play a game against your model with the `chessbot play` tool. Can it beat you?
 
-A nice consequence of chess data is that the images are only 8x8 and single-channel. This means that, in combination with the abundance of expert data online, it is feasible to train somewhat large models on consumer hardware. Here's one in action:
+With enough parameters and training, models will play better than some humans. Here's the `sgu_chessbot` in action:
 
 <div align="center"  id="chess-battle-gif">
   <img src="assets/chessSGU-R8.1-selfplay.gif" style="width: 35%; height: auto;">
   <p><em>Self-play after a few days of training a 300M parameter network from scratch on a single RTX 3090.</em></p>
 </div>
 
-After enough training models will play realistic games, and with enough parameters will play better than some humans.
 
 ## 📂 Dataset
 Dataset is *[available on HuggingFace.](https://ishortn.ink/chessbot-dataset)*  
