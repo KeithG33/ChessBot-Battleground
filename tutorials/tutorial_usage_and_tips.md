@@ -141,7 +141,7 @@ trainer.train()
 # Option 2: Load model from path
 from simple_chessbot import SimpleChessBot
 model = SimpleChessBot(hidden_dim=512)
-trainer = ChessTrainer(cfg, model=model)
+trainer = ChessTrainer(cfg, model)
 trainer.train()
 ```
 
@@ -280,8 +280,13 @@ chessbot play "simple_chessbot" \
               --model-kwargs '{"hidden_dim": 512}' \ # optional args and kwargs
 ```
 
-This will start a simple and hacky game app to play against your model.
+This will start a simple game app to play against your model. You can also play against the
+other hall-of-fame models in the [models/](../models/) directory using their HuggingFace weights:
 
+```bash
+chessbot play "sgu_chessbot" \
+              --model-weights KeithG33/sgu_chessbot \
+```
 ## 💾 8. Generating Data
 
 Future goals are to add lots more data using stockfish as the teacher. However generating data with my personal computer is prohibitively slow so I am leaving code as a little breadcrumb/bait for the community.

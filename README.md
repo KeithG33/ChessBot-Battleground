@@ -30,7 +30,8 @@ A nice consequence of chess data is that the images are only 8x8 and single-chan
   <p><em>Self-play after a few days of training a 300M parameter network from scratch on a single RTX 3090.</em></p>
 </div>
 
-After enough training models will play realistic games, and even beat low-rated players with search.
+After enough training models will play realistic games, and with enough parameters will play better than some humans.
+
 ## 📂 Dataset
 Dataset is *[available on HuggingFace.](https://ishortn.ink/chessbot-dataset)*  
 
@@ -107,32 +108,58 @@ class SimpleChessBot(BaseChessBot):
       return action_logits, board_val
 ```
 
-The `ModelRegistry` is a helper for the library to load chess models from a path and name. The model will be registered with the name provided, or the class name if none is provided. This helps find and load models for command line tools.
+The `ModelRegistry` is a helper for the library to store models by name, and everything in the [models/](models/)
+directory is automatically pre-registered. Play against the simple_chessbot like this:
+```bash
+ chessbot play "simple_chessbot" --model-weights path_to_weights # Or huggingface model
+```
+
+Or load it like this:
+
+```python
+from chessbot.models import MODEL_REGISTRY
+model = MODEL_REGISTRY.load_model('simple_chessbot')
+```
 
 ## 🧠 Training
 
 
 The `ChessTrainer` class is the easiest way to get started training ChessBot models. This class will efficiently stream the huggingface dataset so you don't have to worry about hardware requirements. The trainer also utilizes HuggingFace's `accelerate` for easy access to AMP, torch.compile, gradient clipping, gradient accumulation, etc.
 
-Here's a somewhat realistic example of setting up a config and using it:
+Here's a run-able example of setting up a config and using it. Adjust for your hardware if needed:
 
 ```python
-from chessbot.train import config
-from chessbot.train import ChessTrainer
+import os
+import chessbot
+from chessbot.train import HFChessTrainer
+from chessbot.common import DEFAULT_DATASET_DIR
+from chessbot.models import MODEL_REGISTRY
 
-# Get default cfg and do some basic setup
-cfg = config.get_cfg() # get default cfg
-cfg.train.epochs = 25 # num epochs on sampled dataset
-cfg.train.batch_size = 128
-cfg.train.lr = 0.001
-cfg.train.output_dir = 'output/'
-cfg.dataset.num_workers = 4 # num processes (with different data)
-cfg.dataset.shuffle_buffer = 100_000 # streaming shuffle buffer
+cwd = os.getcwd()
+dataset_path = DEFAULT_DATASET_DIR
 
-model = YourChessBot()
+# Train
+cfg = chessbot.config.get_cfg()
+cfg.train.epochs = 50 
+cfg.train.batch_size = 1024
+cfg.train.lr = 0.0001
+cfg.train.scheduler = 'linear'
+cfg.train.min_lr = 0.00005
+cfg.train.warmup_lr = 0.00001
+cfg.train.warmup_iters = 1000
+cfg.train.compile = True
+cfg.train.amp = 'bf16'
+cfg.train.validation_every = 15_000
+cfg.dataset.num_workers = 4
+cfg.dataset.num_test_samples = 1_000_000
+cfg.dataset.shuffle_buffer = 100_000
 
-trainer = ChessTrainer(cfg, model)
-trainer.train()
+if __name__ == '__main__':
+    # Use registry, but loading your model directly is fine
+    # eg: model = YourChessBot()
+    model = MODEL_REGISTRY.load_model('swin_chessbot')
+    trainer = HFChessTrainer(cfg, model)
+    trainer.train()
 ```
 
 Check out [`chessbot/train/config.yaml`](chessbot/train/config.yaml) for a list and description of the available options. The [Getting Started](#-getting-started) section also shows the command-line method of running training.
@@ -201,7 +228,7 @@ $ chessbot --help
 
 
 ### 2. Download the Dataset:
-*[Download from HuggingFace](https://huggingface.co/datasets/KeithG33/ChessBot-Dataset/tree/main)* 
+*[See the dataset on HuggingFace](https://huggingface.co/datasets/KeithG33/ChessBot-Dataset/tree/main)* 
 
 If you want to check out the dataset, either use the HuggingFace UI in the link or use the `chessbot` cli tool:
 ```bash
@@ -215,7 +242,7 @@ chessbot download
 By default, the latest release will be downloaded into the `ChessBot-Battleground/dataset/` directory, or the current working directory if the package has been pip installed.
 
 ### 3. Models & Training
-After installation and downloading, it's time to write a model and let it gobble up data. Writing a model and training was covered above, so first check that out. Here I'll show the CLI version of training. First register your model, and then configure `model.path` and `model.name` to load the model. Either set this in the config file, or use the command overrides:
+After installation, it's time to write a model and injest some data. Writing a model and training was covered above, so first check that out. Here I'll show the CLI version of training. First register your model, and then configure `model.path` and `model.name` to load the model. Either set this in the config file, or use the command overrides:
 
 ```bash
 # For options and help
