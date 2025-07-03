@@ -64,6 +64,25 @@
       font-size: 16px;
       margin-top: 5px;
     }
+    #controls {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    #controls button {
+      padding: 6px 12px;
+      font-size: 14px;
+      cursor: pointer;
+      background: #336699;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      transition: background 0.3s;
+    }
+    #controls button:hover {
+      background: #285280;
+    }
     /* Main Container */
     #game-container {
       display: flex;
@@ -239,6 +258,15 @@
     </div>
   </div>
 
+  <!-- Controls -->
+  <div id="controls">
+    <button id="new-game-btn">New Game</button>
+    <button id="resign-btn">Resign</button>
+    <button id="flip-btn">Flip Board</button>
+    <button id="quit-btn">Quit</button>
+    <span id="move-counter" style="margin-left:20px;">Moves: 0</span>
+  </div>
+
   <!-- Main Container -->
   <div id="game-container">
     <!-- Left bar (captures) -->
@@ -251,6 +279,7 @@
 
     <!-- Right bar (captures) -->
     <div id="right-captures" class="capture-bar"></div>
+
   </div>
   
   <!-- Modal overlay -->
@@ -292,6 +321,7 @@
     
     // Initialize the chess game with the starting FEN from the server.
     var game = new Chess("{{ fen }}");
+    var moveHistory = {{ history|tojson }};
     
     // Global variables for pending promotion move.
     var pendingSource = null;
@@ -314,7 +344,7 @@
   }
     // Show the start modal on page load.
     // Set initial win counter display from server-provided values.
-    $(document).ready(function() {
+  $(document).ready(function() {
       // Set win counter using template variables (if you pass them in your template)
       const initialPlayerWins = "{{ playerWins }}";
       const initialCpuWins = "{{ cpuWins }}";
@@ -324,6 +354,36 @@
       $("#start-modal").show();
       updateMoveCounter();
       updateCapturedPanels();
+      // Controls
+      $("#new-game-btn").on("click", function(){
+        $("#restart-btn").click();
+      });
+      $("#resign-btn").on("click", function(){
+        if(!confirm("Resign the game?")) return;
+        $.ajax({
+          url: "/resign",
+          method: "POST",
+          success: function(resp){
+            game.load(resp.fen);
+            moveHistory = resp.history;
+            board.position(game.fen());
+            updateMoveCounter();
+            updateCapturedPanels();
+            updateWinCounter(resp.playerWins, resp.cpuWins);
+            $("#gameover-message").text("You resigned. Player: " + resp.playerWins + "- Bot: " + resp.cpuWins);
+            $("#modal-overlay").show();
+            $("#gameover-modal").show();
+          }
+        });
+      });
+      $("#flip-btn").on("click", function(){
+        board.flip();
+      });
+      $("#quit-btn").on("click", function(){
+        $.post("/quit", function(){
+          window.close();
+        });
+      });
     });
 
     
@@ -340,6 +400,7 @@
           orientation = (playerColor === "b") ? "black" : "white";
           board.orientation(orientation);
           game.load(response.fen);
+          moveHistory = response.history;
           board.position(game.fen());
           board.resize(); // Force a board redraw
           
@@ -402,6 +463,7 @@
         data: JSON.stringify({ source: source, target: target, promotion: promotion }),
         success: function(response) {
           game.load(response.fen);
+          moveHistory = response.history;
           board.position(game.fen());
           updateMoveCounter();
           updateCapturedPanels();
@@ -457,6 +519,7 @@
         contentType: "application/json",
         success: function(response) {
           game.load(response.fen);
+          moveHistory = response.history;
           board.position(game.fen());
           updateMoveCounter();
           updateCapturedPanels();
@@ -475,9 +538,9 @@
     
     // Update move counter display.
     function updateMoveCounter() {
-      var moves = game.history();
-      $("#move-counter").text("Moves: " + moves.length);
+      $("#move-counter").text("Moves: " + moveHistory.length);
     }
+
     
     /**
      * Update captured pieces so that the user's captured pieces (the pieces of the opponent)

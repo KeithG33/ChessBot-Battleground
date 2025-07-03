@@ -25,10 +25,13 @@ def create_app(bot_model=None):
     @app.route("/")
     def index():
         env = app.config["ENV_INSTANCE"]
-        return render_template("index.html", 
-                            fen=env.get_string_representation(),
-                            playerWins=app.config["PLAYER_WINS"],
-                            cpuWins=app.config["CPU_WINS"])
+        return render_template(
+            "index.html",
+            fen=env.get_string_representation(),
+            playerWins=app.config["PLAYER_WINS"],
+            cpuWins=app.config["CPU_WINS"],
+            history=[m.uci() for m in env.board.move_stack],
+        )
 
     @app.route("/restart", methods=["POST"])
     def restart():
@@ -38,8 +41,33 @@ def create_app(bot_model=None):
         return jsonify({
             "fen": env.get_string_representation(),
             "playerWins": app.config["PLAYER_WINS"],
-            "cpuWins": app.config["CPU_WINS"]
+            "cpuWins": app.config["CPU_WINS"],
+            "history": [m.uci() for m in env.board.move_stack],
         })
+
+    @app.route("/resign", methods=["POST"])
+    def resign():
+        env = app.config["ENV_INSTANCE"]
+        env._reset_game()
+        app.config["CPU_WINS"] += 1
+        return jsonify({
+            "status": "resigned",
+            "fen": env.get_string_representation(),
+            "playerWins": app.config["PLAYER_WINS"],
+            "cpuWins": app.config["CPU_WINS"],
+            "history": [m.uci() for m in env.board.move_stack],
+        })
+
+    @app.route("/quit", methods=["POST"])
+    def quit_game():
+        try:
+            webview.windows[0].destroy()
+        except Exception:
+            pass
+        func = request.environ.get("werkzeug.server.shutdown")
+        if func:
+            func()
+        return jsonify({"status": "quit"})
     
     def determine_winner(env):
         if env.board.is_checkmate():
@@ -62,10 +90,11 @@ def create_app(bot_model=None):
         if side == "b":
             make_bot_move(env, bot_model)
         return jsonify({
-            "fen": env.get_string_representation(), 
+            "fen": env.get_string_representation(),
             "player_color": side,
             "playerWins": app.config["PLAYER_WINS"],
-            "cpuWins": app.config["CPU_WINS"]
+            "cpuWins": app.config["CPU_WINS"],
+            "history": [m.uci() for m in env.board.move_stack],
         })
     
     @app.route("/move", methods=["POST"])
@@ -93,7 +122,8 @@ def create_app(bot_model=None):
                 "status": "game over",
                 "fen": env.get_string_representation(),
                 "playerWins": app.config["PLAYER_WINS"],
-                "cpuWins": app.config["CPU_WINS"]
+                "cpuWins": app.config["CPU_WINS"],
+                "history": [m.uci() for m in env.board.move_stack],
             })
         make_bot_move(env, bot_model)
         # Return win counters even when game is not over.
@@ -101,7 +131,8 @@ def create_app(bot_model=None):
             "status": "ok",
             "fen": env.get_string_representation(),
             "playerWins": app.config["PLAYER_WINS"],
-            "cpuWins": app.config["CPU_WINS"]
+            "cpuWins": app.config["CPU_WINS"],
+            "history": [m.uci() for m in env.board.move_stack],
         })
     return app
     
