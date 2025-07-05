@@ -246,9 +246,9 @@ outcome = selfplay(
 
 The outcome will correspond to losing-drawing-winning with white.
 
-### ⚔️ Duel two models
+### ⚔️ Play a match between two models
 ```python
-from chessbot.inference import duel
+from chessbot.inference import play_match
 from simple_chessbot import SimpleChessBot
 
 p1 = SimpleChessBot(hidden_dim=512)
@@ -257,7 +257,7 @@ p1 = SimpleChessBot(hidden_dim=512)
 p2 = SimpleChessBot(hidden_dim=512)
 # p2.load_state_dict(torch.load('pytorch_model2.bin'))
 
-scores = duel(
+scores = play_match(
   p1, # player1 model
   p2, # player2 model
   best_of=7, # Best-of 
@@ -286,6 +286,18 @@ other hall-of-fame models in the [models/](../models/) directory using their Hug
 ```bash
 chessbot play "sgu_chessbot" \
               --model-weights KeithG33/sgu_chessbot \
+```
+
+You can also run automated games from the command line:
+
+```bash
+# Selfplay
+chessbot selfplay "sgu_chessbot" --model-weights KeithG33/sgu_chessbot --search
+
+# Best-of match
+chessbot play-match "sgu_chessbot" "simple_chessbot" \
+               --player1-weights KeithG33/sgu_chessbot \
+               --player2-weights /path/to/simple_weights.pt
 ```
 ## 💾 8. Generating Data
 

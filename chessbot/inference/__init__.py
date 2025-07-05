@@ -1,6 +1,6 @@
 from .inference import (
     play_game,
-    duel,
+    play_match,
     selfplay,
 )
 

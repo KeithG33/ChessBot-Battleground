@@ -14,7 +14,7 @@ from timm.optim import create_optimizer_v2, list_optimizers
 from chessbot.mcts.train_utils import (
     SelfPlayMultiProcManager,
     run_training_epoch,
-    run_duel,
+    run_play_match,
 )
 from chessbot.common import setup_logger
 
@@ -55,18 +55,18 @@ class Config:
     SELFPLAY_SIMS: int = 100  # Num sims per move in mcts selfplay
     SELFPLAY_BUFFER_SIZE: int = 1_000_000  # Size of replay buffer queue
 
-    # Dueling
-    DUEL_ROUNDS: int = 3  # Best-of-DUEL_ROUNDS to decide best model
-    DUEL_WINRATE: float = 0.55  # Required winrate to decide best model
-    DUEL_SIMS: int = 25  # Num sims per move in mcts dueling
-    DUEL_PROCESSES: int = 2  # Num parallel duel processes (each running one game)
+    # Match evaluation
+    MATCH_ROUNDS: int = 3  # Best-of-MATCH_ROUNDS to decide best model
+    MATCH_WINRATE: float = 0.55  # Required winrate to decide best model
+    MATCH_SIMS: int = 25  # Num sims per move in MCTS match
+    MATCH_PROCESSES: int = 2  # Num parallel match processes (each running one game)
 
     LOG_WANDB = False  # Whether to log to wandb
 
 
 class MCTSTrainer:
     """
-    Trainer class encapsulating the self-play, training, and dueling routines for A0-style training.
+    Trainer class encapsulating the self-play, training, and match routines for A0-style training.
 
     In the main loop, the trainer starts a self-play process to continuously generate data. Once
     the cfg.
@@ -119,28 +119,28 @@ class MCTSTrainer:
             self.mp_manager.shared_replay_buffer
         )
 
-    def save_model_if_better(self, duel_score_dict, curr_best_score, curr_best_wins):
+    def save_model_if_better(self, match_score_dict, curr_best_score, curr_best_wins):
         tmp_best_model_state = None
-        if duel_score_dict['score'] > (
-            self.cfg.DUEL_WINRATE * 2 * self.cfg.DUEL_ROUNDS
+        if match_score_dict['score'] > (
+            self.cfg.MATCH_WINRATE * 2 * self.cfg.MATCH_ROUNDS
         ):
-            self.logger.info("New model wins the duel!")
-            if duel_score_dict['score'] > curr_best_score:
-                curr_best_score = duel_score_dict['score']
-                curr_best_wins = duel_score_dict['wins']
+            self.logger.info("New model wins the match!")
+            if match_score_dict['score'] > curr_best_score:
+                curr_best_score = match_score_dict['score']
+                curr_best_wins = match_score_dict['wins']
                 tmp_best_model_state = torch.load(self.cfg.MODEL_CURR_PATH)
             elif (
-                duel_score_dict['score'] == curr_best_score
-                and duel_score_dict['wins'] > curr_best_wins
+                match_score_dict['score'] == curr_best_score
+                and match_score_dict['wins'] > curr_best_wins
             ):
-                curr_best_wins = duel_score_dict['wins']
+                curr_best_wins = match_score_dict['wins']
                 tmp_best_model_state = torch.load(self.cfg.MODEL_CURR_PATH)
         return tmp_best_model_state
 
     def train_loop(self):
         """
         Main loop that manages the background self-play process and when to trigger the
-        train_and_duel process.
+        train_and_match process.
         """
         # pbar = tqdm(total=self.cfg.TRAIN_TOTAL_GAMES, desc="Self-Play Games:")
 
@@ -175,7 +175,7 @@ class MCTSTrainer:
                     "Self-play paused. Starting training..."
                 )
            
-                self.train_and_duel()
+                self.train_and_match()
                 self.next_train += self.cfg.TRAIN_FREQ
 
                 self.logger.info("Training Complete. Restarting self-play process...")
@@ -186,10 +186,10 @@ class MCTSTrainer:
 
         self.mp_manager.join_process()
 
-    def train_and_duel(self):
+    def train_and_match(self):
         """
-        Supervised training and dueling to determine if the model is better. Each training epoch is
-        is followed by a battle against the previous best model.
+        Supervised training and match evaluation to determine if the model is better. Each training epoch is
+        followed by a battle against the previous best model.
         """
         curr_best_score = 0
         curr_best_wins = 0
@@ -202,28 +202,28 @@ class MCTSTrainer:
 
             self.logger.info(f"T")
 
-            # Run dueling process to compare current model against best model
-            duel_score_dict = run_duel(
+            # Compare current model against best model with matches
+            match_score_dict = run_play_match(
                 self.cfg,
                 self.cfg.MODEL_CURR_PATH,
                 self.cfg.MODEL_BEST_PATH,
-                self.cfg.DUEL_ROUNDS,
+                self.cfg.MATCH_ROUNDS,
                 self.mp_manager.file_lock,
-                num_sims=self.cfg.DUEL_SIMS,
-                num_processes=self.cfg.DUEL_PROCESSES,
+                num_sims=self.cfg.MATCH_SIMS,
+                num_processes=self.cfg.MATCH_PROCESSES,
             )
-            self.logger.info(f"Duel scoring: {duel_score_dict}")
+            self.logger.info(f"Match scoring: {match_score_dict}")
             if self.cfg.LOG_WANDB:
-                wandb.log(duel_score_dict)
+                wandb.log(match_score_dict)
 
-            # Save model as current model if duel score meets the winrate criteria (best model saved at end)
+            # Save model as current model if match score meets the winrate criteria (best model saved at end)
             tmp_best_model_state = self.save_model_if_better(
-                duel_score_dict, curr_best_score, curr_best_wins
+                match_score_dict, curr_best_score, curr_best_wins
             )
 
             if tmp_best_model_state is not None:
-                curr_best_score = duel_score_dict['score']
-                curr_best_wins = duel_score_dict['wins']
+                curr_best_score = match_score_dict['score']
+                curr_best_wins = match_score_dict['wins']
                 best_model_state = tmp_best_model_state
 
             self.logger.info(
@@ -240,7 +240,7 @@ class MCTSTrainer:
                 }
             )
 
-        # Save the best model from the duels, if improved
+        # Save the best model from the matches, if improved
         if best_model_state is not None:
             torch.save(best_model_state, self.cfg.MODEL_BEST_PATH)
             self.mp_manager.selfplay_buffer_proxy.clear()

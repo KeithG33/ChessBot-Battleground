@@ -106,8 +106,8 @@ def convert_outcome(outcome, perspective):
     return 0
 
 
-def play_duel_game(args):
-    """ Set up and play a duel game between new and old model and return the score. """
+def play_match_game(args):
+    """Set up and play a match game between new and old model and return the score."""
     cfg, new_model_state, old_model_state, perspective, num_sims = args
     new_model = load_model(cfg, new_model_state, mode='eval')
     old_model = load_model(cfg, old_model_state, mode='eval')
@@ -121,8 +121,8 @@ def play_duel_game(args):
     return score
 
 
-def run_duel(cfg, new_model_path, old_model_path, num_rounds, file_lock, num_sims=100, num_processes=2):
-    """ Duel against the previous best model and return the score using parallel processes. """
+def run_play_match(cfg, new_model_path, old_model_path, num_rounds, file_lock, num_sims=100, num_processes=2):
+    """Play matches between the new and old model and return the score using parallel processes."""
     
     scores = []
     wins, losses, draws = 0, 0, 0
@@ -139,7 +139,7 @@ def run_duel(cfg, new_model_path, old_model_path, num_rounds, file_lock, num_sim
     args_list += [((cfg, new_model_state, old_model_state, chess.BLACK, num_sims)) for _ in range(num_rounds)]
 
     with Pool(processes=num_processes) as pool:
-        scores = pool.map(play_duel_game, args_list)
+        scores = pool.map(play_match_game, args_list)
 
     for score in scores:
         if   score == 0:    losses += 1
@@ -294,7 +294,7 @@ def run_training_epoch(shared_replay_buffer, cfg):
             }
         )
 
-    # Epoch done - save model for dueling, optimizer 
+    # Epoch done - save model for match evaluation, optimizer
     torch.save(model.state_dict(), cfg.MODEL_CURR_PATH)
     
     # Save optimizer and scheduler states for the next epoch.

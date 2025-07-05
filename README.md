@@ -123,6 +123,9 @@ Or load it like this:
 ```python
 from chessbot.models import MODEL_REGISTRY
 model = MODEL_REGISTRY.load_model('simple_chessbot')
+
+# Load and automatically apply weights
+model = MODEL_REGISTRY.load_with_weights('simple_chessbot', 'path/or/hf_repo')
 ```
 
 ## 🧠 Training
@@ -176,7 +179,7 @@ Take your models to the battleground!
 The library depends on an **Adversarial Gym Environment** designed for two-player turn-based games, that can be used to visualize model inference. Check out the functions in [`chessbot.inference`](chessbot/inference/):
 
 ```python
-from chessbot.inference import selfplay, duel
+from chessbot.inference import selfplay, play_match
 
 # Selfplay. Returns value in [-1,0,1] for white's outcome
 model1  = YourChessBot()
@@ -184,7 +187,7 @@ outcome = selfplay(model1, visualize=True)
 
 # Match between two models, use MCTS. Returns (score1,score2)
 model2 = YourChessBot()
-scores = duel(model1, model2, best_of=11, search=True, visualize=True)
+scores = play_match(model1, model2, best_of=11, search=True, visualize=True)
 ```
 
 Use the search flag to harness **Monte Carlo Tree Search (MCTS)** for search during inference. *MCTS training code coming soon!* The [Chess Battle GIF](#chess-battle-gif) at the beginning is an example of visualizing the game with the Chess-env, and using MCTS for test-time powered inference. 
@@ -307,6 +310,15 @@ chessbot play "your_chessbot" \
 # Or load weights directly from HuggingFace
 chessbot play "swin_chessbot" \
               --model-weights KeithG33/swin_chessbot
+```
+
+```bash
+# Selfplay or battle two models
+chessbot selfplay "swin_chessbot" --model-weights KeithG33/swin_chessbot
+
+chessbot play-match "swin_chessbot" "simple_chessbot" \
+               --player1-weights KeithG33/swin_chessbot \
+               --player2-weights /path/to/simple_weights.pt
 ```
 
 <div align="center">
