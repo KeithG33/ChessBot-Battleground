@@ -1,4 +1,4 @@
-from chessbot.inference import selfplay, duel
+from chessbot.inference import selfplay, play_match
 from simple_chessbot import SimpleChessBot
 
 model = SimpleChessBot(hidden_dim=512)
@@ -11,7 +11,7 @@ outcome = selfplay(
   visualize=True # Display the game
 )
 
-scores = duel(
+scores = play_match(
   model,  # player1 model
   model,  # player2 model
   best_of=7,      # Best-of 

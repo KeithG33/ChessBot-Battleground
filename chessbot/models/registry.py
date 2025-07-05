@@ -103,3 +103,29 @@ class ModelRegistry:
         if model_path:
             cls._load_models_from_path(model_path)
         return cls._load_model(model_name, *init_args, **init_kwargs)
+
+    @classmethod
+    def load_with_weights(
+        cls,
+        model_name: str,
+        weights_id: str,
+        model_path: str | None = None,
+        hf_filename: str = "pytorch_model.bin",
+        *init_args,
+        **init_kwargs,
+    ):
+        """Load a registered model and automatically load weights.
+
+        Args:
+            model_name: Name of the model to load.
+            weights_id: Local path or HuggingFace repo id for the weights.
+            model_path: Optional additional directory to search for model
+                registrations.
+            hf_filename: Name of the weight file on HuggingFace.
+        """
+        model = cls.load_model(model_name, model_path, *init_args, **init_kwargs)
+        if os.path.exists(weights_id):
+            model.load_weights(weights_id)
+        else:
+            model.load_hf_weights(weights_id, filename=hf_filename)
+        return model
