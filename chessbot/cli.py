@@ -6,7 +6,7 @@ import typer
 
 from chessbot.data.download import download as download_fn
 from chessbot.inference.evaluate import evaluate_model
-from chessbot.inference import selfplay as selfplay_fn, play_game as play_game_fn, play_match as play_match_fn
+from chessbot.inference import selfplay as selfplay_fn, run_match as run_match_fn
 from chessbot.train.trainer import train_fn_hf, train_fn_local
 from chessbot.common import DEFAULT_DATASET_DIR, DEFAULT_MODEL_DIR
 from chessbot.models import align_state_dict
@@ -202,8 +202,8 @@ def selfplay(
     typer.echo(f"Selfplay outcome (white perspective): {outcome}")
 
 
-@app.command(name="play-match")
-def play_match(
+@app.command(name="run-match")
+def run_match(
     player1_name: str = typer.Argument(..., help="Model name for player 1"),
     player2_name: str = typer.Argument(..., help="Model name for player 2"),
     player1_dir: str = typer.Option(None, "--player1-dir", help="Directory with player1 model"),
@@ -220,20 +220,20 @@ def play_match(
     player1_kwargs: str = typer.Option("{}", "--player1-kwargs", help="JSON kwargs for player1 model"),
     player2_args: List[str] = typer.Option(None, "--player2-arg", help="Positional args for player2 model", show_default=False),
     player2_kwargs: str = typer.Option("{}", "--player2-kwargs", help="JSON kwargs for player2 model"),
-    best_of: int = typer.Option(7, "--best-of", "-b", help="Number of games"),
+    best_of: int = typer.Option(1, "--best-of", "-b", help="Number of games"),
     search: bool = typer.Option(False, "--search", "-s", help="Use MCTS search"),
     num_sims: int = typer.Option(250, "--num-sims", help="Number of MCTS simulations"),
-    visualize: bool = typer.Option(False, "--visualize", "-v", help="Visualize games"),
+    visualize: bool = typer.Option(True, "--visualize", "-v", help="Visualize games"),
     sample: bool = typer.Option(False, "--sample", help="Sample from the policy distribution"),
 ):
-    """Play a match between two models."""
+    """Run a match between two models."""
     player1 = find_and_load_from_register(player1_name, player1_dir, player1_args, player1_kwargs)
     player2 = find_and_load_from_register(player2_name, player2_dir, player2_args, player2_kwargs)
     if player1_weights:
         load_weights(player1, player1_weights, hf_filename)
     if player2_weights:
         load_weights(player2, player2_weights, hf_filename)
-    score1, score2 = play_match_fn(
+    score1, score2 = run_match_fn(
         player1,
         player2,
         best_of=best_of,
@@ -244,46 +244,6 @@ def play_match(
     )
     typer.echo(f"Final score: {score1} - {score2}")
 
-
-@app.command(name="play-game")
-def play_game(
-    player1_name: str = typer.Argument(..., help="Model name for player 1"),
-    player2_name: str = typer.Argument(..., help="Model name for player 2"),
-    player1_dir: str = typer.Option(None, "--player1-dir", help="Directory with player1 model"),
-    player2_dir: str = typer.Option(None, "--player2-dir", help="Directory with player2 model"),
-    player1_weights: str = typer.Option(None, "--player1-weights", help="Weights path or HF repo for player1"),
-    player2_weights: str = typer.Option(None, "--player2-weights", help="Weights path or HF repo for player2"),
-    hf_filename: str = typer.Option(
-        "pytorch_model.bin",
-        "--model-filename",
-        "-f",
-        help="Filename of the model weights to load (default: pytorch_model.bin)",
-    ),
-    player1_args: List[str] = typer.Option(None, "--player1-arg", help="Positional args for player1 model", show_default=False),
-    player1_kwargs: str = typer.Option("{}", "--player1-kwargs", help="JSON kwargs for player1 model"),
-    player2_args: List[str] = typer.Option(None, "--player2-arg", help="Positional args for player2 model", show_default=False),
-    player2_kwargs: str = typer.Option("{}", "--player2-kwargs", help="JSON kwargs for player2 model"),
-    search: bool = typer.Option(False, "--search", "-s", help="Use MCTS search"),
-    num_sims: int = typer.Option(250, "--num-sims", help="Number of MCTS simulations"),
-    visualize: bool = typer.Option(False, "--visualize", "-v", help="Visualize game"),
-    sample: bool = typer.Option(False, "--sample", help="Sample from the policy distribution"),
-):
-    """Play a single game between two models."""
-    player1 = find_and_load_from_register(player1_name, player1_dir, player1_args, player1_kwargs)
-    player2 = find_and_load_from_register(player2_name, player2_dir, player2_args, player2_kwargs)
-    if player1_weights:
-        load_weights(player1, player1_weights, hf_filename)
-    if player2_weights:
-        load_weights(player2, player2_weights, hf_filename)
-    outcome = play_game_fn(
-        player1,
-        player2,
-        search=search,
-        num_sims=num_sims,
-        visualize=visualize,
-        sample=sample,
-    )
-    typer.echo(f"Game outcome (1 white win, -1 black win, 0 draw): {outcome}")
 
 
 @app.command()

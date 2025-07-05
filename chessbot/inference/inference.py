@@ -25,14 +25,14 @@ def score_function(outcome, perspective) -> float | int:
     return 0
 
 
-def play_match(
+def run_match(
     player1: BaseChessBot,
     player2: BaseChessBot,
-    best_of=7,
-    search=False,
-    num_sims=250,
-    visualize=False,
-    sample=False,
+    best_of: int = 1,
+    search: bool = False,
+    num_sims: int = 250,
+    visualize: bool = True,
+    sample: bool = False,
 ) -> tuple[int, int]:
     """
     Conduct a match (best-of series) between two chess models and return their respective scores.
@@ -42,9 +42,9 @@ def play_match(
     Args:
         model1 (BaseChessModel): The first chess model.
         model2 (BaseChessModel): The second chess model.
-        best_of (int, optional): The number of games to be played in the match. Defaults to 3.
-        search (bool, optional): If True, use MCTS for move selection in the games. Defaults to True.
-        visualize (bool, optional): If True, render the games visually. Defaults to False.
+        best_of (int, optional): The number of games to be played in the match. Defaults to 1.
+        search (bool, optional): If True, use MCTS for move selection in the games. Defaults to False.
+        visualize (bool, optional): If True, render the games visually. Defaults to True.
         sample (bool, optional): If True, sample moves from the output distribution. Not relevant if search=True
 
     Returns:

@@ -248,7 +248,7 @@ The outcome will correspond to losing-drawing-winning with white.
 
 ### ⚔️ Play a match between two models
 ```python
-from chessbot.inference import play_match
+from chessbot.inference import run_match
 from simple_chessbot import SimpleChessBot
 
 p1 = SimpleChessBot(hidden_dim=512)
@@ -257,7 +257,7 @@ p1 = SimpleChessBot(hidden_dim=512)
 p2 = SimpleChessBot(hidden_dim=512)
 # p2.load_state_dict(torch.load('pytorch_model2.bin'))
 
-scores = play_match(
+scores = run_match(
   p1, # player1 model
   p2, # player2 model
   best_of=7, # Best-of 

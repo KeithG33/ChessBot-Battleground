@@ -1,6 +1,5 @@
 from .inference import (
-    play_game,
-    play_match,
+    run_match,
     selfplay,
 )
 
