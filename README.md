@@ -179,7 +179,7 @@ Take your models to the battleground!
 The library depends on an **Adversarial Gym Environment** designed for two-player turn-based games, that can be used to visualize model inference. Check out the functions in [`chessbot.inference`](chessbot/inference/):
 
 ```python
-from chessbot.inference import selfplay, play_match
+from chessbot.inference import selfplay, run_match
 
 # Selfplay. Returns value in [-1,0,1] for white's outcome
 model1  = YourChessBot()
@@ -187,7 +187,7 @@ outcome = selfplay(model1, visualize=True)
 
 # Match between two models, use MCTS. Returns (score1,score2)
 model2 = YourChessBot()
-scores = play_match(model1, model2, best_of=11, search=True, visualize=True)
+scores = run_match(model1, model2, best_of=11, search=True, visualize=True)
 ```
 
 Use the search flag to harness **Monte Carlo Tree Search (MCTS)** for search during inference. *MCTS training code coming soon!* The [Chess Battle GIF](#chess-battle-gif) at the beginning is an example of visualizing the game with the Chess-env, and using MCTS for test-time powered inference. 
