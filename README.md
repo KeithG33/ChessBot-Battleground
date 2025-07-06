@@ -160,7 +160,7 @@ Check out [`chessbot/train/config.yaml`](chessbot/train/config.yaml) for a list 
 
 ## 🕹️ Gameplay & Inference
 
-Take your models to the battleground! Use the game app or the helper functions in [`chessbot.inference`](chessbot/inference/).
+Take your models to the battleground! The library depends on an **Adversarial Gym Environment** to visualize model inference. Use the game app to play a game against your model, or use the inference functions in [`chessbot.inference`](chessbot/inference/) to run CPU games.
 
 ### Game App
 
@@ -168,13 +168,13 @@ Play any registered model directly from the CLI:
 
 ```bash
 # play with local weights
-chessbot play "swin_chessbot"
+chessbot play "swin_chessbot" --model-weights path/to/weights.pt
 
 # or load weights from HuggingFace
 chessbot play "swin_chessbot" --model-weights KeithG33/swin_chessbot
 ```
 
-### Python Helpers
+### CPU Inference
 
 ```python
 from chessbot.inference import selfplay, duel
