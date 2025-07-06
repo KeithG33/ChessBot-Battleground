@@ -158,25 +158,37 @@ if __name__ == '__main__':
 Check out [`chessbot/train/config.yaml`](chessbot/train/config.yaml) for a list and description of the available options. The [Getting Started](#-getting-started) section also shows the command-line method of running training.
 
 
-## 🦾 Inference & Battling
+## 🕹️ Gameplay & Inference
 
-Take your models to the battleground!  
+Take your models to the battleground! Use the game app or the helper functions in [`chessbot.inference`](chessbot/inference/).
 
-The library depends on an **Adversarial Gym Environment** designed for two-player turn-based games, that can be used to visualize model inference. Check out the functions in [`chessbot.inference`](chessbot/inference/):
+### Game App
+
+Play any registered model directly from the CLI:
+
+```bash
+# play with local weights
+chessbot play "swin_chessbot"
+
+# or load weights from HuggingFace
+chessbot play "swin_chessbot" --model-weights KeithG33/swin_chessbot
+```
+
+### Python Helpers
 
 ```python
 from chessbot.inference import selfplay, duel
 
-# Selfplay. Returns value in [-1,0,1] for white's outcome
-model1  = YourChessBot()
-outcome = selfplay(model1, visualize=True)
+# Self-play a single model
+model1 = YourChessBot()
+outcome = selfplay(model1, visualize=True)  # [-1, 0, 1] outcome
 
-# Match between two models, use MCTS. Returns (score1,score2)
+# Duel two models with optional MCTS
 model2 = YourChessBot()
 scores = duel(model1, model2, best_of=11, search=True, visualize=True)
 ```
 
-Use the search flag to harness **Monte Carlo Tree Search (MCTS)** for search during inference. *MCTS training code coming soon!* The [Chess Battle GIF](#chess-battle-gif) at the beginning is an example of visualizing the game with the Chess-env, and using MCTS for test-time powered inference. 
+Set `search=True` to harness **Monte Carlo Tree Search (MCTS)**. The [Chess Battle GIF](#chess-battle-gif) shows a game using the Chess-env and MCTS at test time.
 
 
 ## ✨ Getting Started
