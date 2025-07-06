@@ -20,13 +20,13 @@
 
 ##  Introduction
 
-This repository contains a gigantic curated chess dataset meant for machine learning, along with the supporting code to train, infer, display, and play games. Just design a model and you can take advantage of any of the available features. This library provides support for:
+This repository contains a gigantic curated chess dataset meant for machine learning, along with the supporting code to train, infer, display, and play games. Design a model and you can take advantage of any of the available features. This library provides support for:
 
 - **Dataset/Training:** PyTorch dataset and training code
-- **Evaluation**: Compare performance on the dataset. *Leaderboard coming soon*
+- **Evaluation**: Compare performance on the test set. *Leaderboard coming soon*
+- **Game App:**  Play against your model with the `chessbot play` tool. Can it beat you?
 - **Visualization:** Watch your models in action as they play and adapt on the board.
 - **MCTS:** Simple implementation to give your supervised models search capability. *Training coming soon*.
-- **Game App:**  Play a game against your model with the `chessbot play` tool. Can it beat you?
 
 With enough parameters and training, models will play better than some humans. Here's the `sgu_chessbot` in action:
 
@@ -113,24 +113,13 @@ class SimpleChessBot(BaseChessBot):
 ```
 
 The `ModelRegistry` is a helper for the library to store models by name, and everything in the [models/](models/)
-directory is automatically pre-registered. Play against the simple_chessbot like this:
-```bash
- chessbot play "simple_chessbot" --model-weights path_to_weights # Or huggingface model
-```
-
-Or load it like this:
-
-```python
-from chessbot.models import MODEL_REGISTRY
-model = MODEL_REGISTRY.load_model('simple_chessbot')
-```
-
+directory is automatically pre-registered. 
 ## 🧠 Training
 
 
-The `ChessTrainer` class is the easiest way to get started training ChessBot models. This class will efficiently stream the huggingface dataset so you don't have to worry about hardware requirements. The trainer also utilizes HuggingFace's `accelerate` for easy access to AMP, torch.compile, gradient clipping, gradient accumulation, etc.
+The `ChessTrainer` class is the easiest way to get started training ChessBot models. It relies on a huggingface dataset to efficiently stream the data, and accelerate for easy access to many features like mixed-precision, gradient clipping, etc.
 
-Here's a run-able example of setting up a config and using it. Adjust for your hardware if needed:
+Here's an example you can run of setting up a config and using it. Adjust for your hardware if needed:
 
 ```python
 import os
