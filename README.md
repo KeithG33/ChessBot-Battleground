@@ -20,13 +20,13 @@
 
 ##  Introduction
 
-This repository contains a gigantic curated chess dataset meant for machine learning, along with the supporting code to train, infer, display, and play games. Just design a model and you can take advantage of any of the available features. This library provides support for:
+This repository contains a gigantic curated chess dataset meant for machine learning, along with the supporting code to train, infer, display, and play games. Design a model and you can take advantage of any of the available features. This library provides support for:
 
 - **Dataset/Training:** PyTorch dataset and training code
-- **Evaluation**: Compare performance on the dataset. *Leaderboard coming soon*
+- **Evaluation**: Compare performance on the test set. *Leaderboard coming soon*
+- **Game App:**  Play against your model with the `chessbot play` tool. Can it beat you?
 - **Visualization:** Watch your models in action as they play and adapt on the board.
 - **MCTS:** Simple implementation to give your supervised models search capability. *Training coming soon*.
-- **Game App:**  Play a game against your model with the `chessbot play` tool. Can it beat you?
 
 With enough parameters and training, models will play better than some humans. Here's the `sgu_chessbot` in action:
 
@@ -113,27 +113,13 @@ class SimpleChessBot(BaseChessBot):
 ```
 
 The `ModelRegistry` is a helper for the library to store models by name, and everything in the [models/](models/)
-directory is automatically pre-registered. Play against the simple_chessbot like this:
-```bash
- chessbot play "simple_chessbot" --model-weights path_to_weights # Or huggingface model
-```
-
-Or load it like this:
-
-```python
-from chessbot.models import MODEL_REGISTRY
-model = MODEL_REGISTRY.load_model('simple_chessbot')
-
-# Load and automatically apply weights
-model = MODEL_REGISTRY.load_with_weights('simple_chessbot', 'path/or/hf_repo')
-```
-
+directory is automatically pre-registered. 
 ## 🧠 Training
 
 
-The `ChessTrainer` class is the easiest way to get started training ChessBot models. This class will efficiently stream the huggingface dataset so you don't have to worry about hardware requirements. The trainer also utilizes HuggingFace's `accelerate` for easy access to AMP, torch.compile, gradient clipping, gradient accumulation, etc.
+The `ChessTrainer` class is the easiest way to get started training ChessBot models. It relies on a huggingface dataset to efficiently stream the data, and accelerate for easy access to many features like mixed-precision, gradient clipping, etc.
 
-Here's a run-able example of setting up a config and using it. Adjust for your hardware if needed:
+Here's an example you can run of setting up a config and using it. Adjust for your hardware if needed:
 
 ```python
 import os
@@ -172,25 +158,38 @@ if __name__ == '__main__':
 Check out [`chessbot/train/config.yaml`](chessbot/train/config.yaml) for a list and description of the available options. The [Getting Started](#-getting-started) section also shows the command-line method of running training.
 
 
-## 🦾 Inference & Battling
+## 🕹️ Gameplay & Inference
 
-Take your models to the battleground!  
+Take your models to the battleground! The library depends on an **Adversarial Gym Environment** to visualize model inference. Use the game app to play a game against your model, or use the inference functions in [`chessbot.inference`](chessbot/inference/) to run CPU games.
 
-The library depends on an **Adversarial Gym Environment** designed for two-player turn-based games, that can be used to visualize model inference. Check out the functions in [`chessbot.inference`](chessbot/inference/):
+### Game App
+
+Play any registered model directly from the CLI:
+
+```bash
+# play the pretrained model, can you beat it?
+chessbot play "swin_chessbot" --model-weights KeithG33/swin_chessbot
+
+# play with local weights
+chessbot play "swin_chessbot" --model-weights path/to/weights.pt
+
+```
+
+### CPU Inference
 
 ```python
 from chessbot.inference import selfplay, run_match
 
-# Selfplay. Returns value in [-1,0,1] for white's outcome
-model1  = YourChessBot()
-outcome = selfplay(model1, visualize=True)
+# Self-play a single model
+model1 = YourChessBot()
+outcome = selfplay(model1, visualize=True)  # [-1, 0, 1] outcome
 
-# Match between two models, use MCTS. Returns (score1,score2)
+# Duel two models with optional MCTS
 model2 = YourChessBot()
 scores = run_match(model1, model2, best_of=11, search=True, visualize=True)
 ```
 
-Use the search flag to harness **Monte Carlo Tree Search (MCTS)** for search during inference. *MCTS training code coming soon!* The [Chess Battle GIF](#chess-battle-gif) at the beginning is an example of visualizing the game with the Chess-env, and using MCTS for test-time powered inference. 
+Set `search=True` to harness **Monte Carlo Tree Search (MCTS)**. The [Chess Battle GIF](#chess-battle-gif) shows a game using the Chess-env and MCTS at test time.
 
 
 ## ✨ Getting Started
