@@ -48,15 +48,7 @@ def sgu_block(x):
 ## Usage
 *Coming soon*
 
- Play against the model with the following command
+ Play against the model with the following commandL
 
 ```bash
-chessbot play "sgu_chessnet" \
-              --model-dir path_to_model \
-              --model-weights path_to_weights
-
-chessbot evaluate "sgu_chessnet" \
-              --model-dir path_to_model \
-              --model-weights path_to_weights
-              --data-dir path_to_dataset
-              --batch-sz 3072
+chessbot play "sgu_chessnet" \--model-weights KeithG33/sgu_chessbot
