@@ -325,8 +325,7 @@ from chessbot.inference.evaluate import evaluate_model
 model = ChessModel()
 batch_size = 3072
 num_processes = 8
-data_dir = 'path/to/dataset/'
-evaluate_model(model, data_dir, batch_size, num_processes)
+evaluate_model(model, batch_size, num_processes)
 ```
 
 Or if your model is registered as "your_chessbot", using the `chessbot` cli tool:
@@ -337,7 +336,6 @@ chessbot evaluate --help
   chessbot evaluate "your_chessbot" \
                   --model-dir path/to/dir \
                   --model-weights path/to/weights.pt \
-                  --data-dir path/to/dataset \
                   --batch-sz 3072 \
                   --num-threads 8 \
 ```
