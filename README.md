@@ -125,11 +125,7 @@ Here's an example you can run of setting up a config and using it. Adjust for yo
 import os
 import chessbot
 from chessbot.train import HFChessTrainer
-from chessbot.common import DEFAULT_DATASET_DIR
 from chessbot.models import MODEL_REGISTRY
-
-cwd = os.getcwd()
-dataset_path = DEFAULT_DATASET_DIR
 
 # Train
 cfg = chessbot.config.get_cfg()
@@ -248,7 +244,59 @@ chessbot download
 By default, the latest release will be downloaded into the `ChessBot-Battleground/dataset/` directory, or the current working directory if the package has been pip installed.
 
 ### 3. Models & Training
-After installation, it's time to write a model and injest some data. Writing a model and training was covered above, so first check that out. Here I'll show the CLI version of training. First register your model, and then configure `model.path` and `model.name` to load the model. Either set this in the config file, or use the command overrides:
+After installation, it's time to write a model and injest some data. Here's another full example you can run:
+
+```python
+import os
+import chessbot
+from chessbot.train import HFChessTrainer
+from chessbot.models import BaseChessBot
+
+class SimpleChessBot(BaseChessBot):
+  """ One layer backbone and one layer prediction heads """
+    
+    def __init__(self):
+      super().__init__()
+      # Backbone and prediction heads
+      self.backbone = nn.Linear(64, 256)
+      self.policy_head = nn.Linear(256, self.action_dim)
+      self.value_head = nn.Sequential(
+          nn.Linear(256, 1),
+          nn.Tanh()  # Between -1 and 1 for lose, draw, win
+      )
+
+    def forward(self, x):
+      """ Input is tensor of shape (B,1,8,8) """
+      x             = x.view(B, -1)               # -> (B, 64)
+      features      = self.backbone(x)            # -> (B, 256)
+      action_logits = self.policy_head(features)  # -> (B, 4672)
+      board_val     = self.value_head(features)   # -> (B, 1)
+      return action_logits, board_val
+
+
+if __name__ == '__main__':
+    cfg = chessbot.config.get_cfg()
+    cfg.train.epochs = 50 
+    cfg.train.batch_size = 1024
+    cfg.train.lr = 0.0001
+    cfg.train.scheduler = 'linear'
+    cfg.train.min_lr = 0.00005
+    cfg.train.warmup_lr = 0.00001
+    cfg.train.warmup_iters = 1000
+    cfg.train.compile = True
+    cfg.train.amp = 'bf16'
+    cfg.train.validation_every = 15_000
+    cfg.dataset.num_workers = 4
+    cfg.dataset.num_test_samples = 1_000_000
+    cfg.dataset.shuffle_buffer = 100_000
+
+    model = SimpleChessBot()
+
+    trainer = HFChessTrainer(cfg, model)
+    trainer.train()
+```
+
+For the CLI version of training, you can use the `chessbot` cli tool. First register your model, and then configure `model.path` (path to your model file) and `model.name` (class name) to load the model. Either set this in the config file, or use the command overrides:
 
 ```bash
 # For options and help
@@ -256,8 +304,8 @@ chessbot train --help
 
 # Train from config, and any overrides in command
 chessbot train /path/to/config.yaml \
-              -o model.path path/to/model \
-              -o model.name YourChessBot \
+              -o model.path path/to/simple_chessbot.py \
+              -o model.name SimpleChessBot \
               -o train.epochs 10 \
               -o train.lr 0.001 \
 ```
