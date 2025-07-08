@@ -13,7 +13,7 @@ The two prediction networks contain 4 linear layers, LayerNorm+GELU activation, 
 
 | Model Name   | Layers | Model Shape  | Params      | Weights       |
 |--------------|--------|--------------|-------------|---------------|
-| Swin-Transformer ChessBot | 20     | (B, 64, 24)  | 190M        | [Download Coming](path_to_model) |
+| Swin-Transformer ChessBot | 20     | (B, 64, 24)  | 237M        | [HF Link](https://huggingface.co/KeithG33/swin_chessbot/blob/main/pytorch_model.bin) |
 
 </div>
 
