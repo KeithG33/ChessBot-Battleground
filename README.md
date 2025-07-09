@@ -34,7 +34,7 @@ With enough parameters and training, models will play better than some humans. H
   <p><em>Self-play after a few days of training a 300M parameter network from scratch on a single RTX 3090.</em></p>
 </div>
 
-Play against the best models on hugginface using the `chessbot play` command.
+Play against the models on huggingface using the `chessbot play` command:
 
 ```bash
 # Can you beat them?
