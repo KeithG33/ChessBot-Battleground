@@ -11,9 +11,8 @@
 
 *[Dataset now on HuggingFace](https://huggingface.co/datasets/KeithG33/ChessBot-Dataset/tree/main)* 
 
-*[Models on HuggingFace:](https://huggingface.co/collections/KeithG33/chessbot-battleground-68604718dc092ec82e3a2c42)*
+*[Models on HuggingFace](https://huggingface.co/collections/KeithG33/chessbot-battleground-68604718dc092ec82e3a2c42)*
 
-`swin_chessbot`, `sgu_chessbot` 
 
 </div>
 <!-- Banner End -->
@@ -34,6 +33,15 @@ With enough parameters and training, models will play better than some humans. H
   <img src="assets/chessSGU-R8.1-selfplay.gif" style="width: 35%; height: auto;">
   <p><em>Self-play after a few days of training a 300M parameter network from scratch on a single RTX 3090.</em></p>
 </div>
+
+Play against the best models on hugginface using the `chessbot play` command.
+
+```bash
+# Can you beat them?
+chessbot play "sgu_chessbot" --model-weights KeithG33/sgu_chessbot
+
+chessbot play "swin_chessbot" --model-weights KeithG33/swin_chessbot
+```
 
 
 ## 📂 Dataset
@@ -151,7 +159,7 @@ if __name__ == '__main__':
     trainer.train()
 ```
 
-Check out [`chessbot/train/config.yaml`](chessbot/train/config.yaml) for a list and description of the available options. The [Getting Started](#-getting-started) section also shows the command-line method of running training.
+Check out [`chessbot/train/config.yaml`](chessbot/train/config.yaml) for a list and description of the available options. The [Getting Started](#-getting-started) section shows a full example, and a command-line way to train.
 
 
 ## 🕹️ Gameplay & Inference
@@ -167,7 +175,7 @@ Play any registered model directly from the CLI:
 chessbot play "swin_chessbot" --model-weights KeithG33/swin_chessbot
 
 # play with local weights
-chessbot play "swin_chessbot" --model-weights path/to/weights.pt
+chessbot play "your_chessbot" --model-weights path/to/weights.pt
 
 ```
 
@@ -189,7 +197,7 @@ Set `search=True` to harness **Monte Carlo Tree Search (MCTS)**. The [Chess Batt
 
 
 ## ✨ Getting Started
-The python code was covered above, so for the sake of learning, this Getting-Started will mostly focus on showing the `chessbot` command-line tool version of things. 
+
 
 ### 1. Installation: 
 
@@ -209,7 +217,7 @@ The python code was covered above, so for the sake of learning, this Getting-Sta
 **Verify Installation:**
 
 ```bash
-$ chessbot --help
+chessbot --help
                                                                                                        
  Usage: chessbot [OPTIONS] COMMAND [ARGS]...                                                                                                                                                                                          
                                                                                                                                                                                                                                       
@@ -244,7 +252,8 @@ chessbot download
 By default, the latest release will be downloaded into the `ChessBot-Battleground/dataset/` directory, or the current working directory if the package has been pip installed.
 
 ### 3. Models & Training
-After installation, it's time to write a model and injest some data. Here's another full example you can run:
+
+It is time to write a model and injest some data. Here's a full example of writing a custom model and training:
 
 ```python
 import os
@@ -333,11 +342,11 @@ Or if your model is registered as "your_chessbot", using the `chessbot` cli tool
 # For options and help:
 chessbot evaluate --help
 
-  chessbot evaluate "your_chessbot" \
-                  --model-dir path/to/dir \
-                  --model-weights path/to/weights.pt \
-                  --batch-sz 3072 \
-                  --num-threads 8 \
+chessbot evaluate "your_chessbot" \
+                --model-dir path/to/dir \
+                --model-weights path/to/weights.pt \
+                --batch-sz 3072 \
+                --num-threads 8 \
 ```
 
 ### 5. Play Your ChessBot
@@ -373,12 +382,7 @@ chessbot play-match "swin_chessbot" "simple_chessbot" \
 
 ### 6. Examples
 
-There is a simple and complete example in [models/](models/) to get you started. Check out the `example_chessbot` project for an example; use `example_training.ipynb` to train the model; use `example_inference.ipynb` to either run inference with the base model, or with an MCTS wrapper for a test-time-powerup.
-
-Otherwise check out the other models in the `models/` directory.
-
-Additionally, an `example_sf_datagen.ipynb` exists to show how one might add Stockfish data to the dataset. Unfortunately stockfish is slow so this is a hopeful crumb that I leave for crowd efforts.
-
+Check out the [chessbot models](models/) for ideas.
 
 
 ## 📈 Future Plans
