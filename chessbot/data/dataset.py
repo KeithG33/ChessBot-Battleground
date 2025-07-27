@@ -42,8 +42,8 @@ class HFChessDataset(IterableDataset):
         self.ds = load_dataset(
             "KeithG33/ChessBot-Dataset",
             data_files={
-                "train": "train/*.pgn",
-                "test":  "test/*.pgn",
+                "train": "train/*.pgn.zst",
+                "test":  "test/*.pgn.zst",
             },
             split=split,
             streaming=streaming,
