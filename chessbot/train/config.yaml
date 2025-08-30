@@ -13,6 +13,7 @@ dataset:
   size_test: 1                          # Number of files to sample and test on. Used by PGN datasets
   num_processes: 1                      # Number of threads for data loading. Used by PGN datasets
   num_workers: 1                        # Number of workers for data loading. Used by streaming datasets
+  num_train_samples: 0                  # Number of samples for training. Used by streaming datasets
   num_test_samples: 0                   # Number of samples for testing. Used by streaming datasets
   shuffle_buffer: 10_000                # Buffer size for shuffling the HF streaming dataset
 
