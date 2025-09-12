@@ -31,6 +31,8 @@ train:
   warmup_strategy: cos                  # Warmup strategy
   scheduler_iters: 100000               # Total scheduler steps (in iterations)
   optimizer: adamw                      # Optimizer. Any of the names in timm.optim.list_optimizers()
+  ploss_weight: 1.0                     # Weight of the policy loss
+  vloss_weight: 0.5                     # Weight of the value loss
   compile: false                        # Compile the model. Uses INDUCTOR
   amp: 'no'                             # automatic mixed precision: 'no','fp16','bf16' or 'fp8'
   grad_clip: 1.0                        # Gradient clipping norm value.

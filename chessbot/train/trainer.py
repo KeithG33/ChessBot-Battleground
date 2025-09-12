@@ -176,7 +176,7 @@ class BaseChessTrainer:
 
             policy_loss = self.policy_loss(policy_output.squeeze(), action)
             value_loss = self.value_loss(value_output.squeeze(), result)
-            loss = policy_loss + value_loss
+            loss = self.cfg.ploss_weight * policy_loss + self.cfg.vloss_weight * value_loss
 
             self.optimizer.zero_grad()
             self.accelerator.backward(loss)
