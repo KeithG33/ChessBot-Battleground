@@ -27,7 +27,7 @@ cfg.train.validation_every = 15_000
 curr_dir = Path(__file__).resolve().parent
 cfg.train.output_dir = os.path.join(curr_dir, 'train-HFdata-b4096-lr0.0003')
 
-cfg.train.checkpoint_dir = '/home/kage/chess_workspace/ChessBot-Battleground/models/swin_chessbot/train-HFdata-b4096-lr0.0003'
+cfg.train.checkpoint_dir = 'models/swin_chessbot/train-HFdata-b4096-lr0.0003'
 cfg.train.resume_from_checkpoint = True
 
 cfg.dataset.num_workers = 2
