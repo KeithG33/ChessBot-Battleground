@@ -64,12 +64,22 @@ class HFChessDataset(IterableDataset):
             self.ds = self.ds.take(self.take_samples)
             
         for example in self.ds:
-            state = example["state"]            # torch.int8 tensor shape [8,8]
-            action = example["action"]          # torch.int16 scalar tensor
-            result = example["result"]          # torch.int8 scalar tensor
-            
-            action = torch.nn.functional.one_hot(action.long(), num_classes=4672).to(torch.float32)
-            yield state, action, result
+            state = example["state"]                # torch.int8 tensor shape [8,8]
+            action = example["action"]              # torch.int16 scalar tensor
+            best_action = example["best_action"]    # torch.int16 scalar tensor, -1 if absent
+            legal_actions = example["legal_actions"] # torch.int16 tensor of legal action indices
+            result = example["result"]              # float32 scalar tensor
+
+            action_vec = torch.zeros(4672, dtype=torch.float32)
+            action_vec[legal_actions.long()] = 0.1
+
+            if best_action.item() != -1:
+                action_vec[best_action.long()] = 1.0
+                action_vec[action.long()] = 0.9
+            else:
+                action_vec[action.long()] = 1.0
+
+            yield state, action_vec, result
 
 
 class ChessDataset(Dataset):
