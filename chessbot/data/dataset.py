@@ -30,6 +30,22 @@ def result_to_number(result):
 
 class HFChessDataset(IterableDataset):
     """ A wrapper for streaming the ChessBot dataset on Hugging Face """
+
+    _counts = None  # class-level cache
+
+    @classmethod
+    def get_counts(cls):
+        if cls._counts is None:
+            try:
+                from huggingface_hub import hf_hub_download
+                import json
+                path = hf_hub_download(repo_id="KeithG33/ChessBot-Dataset", filename="count.txt", repo_type="dataset")
+                with open(path) as f:
+                    cls._counts = json.loads(f.readline())
+            except Exception:
+                cls._counts = {}
+        return cls._counts
+
     def __init__(
         self,
         split: str = "train",
@@ -40,6 +56,8 @@ class HFChessDataset(IterableDataset):
     ):
         super().__init__()
         self.split = split
+        self.total = self.get_counts().get(split)
+        print(f"Total samples in {split} set: {self.total}")
         self.ds = load_dataset(
             "KeithG33/ChessBot-Dataset",
             data_files={

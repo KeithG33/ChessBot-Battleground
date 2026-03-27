@@ -92,6 +92,8 @@ class WarmupLR(_LRScheduler):
         self._format_param()
 
     def __getattr__(self, name):
+        if name == '_scheduler':
+            raise AttributeError(name)
         return getattr(self._scheduler, name)
     
     def state_dict(self):

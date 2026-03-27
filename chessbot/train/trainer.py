@@ -47,7 +47,6 @@ class BaseChessTrainer:
             "Model not provided in config or as an argument"
 
         # Paths for checkpoints
-        self.latest_model_path = os.path.join(self.cfg.train.output_dir, "model_latest")
         self.best_model_path = os.path.join(self.cfg.train.output_dir, "model_best")
         self.checkpoint_dir = os.path.join(self.cfg.train.output_dir, "checkpoint")
 
@@ -59,10 +58,12 @@ class BaseChessTrainer:
         self._logger.info(self.model)
 
         # Accelerator
+        grad_accum_steps = self.cfg.train.grad_accum_steps if self.cfg.train.grad_accum_steps > 0 else 1
         self.accelerator = Accelerator(
             cpu=self.cfg.train.device == 'cpu',
             mixed_precision=self.cfg.train.amp,
             dynamo_backend='INDUCTOR' if self.cfg.train.compile else None,
+            gradient_accumulation_steps=grad_accum_steps,
         )
 
         # Optimizer & scheduler placeholders
@@ -70,7 +71,7 @@ class BaseChessTrainer:
         self.scheduler = None
 
         # Losses
-        self.policy_loss = torch.nn.CrossEntropyLoss()
+        self.policy_loss = torch.nn.BCEWithLogitsLoss()
         self.value_loss = torch.nn.MSELoss()
 
         # Save config
@@ -110,68 +111,74 @@ class BaseChessTrainer:
     def build_optimizer(self):
         optimizer_str = self.cfg.train.optimizer.lower()
         assert optimizer_str in list_optimizers(), f"Optimizer {optimizer_str} not valid - must be one of: {list_optimizers()}"
-        
+
         if optimizer_str == 'adamw':
-            self.optimizer = torch.optim.AdamW(
-                self.model.parameters(), 
-                lr=self.cfg.train.lr
-            )
+            self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.cfg.train.lr)
         elif optimizer_str == 'sgd':
-            self.optimizer = torch.optim.SGD(
-                self.model.parameters(), 
-                lr=self.cfg.train.lr, 
-                momentum=0.9
-            )
+            self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.cfg.train.lr, momentum=0.9)
         else:
-            self.optimizer = create_optimizer_v2(
-                self.model.parameters(),
-                opt=optimizer_str,
-                lr=self.cfg.train.lr
-            )
+            self.optimizer = create_optimizer_v2(self.model.parameters(), opt=optimizer_str, lr=self.cfg.train.lr)
 
-        self.scheduler = None
+        self.scheduler = self.build_scheduler()
 
-        if self.cfg.train.scheduler == "linear":
-            min_scale = self.cfg.train.min_lr / self.cfg.train.lr
-            scheduler = torch.optim.lr_scheduler.LinearLR(
+    def build_scheduler(self):
+        cfg = self.cfg.train
+        scheduler_iters = cfg.scheduler_iters or 100000
+        decay_epochs = cfg.get('decay_epochs', 0)
+        iters_per_epoch = getattr(self, 'iters_per_epoch', None)
+
+        # Base decay scheduler
+        if cfg.scheduler == "linear":
+            decay = torch.optim.lr_scheduler.LinearLR(
                 self.optimizer,
                 start_factor=1.0,
-                end_factor=min_scale,
-                total_iters=self.cfg.train.scheduler_iters,
+                end_factor=cfg.min_lr / cfg.lr,
+                total_iters=scheduler_iters,
             )
-        elif self.cfg.train.scheduler == "cosine":
-            scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-                self.optimizer,
-                self.cfg.train.scheduler_iters,
-                self.cfg.train.min_lr,
+        elif cfg.scheduler == "cosine":
+            decay = torch.optim.lr_scheduler.CosineAnnealingLR(
+                self.optimizer, scheduler_iters, cfg.min_lr,
             )
         else:
-            scheduler = None
+            decay = None
 
-        self.scheduler = scheduler
+        # Append flat tail at min_lr if decay_epochs < epochs
+        if decay is not None and decay_epochs and iters_per_epoch:
+            flat_iters = (cfg.epochs - decay_epochs) * iters_per_epoch
+            if flat_iters > 0:
+                flat = torch.optim.lr_scheduler.ConstantLR(
+                    self.optimizer, factor=cfg.min_lr / cfg.lr, total_iters=flat_iters,
+                )
+                decay = torch.optim.lr_scheduler.SequentialLR(
+                    self.optimizer, schedulers=[decay, flat], milestones=[scheduler_iters],
+                )
 
-        if self.scheduler is not None and self.cfg.train.warmup_iters > 0:
-            self.scheduler = WarmupLR(
-                self.scheduler,
-                init_lr=self.cfg.train.warmup_lr,
-                num_warmup=self.cfg.train.warmup_iters,
-                warmup_strategy=self.cfg.train.warmup_strategy,
+        # Wrap with warmup
+        if decay is not None and cfg.warmup_iters > 0:
+            return WarmupLR(
+                decay,
+                init_lr=cfg.warmup_lr,
+                num_warmup=cfg.warmup_iters,
+                warmup_strategy=cfg.warmup_strategy,
             )
+
+        return decay
 
     def update_and_log(self, losses: dict, iter: int, train_or_val: str = "train"):
         self.stats.update(losses)
         cond = self.cfg.logging.wandb
         if train_or_val == "train":
             cond = cond and iter % self.cfg.logging.log_every == 0
-        if cond:            
+        if cond:
             avg_dict = {k: self.stats.get_average(k) for k in losses.keys()}
+            avg_dict["lr"] = self.optimizer.param_groups[0]["lr"]
             wandb.log({**avg_dict, "iter": iter})
   
     def train_step(self, state, action, result):
         state = state.float()
         result = result.float()
 
-        with self.accelerator.accumulate():
+        with self.accelerator.accumulate(self.model):
             policy_output, value_output = self.model(state.unsqueeze(1))
 
             policy_loss = self.policy_loss(policy_output.squeeze(), action)
@@ -206,7 +213,7 @@ class BaseChessTrainer:
             leave=False,
             dynamic_ncols=True,
             position=0,
-            bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}] {postfix}",
+            bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}, {rate_fmt}] {postfix}",
         ) as val_bar:
             self.model.eval()
             self.stats.reset("val_loss", "val_ploss", "val_vloss")
@@ -261,13 +268,31 @@ class HFChessTrainer(BaseChessTrainer):
 
         self.train_loader = self.build_train_loader(self.cfg)
         self._logger.info(f"Loaded {self.train_loader.dataset} for training")
-        
-        # TODO add total calc using known total / batch_size
+
+        # Compute total iters from dataset count and use to set scheduler_iters + progress bar
+        total_train = self.train_loader.dataset.total
+
+        iters_per_epoch = (total_train // self.cfg.train.batch_size) if total_train else None
+        total_iters = (iters_per_epoch * self.cfg.train.epochs) if iters_per_epoch else None
+        self.iters_per_epoch = iters_per_epoch
+
+        # Auto-set scheduler_iters if not explicitly configured
+        if iters_per_epoch and self.cfg.train.scheduler_iters is None:
+            decay_epochs = self.cfg.train.get('decay_epochs', 0) or self.cfg.train.epochs
+            decay_iters = iters_per_epoch * decay_epochs - self.cfg.train.warmup_iters
+            self.cfg.train.scheduler_iters = max(1, decay_iters)
+            self._logger.info(
+                f"Auto-set scheduler_iters={self.cfg.train.scheduler_iters:,} "
+                f"(decay over {decay_epochs} epochs × {iters_per_epoch:,} iters/epoch "
+                f"- {self.cfg.train.warmup_iters} warmup)"
+            )
+
         self.progress_bar = tqdm(
+            total=total_iters,
             desc=f"{GREEN}Training{RESET}",
             leave=True,
             dynamic_ncols=True,
-            bar_format="{l_bar}{bar}| {n_fmt} [{elapsed}] {postfix}",
+            bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}] {postfix}",
         )
 
     @staticmethod
@@ -330,17 +355,17 @@ class HFChessTrainer(BaseChessTrainer):
 
                     if val_loss < best_val_loss:
                         best_val_loss = val_loss
-                        self.accelerator.save_model(self.model, self.best_model_path, safe_serialization=False)   
+                        self.accelerator.save_model(self.model, self.best_model_path, safe_serialization=False)
                         self.accelerator.save_state(output_dir=self.checkpoint_dir)
-                    
+
                     self.progress_bar.refresh()
 
                 self.progress_bar.set_postfix(
                     {
-                        "Epoch": f"{epoch + 1}/{self.cfg.train.epochs}",
-                        "Iter": f"{iter + 1}",
+                        "E": f"{epoch + 1}/{self.cfg.train.epochs}",
                         "Loss": f"{loss.item():.4f}",
-                        "Val Loss": f"{val_loss:.4f}",
+                        "Val": f"{val_loss:.4f}",
+                        "LR": f"{self.optimizer.param_groups[0]['lr']:.2e}",
                     }
                 )
                 self.progress_bar.update(1)
@@ -348,7 +373,6 @@ class HFChessTrainer(BaseChessTrainer):
                 # Reduce gpu power
                 time.sleep(0.1)
 
-            self.accelerator.save_model(self.model, self.latest_model_path, safe_serialization=False)
             self.accelerator.save_state(output_dir=self.checkpoint_dir)
 
         self._logger.info(f"Training complete!")
@@ -377,7 +401,7 @@ class PGNChessTrainer(BaseChessTrainer):
             total=0,
             leave=True,
             dynamic_ncols=True,
-            bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}] {postfix}",
+            bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}, {rate_fmt}] {postfix}",
         )
 
     @staticmethod
@@ -420,11 +444,12 @@ class PGNChessTrainer(BaseChessTrainer):
                 if self.cfg.logging.wandb and iter % self.cfg.logging.log_every == 0:
                     wandb.log(
                         {
-                            "train_loss": self.stats.get_average('train_loss'), 
-                            "train_ploss": self.stats.get_average('train_ploss'), 
-                            "train_vloss": self.stats.get_average('train_vloss'), 
+                            "train_loss": self.stats.get_average('train_loss'),
+                            "train_ploss": self.stats.get_average('train_ploss'),
+                            "train_vloss": self.stats.get_average('train_vloss'),
+                            "lr": self.optimizer.param_groups[0]["lr"],
                             "iter": iter,
-                        }   
+                        }
                     )
 
                 # Validation
@@ -466,11 +491,11 @@ class PGNChessTrainer(BaseChessTrainer):
                         "Iter": f"{iter + 1}/{len(train_loader)}",
                         "Loss": f"{loss.item():.4f}",
                         "Val Loss": f"{val_loss:.4f}",
+                        "LR": f"{self.optimizer.param_groups[0]['lr']:.2e}",
                     }
                 )
                 self.progress_bar.update(1)
 
-            self.accelerator.save_model(self.model, self.latest_model_path, safe_serialization=False)
             self.accelerator.save_state(output_dir=self.checkpoint_dir)
     
     def train(self):
