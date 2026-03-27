@@ -82,17 +82,23 @@ class HFChessDataset(IterableDataset):
             self.ds = self.ds.take(self.take_samples)
             
         for example in self.ds:
-            state = example["state"]                # torch.int8 tensor shape [8,8]
-            action = example["action"]              # torch.int16 scalar tensor
-            best_action = example["best_action"]    # torch.int16 scalar tensor, -1 if absent
+            state = example["state"]                 # torch.int8 tensor shape [8,8]
+            action = example["action"]               # torch.int16 scalar tensor
+            best_actions = example["best_actions"]   # torch.int16 tensor of best action indices, empty if absent
             legal_actions = example["legal_actions"] # torch.int16 tensor of legal action indices
-            result = example["result"]              # float32 scalar tensor
+            result = example["result"]               # float32 scalar tensor
+            source = example["source"]               # "tablebase" or "game"
 
             action_vec = torch.zeros(4672, dtype=torch.float32)
             action_vec[legal_actions.long()] = 0.1
 
-            if best_action.item() != -1:
-                action_vec[best_action.long()] = 1.0
+            if source == "tablebase":
+                # All best_actions are equally optimal tablebase moves — all 1.0
+                # The played move IS one of the best moves so it also gets 1.0
+                action_vec[best_actions.long()] = 1.0
+            elif len(best_actions) == 1:
+                # Single best move from lc0/engine annotation: best move is 1.0, played move is 0.9
+                action_vec[best_actions.long()] = 1.0
                 action_vec[action.long()] = 0.9
             else:
                 action_vec[action.long()] = 1.0
@@ -137,12 +143,36 @@ class ChessDataset(Dataset):
         else:
             raise ValueError("Invalid pgn_files argument")
 
+    @staticmethod
+    def _parse_best_moves(comment, board):
+        """Parse UCI best moves from a comment like '0.52 e2e4' or '1.0 e1e2 h7h8q a1a8'.
+        Returns list of action indices. Supports multiple moves (tablebase-generated data)."""
+        if not comment:
+            return []
+        parts = comment.split()
+        if len(parts) < 2:
+            return []
+        # First token must be a q-value float; remaining tokens are UCI moves
+        try:
+            float(parts[0])
+        except ValueError:
+            return []
+        best_actions = []
+        for token in parts[1:]:
+            try:
+                move = chess.Move.from_uci(token)
+                if move in board.legal_moves:
+                    best_actions.append(int(ChessEnv.move_to_action(move)))
+            except Exception:
+                break
+        return best_actions
+
     def generate_pgn_data(self, pgn_file):
         data = []
         with open(pgn_file) as pgn:
             while (game := chess.pgn.read_game(pgn)) is not None:
-                state_maps, actions, results = self.get_game_data(game)
-                game_data = list(zip(state_maps, actions, results))
+                state_maps, actions, results, best_actions_list, source = self.get_game_data(game)
+                game_data = list(zip(state_maps, actions, results, best_actions_list, [source] * len(actions)))
                 data.extend(game_data)
         return data
     
@@ -172,16 +202,21 @@ class ChessDataset(Dataset):
         states = []
         actions = []
         results = []
+        best_actions_list = []
 
         board = game.board()
         result = game.headers['Result']
         result = result_to_number(result)
-        for move in game.mainline_moves():
+        source = "tablebase" if game.headers.get("Event") == "Tablebase" else "game"
+        for node in game.mainline():
+            move = node.move
             canon_state = self.get_canonical_state(board, board.turn)
             action = ChessEnv.move_to_action(move)
+            best_actions = self._parse_best_moves(node.comment, board)
 
             states.append(canon_state)
             actions.append(action)
+            best_actions_list.append(best_actions)
             results.append(
                 result * -1 if board.turn == 0 else result
             )  # flip value to match canonical state
@@ -190,7 +225,7 @@ class ChessDataset(Dataset):
         if game.errors:
             print(game.errors, game.headers)
 
-        return states, actions, results
+        return states, actions, results, best_actions_list, source
 
     def get_canonical_state(self, board, turn):
         state = ChessEnv.get_piece_configuration(board)
@@ -201,9 +236,17 @@ class ChessDataset(Dataset):
         return len(self.data)
 
     def __getitem__(self, idx):
-        state, action, result = self.data[idx]
-        action_probs = create_sparse_vector({action: 1.0})
-        action_probs = torch.tensor(action_probs, dtype=torch.float32)
+        state, action, result, best_actions, source = self.data[idx]
+        if source == "tablebase":
+            # All best_actions are equally optimal tablebase moves — all 1.0
+            # The played move IS one of the best moves so it also gets 1.0
+            probs = {ba: 1.0 for ba in best_actions}
+        elif len(best_actions) == 1:
+            # Single best move from lc0/engine annotation: best move is 1.0, played move is 0.9
+            probs = {best_actions[0]: 1.0, action: 0.9}
+        else:
+            probs = {action: 1.0}
+        action_probs = torch.tensor(create_sparse_vector(probs), dtype=torch.float32)
         return state, action_probs, result
 
 
