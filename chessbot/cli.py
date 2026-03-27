@@ -49,8 +49,7 @@ def find_and_load_from_register(
 def load_weights(model: BaseChessBot, weights_id: str, hf_filename: str = "pytorch_model.bin") -> None:
     """Load weights from a local path or HuggingFace repo."""
     if os.path.exists(weights_id):
-        weights = align_state_dict(torch.load(weights_id))
-        model.load_state_dict(weights)
+        model.load_weights(weights_id)
         return
 
     try:
@@ -58,8 +57,7 @@ def load_weights(model: BaseChessBot, weights_id: str, hf_filename: str = "pytor
     except Exception as e:
         raise typer.BadParameter(f"Could not download weights from {weights_id}: {e}")
 
-    weights = align_state_dict(torch.load(path, weights_only=True))
-    model.load_state_dict(weights)
+    model.load_weights(path)
 
 
 @app.command()

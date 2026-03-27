@@ -29,7 +29,11 @@ def torch_safesave(state_dict, path, file_lock):
 
 def torch_safeload(path, file_lock):
     with file_lock:
-        model_state = align_state_dict(torch.load(path, weights_only=True))
+        if path.endswith('.safetensors'):
+            from safetensors.torch import load_file
+            model_state = align_state_dict(load_file(path))
+        else:
+            model_state = align_state_dict(torch.load(path, weights_only=True))
     return model_state
     
 def load_model(cfg, state_dict, mode='eval'):
@@ -251,7 +255,11 @@ def build_optimizer(model, cfg):
 
 def run_training_epoch(shared_replay_buffer, cfg):
     # Load current model (don't need safeload here)
-    model_state = align_state_dict(torch.load(cfg.MODEL_CURR_PATH, weights_only=True))
+    if cfg.MODEL_CURR_PATH.endswith('.safetensors'):
+        from safetensors.torch import load_file
+        model_state = align_state_dict(load_file(cfg.MODEL_CURR_PATH))
+    else:
+        model_state = align_state_dict(torch.load(cfg.MODEL_CURR_PATH, weights_only=True))
     model = load_model(cfg, model_state, mode='train')
 
     stats = MetricsTracker()

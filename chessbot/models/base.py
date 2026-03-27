@@ -33,8 +33,12 @@ class BaseChessBot(nn.Module):
         self.action_dim = 4672
 
     def load_weights(self, path) -> None:
-        """Load weights from a file. Fix added prefix from compilation if needed."""
-        weights = align_state_dict(torch.load(path, weights_only=True))
+        """Load weights from a file. Supports both .safetensors and PyTorch formats."""
+        if path.endswith('.safetensors'):
+            from safetensors.torch import load_file
+            weights = align_state_dict(load_file(path))
+        else:
+            weights = align_state_dict(torch.load(path, weights_only=False))
         self.load_state_dict(weights)
 
     def load_hf_weights(self, repo_id: str, filename: str = "pytorch_model.bin") -> None:
