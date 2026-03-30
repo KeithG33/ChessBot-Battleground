@@ -18,7 +18,7 @@ from accelerate import Accelerator
 from chessbot.common import setup_logger, GREEN, RESET, DEFAULT_DATASET_DIR
 from chessbot.data.dataset import HFChessDataset, ChessDataset
 
-from chessbot.train.utils import WarmupLR, MetricsTracker
+from chessbot.train.utils import MetricsTracker
 from chessbot.train.config import get_cfg
 from chessbot.models.registry import ModelRegistry
 
@@ -127,42 +127,46 @@ class BaseChessTrainer:
         decay_epochs = cfg.get('decay_epochs', 0)
         iters_per_epoch = getattr(self, 'iters_per_epoch', None)
 
-        # Base decay scheduler
+        schedulers = []
+        milestones = []
+
+        if cfg.warmup_iters > 0:
+            schedulers.append(torch.optim.lr_scheduler.LinearLR(
+                self.optimizer,
+                start_factor=cfg.warmup_lr / cfg.lr,
+                end_factor=1.0,
+                total_iters=cfg.warmup_iters,
+            ))
+            milestones.append(cfg.warmup_iters)
+
         if cfg.scheduler == "linear":
-            decay = torch.optim.lr_scheduler.LinearLR(
+            schedulers.append(torch.optim.lr_scheduler.LinearLR(
                 self.optimizer,
                 start_factor=1.0,
                 end_factor=cfg.min_lr / cfg.lr,
                 total_iters=scheduler_iters,
-            )
+            ))
         elif cfg.scheduler == "cosine":
-            decay = torch.optim.lr_scheduler.CosineAnnealingLR(
+            schedulers.append(torch.optim.lr_scheduler.CosineAnnealingLR(
                 self.optimizer, scheduler_iters, cfg.min_lr,
-            )
-        else:
-            decay = None
+            ))
 
-        # Append flat tail at min_lr if decay_epochs < epochs
-        if decay is not None and decay_epochs and iters_per_epoch:
+        if decay_epochs and iters_per_epoch and len(schedulers) > 0:
             flat_iters = (cfg.epochs - decay_epochs) * iters_per_epoch
             if flat_iters > 0:
-                flat = torch.optim.lr_scheduler.ConstantLR(
+                milestones.append((milestones[-1] if milestones else 0) + scheduler_iters)
+                schedulers.append(torch.optim.lr_scheduler.ConstantLR(
                     self.optimizer, factor=cfg.min_lr / cfg.lr, total_iters=flat_iters,
-                )
-                decay = torch.optim.lr_scheduler.SequentialLR(
-                    self.optimizer, schedulers=[decay, flat], milestones=[scheduler_iters],
-                )
+                ))
 
-        # Wrap with warmup
-        if decay is not None and cfg.warmup_iters > 0:
-            return WarmupLR(
-                decay,
-                init_lr=cfg.warmup_lr,
-                num_warmup=cfg.warmup_iters,
-                warmup_strategy=cfg.warmup_strategy,
-            )
+        if not schedulers:
+            return None
+        if len(schedulers) == 1:
+            return schedulers[0]
 
-        return decay
+        return torch.optim.lr_scheduler.SequentialLR(
+            self.optimizer, schedulers=schedulers, milestones=milestones,
+        )
 
     def update_and_log(self, losses: dict, iter: int, train_or_val: str = "train"):
         self.stats.update(losses)
@@ -319,31 +323,38 @@ class HFChessTrainer(BaseChessTrainer):
                 self.model, self.optimizer, self.train_loader, self.scheduler
             )
         )
+        global_iter = 0
         if self.cfg.train.checkpoint_dir:
             self.accelerator.load_state(self.cfg.train.checkpoint_dir)
+            iter_file = os.path.join(self.cfg.train.checkpoint_dir, "global_iter.txt")
+            if os.path.exists(iter_file):
+                with open(iter_file) as f:
+                    global_iter = int(f.read().strip())
+                self._logger.info(f"Resuming from global_iter={global_iter:,}")
+                self.progress_bar.update(global_iter)
 
         # Run training
         self.model.train()
         best_val_loss = float('inf')
         val_loss = float('inf')
-    
+
         for epoch in range(self.cfg.train.epochs):
-    
+
             for iter, data in enumerate(self.train_loader):
                 state, action, result = data[0], data[1], data[2]
                 policy_loss, value_loss, loss = self.train_step(state, action, result)
+                global_iter += 1
                 loss_dict = {
                     "train_loss": loss.item(),
                     "train_ploss": policy_loss.item(),
                     "train_vloss": value_loss.item(),
                 }
-                self.update_and_log(loss_dict, iter)
+                self.update_and_log(loss_dict, global_iter)
 
                 # Validation
                 if (
                     self.cfg.train.validation_every > 0
-                    and iter % self.cfg.train.validation_every == 0
-                    and iter > 0
+                    and global_iter % self.cfg.train.validation_every == 0
                 ):
                     val_loss, val_ploss, val_vloss = self.run_validation()
                     loss_dict = {
@@ -351,18 +362,21 @@ class HFChessTrainer(BaseChessTrainer):
                         "val_ploss": val_ploss,
                         "val_vloss": val_vloss,
                     }
-                    self.update_and_log(loss_dict, iter, train_or_val="val")
+                    self.update_and_log(loss_dict, global_iter, train_or_val="val")
 
                     if val_loss < best_val_loss:
                         best_val_loss = val_loss
                         self.accelerator.save_model(self.model, self.best_model_path, safe_serialization=False)
                         self.accelerator.save_state(output_dir=self.checkpoint_dir)
+                        with open(os.path.join(self.checkpoint_dir, "global_iter.txt"), "w") as f:
+                            f.write(str(global_iter))
 
                     self.progress_bar.refresh()
 
                 self.progress_bar.set_postfix(
                     {
                         "E": f"{epoch + 1}/{self.cfg.train.epochs}",
+                        "Iter": f"{global_iter:,}",
                         "Loss": f"{loss.item():.4f}",
                         "Val": f"{val_loss:.4f}",
                         "LR": f"{self.optimizer.param_groups[0]['lr']:.2e}",
@@ -374,6 +388,8 @@ class HFChessTrainer(BaseChessTrainer):
                 time.sleep(0.1)
 
             self.accelerator.save_state(output_dir=self.checkpoint_dir)
+            with open(os.path.join(self.checkpoint_dir, "global_iter.txt"), "w") as f:
+                f.write(str(global_iter))
 
         self._logger.info(f"Training complete!")
         self.progress_bar.close()
