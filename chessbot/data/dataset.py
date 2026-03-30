@@ -87,19 +87,14 @@ class HFChessDataset(IterableDataset):
             best_actions = example["best_actions"]   # torch.int16 tensor of best action indices, empty if absent
             legal_actions = example["legal_actions"] # torch.int16 tensor of legal action indices
             result = example["result"]               # float32 scalar tensor
-            source = example["source"]               # "tablebase" or "game"
 
             action_vec = torch.zeros(4672, dtype=torch.float32)
             action_vec[legal_actions.long()] = 0.1
 
-            if source == "tablebase":
-                # All best_actions are equally optimal tablebase moves — all 1.0
-                # The played move IS one of the best moves so it also gets 1.0
+            if len(best_actions) > 0:
                 action_vec[best_actions.long()] = 1.0
-            elif len(best_actions) == 1:
-                # Single best move from lc0/engine annotation: best move is 1.0, played move is 0.9
-                action_vec[best_actions.long()] = 1.0
-                action_vec[action.long()] = 0.9
+                if action.item() not in best_actions:
+                    action_vec[action.long()] = 0.9
             else:
                 action_vec[action.long()] = 1.0
 
