@@ -17,8 +17,10 @@ class ResidualBlock(nn.Module):
         self.norm2 = nn.LayerNorm(input_dim)
 
     def forward(self, x):
-        out = self.linear1(self.norm1(x))
-        out = self.linear2(self.gelu(out))
+        out = self.norm1(x)
+        out = self.linear1(out)
+        out = self.gelu(out)
+        out = self.linear2(out)
         out = self.norm2(out + x)
         return out
 
@@ -41,7 +43,7 @@ class SwinChessBot(BaseChessBot):
             pretrained=False,
             img_size=8, 
             patch_size=1,
-            window_size=2, 
+            window_size=4, 
             in_chans=1,
         ).to(device)
 
@@ -61,9 +63,9 @@ class SwinChessBot(BaseChessBot):
         # # Value head
         self.value_head = nn.Sequential(
             ResidualBlock(num_features, 2*num_features),
-            nn.Linear(num_features, num_features),
+            nn.Linear(num_features, 2*num_features),
             nn.GELU(),
-            nn.Linear(num_features, 1),
+            nn.Linear(2*num_features, 1),
             nn.Tanh()
         ).to(device)
         
