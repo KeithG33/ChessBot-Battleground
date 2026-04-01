@@ -182,7 +182,7 @@ chessbot play "swin_chessbot" --model-weights KeithG33/swin_chessbot
 ```
 
 <div align="center">
-  <img src="assets/webapp_placeholder.png" style="width: 70%; height: auto;">
+  <img src="assets/chessbot-battleground-app.png" style="width: 60%; height: auto;">
   <p><em>ChessBot web app — Play, Analysis, and Self-Play tabs.</em></p>
 </div>
 
