@@ -13,7 +13,7 @@ from chessbot.models import align_state_dict
 from chessbot.models.base import BaseChessBot
 from huggingface_hub import hf_hub_download
 
-from chessbot.app import play as play_fn
+from chessbot.app import launch as play_fn
 
 app = typer.Typer(help="ChessBot CLI Tool")
 
@@ -171,7 +171,7 @@ def play(
     if model_weights:
         load_weights(model, model_weights, hf_filename)
 
-    play_fn(model, port)
+    play_fn(model, port=port)
 
 
 @app.command()
