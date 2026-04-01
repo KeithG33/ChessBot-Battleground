@@ -44,16 +44,23 @@ pip install git+https://github.com/KeithG33/ChessBot-Battleground.git
 ╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
 
-## ⬇️ 2.  Download the Dataset
+## ⬇️ 2. Dataset
 
-> **Note:** Downloading the dataset is no longer required as it is now *[available to be streamed from HuggingFace.](https://ishortn.ink/chessbot-dataset)* 
+The dataset is *[available on HuggingFace](https://ishortn.ink/chessbot-dataset)* and streams automatically — no download required. The `HFChessDataset` and `HFChessTrainer` classes handle this transparently.
 
-
-For those who want to see the data, you can download from HuggingFace or use the chessbot tool:
+If you'd prefer to download it locally:
 
 ```bash
-# Download to cwd if pip installed, or ChessBot-Battleground/dataset if source installed.
+# Downloads to ChessBot-Battleground/dataset/ (source install) or cwd (pip install)
 chessbot download
+```
+
+Use `ChessDataset` to load local PGN files instead of streaming:
+
+```python
+from chessbot.data import ChessDataset
+
+dataset = ChessDataset("path/to/pgn_files", num_processes=8)
 ```
 
 
@@ -270,40 +277,36 @@ scores = run_match(
 
 The returned `scores` will be a tuple of `(p1_score, p2_score)` with the usual +1 for win, 0.5 for draw, and 0 for loss. 
 
-## 🎮 7. GamePlay App
+## 🎮 7. Web App
 
-Of course the most important thing is playing your bot and seeing it it beats you.
+`chessbot play` launches a web app with three tabs: **Play**, **Analysis**, and **Self-Play**. Your browser will open automatically.
 
 ```bash
 chessbot play "simple_chessbot" \
               --model-weights /path/to/weights.bin \
-              --model-kwargs '{"hidden_dim": 512}' \ # optional args and kwargs
 ```
 
-This will start a simple game app to play against your model. You can also play against the
-other hall-of-fame models in the [models/](../models/) directory using their HuggingFace weights:
+You can also load any of the hall-of-fame models directly from HuggingFace:
 
 ```bash
-chessbot play "sgu_chessbot" \
-              --model-weights KeithG33/sgu_chessbot \
+chessbot play "sgu_chessbot" --model-weights KeithG33/sgu_chessbot
 ```
 
-You can also run automated games from the command line:
+- **Play** — play a game against your model
+- **Analysis** — step through positions from the dataset and see the model's top-N move predictions
+- **Self-Play** — watch the model play against itself, with optional MCTS search
+
+You can also run games headlessly from the command line:
 
 ```bash
 # Selfplay
 chessbot selfplay "sgu_chessbot" --model-weights KeithG33/sgu_chessbot --search
 
 # Best-of match
-chessbot play-match "sgu_chessbot" "simple_chessbot" \
+chessbot run-match "sgu_chessbot" "simple_chessbot" \
                --player1-weights KeithG33/sgu_chessbot \
                --player2-weights /path/to/simple_weights.pt
 ```
-## 💾 8. Generating Data
-
-Future goals are to add lots more data using stockfish as the teacher. However generating data with my personal computer is prohibitively slow so I am leaving code as a little breadcrumb/bait for the community.
-
-See [example_sf_datagen.ipynb](../examples/example_sf_datagen.ipynb)
 
 --- 
 

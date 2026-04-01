@@ -7,7 +7,7 @@
 
 **Chess AI Training & Battleground Platform**
 
-[**Getting Started**](#getting-started) • [**Tutorial**](./tutorials/tutorial_usage_and_tips.md) • [**Dataset**](#-dataset) • [**Training**](#-training) • [**Inference & Battling**](#-inference--battling) • [**Models**](#models)
+[**Getting Started**](#getting-started) • [**Examples**](./examples/tutorial_usage_and_tips.md) • [**Dataset**](#-dataset) • [**Training**](#-training) • [**Inference & Battling**](#-inference--battling) • [**Models**](#models)
 
 *[Dataset now on HuggingFace](https://huggingface.co/datasets/KeithG33/ChessBot-Dataset/tree/main)* 
 
@@ -47,12 +47,13 @@ chessbot play "swin_chessbot" --model-weights KeithG33/swin_chessbot
 ## 📂 Dataset
 Dataset is *[available on HuggingFace.](https://ishortn.ink/chessbot-dataset)*  
 
-Currently the dataset contains approximately **700 million positions** in **PGN format**, split across 1000 files. Huge credits to the following main sources:
+Currently the dataset contains approximately **4 billion positions** in compressed **PGN format**. Huge credits to the following main sources:
 
-- Lumbra's Database (filtered 2600+)
+- Deepmind's ChessBench
+- LC0 training data  
 - Lichess Puzzle Database
-- Computer Chess: TCEC Database, CCRL
-<!-- - (*coming soon*) Stockfish Data: position evaluation, puzzle solutions, best-move sequences   -->
+- TCEC and CCRL Databases
+
   
       
 The PyTorch `HFChessDataset` is a wrapper around the HuggingFace dataset to easily get you started:
@@ -72,7 +73,7 @@ results = batch[2]  # (B,)
 This will stream the data to avoid large disk and RAM usage. To load pgn files directly, use the `ChessDataset` class. This is useful for smaller datasets or loading your own data:
 
 ```python
-import chessbot.data.ChessDataset
+import chessbot.data import ChessDataset
 
 pgn_files   = 'path/to/pgn_files' # File, directory, or list of files
 num_proc    = 8                   # Num files to load in parallel
@@ -83,7 +84,7 @@ batch       = next(iter(dataloader))
 ```
 ## 🤖 Models
 
-Design your model and see how it does! To take advantage of the training and inference code, models should subclass the `BaseChessBot` class and follow the expected format:
+Design a model and see how it does! To take advantage of the training and inference code, models should subclass the `BaseChessBot` class and follow the expected format:
 1. **Input**: `(B, 1, 8, 8)` tensor for position
 2. **Output**: a policy distribution of shape `(B, 4672)`, and expected value of shape `(B, 1)`.
 
@@ -162,235 +163,72 @@ if __name__ == '__main__':
 Check out [`chessbot/train/config.yaml`](chessbot/train/config.yaml) for a list and description of the available options. The [Getting Started](#-getting-started) section shows a full example, and a command-line way to train.
 
 
-## 🕹️ Gameplay & Inference
+## 🕹️ Web App
 
-Take your models to the battleground! The library depends on an **Adversarial Gym Environment** to visualize model inference. Use the game app to play a game against your model, or use the inference functions in [`chessbot.inference`](chessbot/inference/) to run CPU games.
+`chessbot play` launches a web app with three tabs:
 
-### Game App
+- **Play** — play a game against your model
+- **Analysis** — step through dataset positions and see the model's top-N move predictions
+- **Self-Play** — watch the model play against itself, with optional MCTS search
 
-Play any registered model directly from the CLI:
+Load any model from a local file or HuggingFace:
 
 ```bash
-# play the pretrained model, can you beat it?
+# Local file
+chessbot play "your_model" --model-weights path/to/model/file
+
+# Huggingface hall-of-fame model
 chessbot play "swin_chessbot" --model-weights KeithG33/swin_chessbot
-
-# play with local weights
-chessbot play "your_chessbot" --model-weights path/to/weights.pt
-
 ```
 
-### CPU Inference
-
-```python
-from chessbot.inference import selfplay, run_match
-
-# Self-play a single model
-model1 = YourChessBot()
-outcome = selfplay(model1, visualize=True)  # [-1, 0, 1] outcome
-
-# Duel two models with optional MCTS
-model2 = YourChessBot()
-scores = run_match(model1, model2, best_of=11, search=True, visualize=True)
-```
-
-Set `search=True` to harness **Monte Carlo Tree Search (MCTS)**. The [Chess Battle GIF](#chess-battle-gif) shows a game using the Chess-env and MCTS at test time.
+<div align="center">
+  <img src="assets/webapp_placeholder.png" style="width: 70%; height: auto;">
+  <p><em>ChessBot web app — Play, Analysis, and Self-Play tabs.</em></p>
+</div>
 
 
 ## ✨ Getting Started
 
+### Installation
 
-### 1. Installation: 
+```bash
+# From source (recommended)
+git clone https://github.com/KeithG33/ChessBot-Battleground.git
+cd ChessBot-Battleground
+pip install -r requirements.txt
+pip install -e .
 
-**Install ChessBot-Battleground:**
+# Or via pip
+pip install git+https://github.com/KeithG33/ChessBot-Battleground.git
+```
 
-  ```bash
-  # Either install from source...
-  git clone https://github.com/KeithG33/ChessBot-Battleground.git
-  cd ChessBot-Battleground
-  pip install -r requirements.txt
-  pip install -e .
-
-  # Or install via pip 
-  pip install git+https://github.com/KeithG33/ChessBot-Battleground.git
-  ```
-
-**Verify Installation:**
+**Verify:**
 
 ```bash
 chessbot --help
-                                                                                                       
- Usage: chessbot [OPTIONS] COMMAND [ARGS]...                                                                                                                                                                                          
-                                                                                                                                                                                                                                      
- ChessBot CLI Tool                                                                                                                                                                                                                    
-                                                                                                                                                                                                                                      
+
+ Usage: chessbot [OPTIONS] COMMAND [ARGS]...
+
+ ChessBot CLI Tool
+
 ╭─ Options ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
 │ --install-completion          Install completion for the current shell.                                                                                                                                                            │
 │ --show-completion             Show completion for the current shell, to copy it or customize the installation.                                                                                                                     │
 │ --help                        Show this message and exit.                                                                                                                                                                          │
 ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-│ evaluate   Evaluate a model. Pass additional positional arguments with --model-arg and keyword arguments as a JSON string via --model-kwargs.                                                                                      │
-│ download   Download a dataset from a GitHub release.                                                                                                                                                                               │
-│ play       Play a game against the bot using a loaded model. Pass additional positional arguments with --model-arg and keyword arguments as a JSON string via --model-kwargs.                                                      │
+│ evaluate   Evaluate a model.                                                                                                                                                                                                       │
+│ download   Download the dataset.                                                                                                                                                                                                   │
+│ play       Launch the web app to play, analyze, and watch self-play.                                                                                                                                                               │
 │ train      Train a model using the provided configuration file and optional overrides.                                                                                                                                             │
 ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
 
+### Examples & Guides
 
-### 2. Check the Dataset:
-*[See the dataset on HuggingFace](https://huggingface.co/datasets/KeithG33/ChessBot-Dataset/tree/main)* 
+📖 [**Usage Guide**](examples/tutorial_usage_and_tips.md) — end-to-end walkthrough covering dataset, training, evaluation, and the web app.
 
-If you want to see the dataset, either use the HuggingFace UI in the link or use the `chessbot` cli tool:
-```bash
-# For options and help
-chessbot download --help 
-
-# Download latest release to cwd if pip installed, or ChessBot-Battleground/dataset if source installed.
-chessbot download
-```
-
-By default, the latest release will be downloaded into the `ChessBot-Battleground/dataset/` directory, or the current working directory if the package has been pip installed.
-
-### 3. Models & Training
-
-It is time to write a model and injest some data. Here's a full example of writing a custom model and training:
-
-```python
-import os
-import chessbot
-from chessbot.train import HFChessTrainer
-from chessbot.models import BaseChessBot
-
-class SimpleChessBot(BaseChessBot):
-  """ One layer backbone and one layer prediction heads """
-    
-    def __init__(self):
-      super().__init__()
-      # Backbone and prediction heads
-      self.backbone = nn.Linear(64, 256)
-      self.policy_head = nn.Linear(256, self.action_dim)
-      self.value_head = nn.Sequential(
-          nn.Linear(256, 1),
-          nn.Tanh()  # Between -1 and 1 for lose, draw, win
-      )
-
-    def forward(self, x):
-      """ Input is tensor of shape (B,1,8,8) """
-      x             = x.view(B, -1)               # -> (B, 64)
-      features      = self.backbone(x)            # -> (B, 256)
-      action_logits = self.policy_head(features)  # -> (B, 4672)
-      board_val     = self.value_head(features)   # -> (B, 1)
-      return action_logits, board_val
-
-
-if __name__ == '__main__':
-    cfg = chessbot.config.get_cfg()
-    cfg.train.epochs = 50 
-    cfg.train.batch_size = 1024
-    cfg.train.lr = 0.0001
-    cfg.train.scheduler = 'linear'
-    cfg.train.min_lr = 0.00005
-    cfg.train.warmup_lr = 0.00001
-    cfg.train.warmup_iters = 1000
-    cfg.train.compile = True
-    cfg.train.amp = 'bf16'
-    cfg.train.validation_every = 15_000
-    cfg.dataset.num_workers = 4
-    cfg.dataset.num_test_samples = 1_000_000
-    cfg.dataset.shuffle_buffer = 100_000
-
-    model = SimpleChessBot()
-
-    trainer = HFChessTrainer(cfg, model)
-    trainer.train()
-```
-
-For the CLI version of training, you can use the `chessbot` cli tool. First register your model, and then configure `model.path` (path to your model file) and `model.name` (class name) to load the model. Either set this in the config file, or use the command overrides:
-
-```bash
-# For options and help
-chessbot train --help
-
-# Train from config, and any overrides in command
-chessbot train /path/to/config.yaml \
-              -o model.path path/to/simple_chessbot.py \
-              -o model.name SimpleChessBot \
-              -o train.epochs 10 \
-              -o train.lr 0.001 \
-```
-
-Additionally, `model.args` and `model.kwargs` exist for the model init. Use a list and dictionary, respectively.
-
-> **✨ Tip:** If your model is in the `models/` directory then just `model.name` is required. It will be auto-registered.
-
-
-### 4. Leaderboard / Evaluation
-Share your model's results on the test set. Compare your scores against the leaderboard. Once you've trained a model run the provided evaluate script to get your test set metrics.
-
-```python
-from chessbot.inference.evaluate import evaluate_model
-
-# Load and evaluate model
-model = ChessModel()
-batch_size = 3072
-num_processes = 8
-evaluate_model(model, batch_size, num_processes)
-```
-
-Or if your model is registered as "your_chessbot", using the `chessbot` cli tool:
-```bash
-# For options and help:
-chessbot evaluate --help
-
-chessbot evaluate "your_chessbot" \
-                --model-dir path/to/dir \
-                --model-weights path/to/weights.pt \
-                --batch-sz 3072 \
-                --num-threads 8 \
-```
-
-### 5. Play Your ChessBot
-A historically important question for humankind: *Can your model beat you?*
-
-
-```bash
-# For options and help
-chessbot play --help
-
-chessbot play "your_chessbot" \
-              --model-dir /path/to/dir \
-              --model-weights /path/to/weights.pt
-
-# Or load weights directly from HuggingFace
-chessbot play "swin_chessbot" \
-              --model-weights KeithG33/swin_chessbot
-```
-
-```bash
-# Selfplay or battle two models
-chessbot selfplay "swin_chessbot" --model-weights KeithG33/swin_chessbot
-
-chessbot play-match "swin_chessbot" "simple_chessbot" \
-               --player1-weights KeithG33/swin_chessbot \
-               --player2-weights /path/to/simple_weights.pt
-```
-
-<div align="center">
-<img src="assets/battleground.png" style="width: 70%; height: auto;">  
-  <p><em> Punishing a beautiful queen sac from a randomly initialized model ;)</em></p>
-</div>
-
-### 6. Examples
-
-Check out the [chessbot models](models/) for ideas.
-
-
-## 📈 Future Plans
-
-- Get to an epic milestone of **1 billion positions**
-- Clean, de-duplicate, and expand the dataset with Stockfish data
-- Release **MCTS training pipelines**.
-- Train more models, add a leaderboard
+More runnable examples are in the [**examples/**](examples/) directory.
 
 
 ## 🛠️ Contributing
