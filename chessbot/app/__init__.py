@@ -1,1 +1,1 @@
-from .app import play
+from .app import launch

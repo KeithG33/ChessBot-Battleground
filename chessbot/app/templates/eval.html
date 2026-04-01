@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ChessBot Battleground App</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chessground@9.1.1/assets/chessground.base.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chessground@9.1.1/assets/chessground.brown.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chessground@9.1.1/assets/chessground.cburnett.css">
+  <style>
+    :root {
+      --bg: #f5f0eb; --surface: #ffffff; --surface-alt: #faf7f4;
+      --text: #2c2418; --text-secondary: #7a6e5f; --text-muted: #b0a694;
+      --accent: #8b7355; --accent-hover: #74613f; --border: #e8e2db;
+      --green: #5a8a5e; --red: #a85d5d; --blue: #4a7fb5; --gold: #c49b2f;
+      --radius: 10px; --shadow: 0 2px 20px rgba(0,0,0,0.08);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+    .container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+
+    /* Header + Tabs */
+    .header { display: flex; align-items: center; gap: 32px; margin-bottom: 24px; }
+    .header h1 { font-size: 24px; font-weight: 700; }
+    .tabs { display: flex; gap: 4px; }
+    .tab {
+      padding: 8px 20px; font-size: 14px; font-weight: 500; font-family: 'Inter', sans-serif;
+      cursor: pointer; border: none; background: none; color: var(--text-muted);
+      border-bottom: 2px solid transparent; transition: all 0.15s;
+    }
+    .tab:hover { color: var(--text-secondary); }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    /* Controls bar */
+    .controls { display: flex; gap: 10px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; }
+    .btn {
+      padding: 8px 18px; font-size: 13px; font-weight: 500; font-family: 'Inter', sans-serif;
+      cursor: pointer; border: 1px solid var(--border); border-radius: 6px;
+      background: var(--surface); color: var(--text); transition: all 0.15s;
+    }
+    .btn:hover { background: var(--surface-alt); border-color: var(--accent); }
+    .btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-danger { background: var(--red); color: #fff; border-color: var(--red); }
+    .btn-danger:hover { opacity: 0.85; }
+    .btn-reset { display: none; }
+    select.top-n-select {
+      padding: 8px 12px; font-size: 13px; font-family: 'Inter', sans-serif;
+      border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text); cursor: pointer;
+    }
+
+    /* Main layout */
+    .main { display: grid; grid-template-columns: auto 1fr; gap: 28px; align-items: start; }
+
+    /* Board */
+    .board-wrap { background: var(--surface); border-radius: var(--radius); padding: 12px; box-shadow: var(--shadow); }
+    .cg-wrap { width: 480px; height: 480px; }
+    .board-status { text-align: center; margin-top: 10px; font-size: 13px; color: var(--text-secondary); }
+    .status-pill { display: inline-block; padding: 4px 14px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+    .status-white { background: #eef5ee; color: var(--green); }
+    .status-black { background: #f0ece4; color: var(--text); }
+    .status-loading { background: #fef5e7; color: #b8860b; }
+    .status-gameover { background: #f5eded; color: var(--red); }
+    .status-yourturn { background: #eef5ee; color: var(--green); }
+    .status-botturn { background: #fef5e7; color: #b8860b; }
+
+    /* Right panel */
+    .panel { display: flex; flex-direction: column; gap: 16px; }
+    .card { background: var(--surface); border-radius: var(--radius); padding: 18px; box-shadow: var(--shadow); }
+    .card-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); margin-bottom: 12px; }
+
+    /* Eval card (shared) */
+    .eval-values { display: flex; gap: 24px; margin-bottom: 14px; }
+    .eval-item label { font-size: 11px; color: var(--text-secondary); display: block; margin-bottom: 2px; }
+    .eval-item .value { font-size: 28px; font-weight: 600; font-variant-numeric: tabular-nums; }
+    .eval-positive { color: var(--green); }
+    .eval-negative { color: var(--red); }
+    .eval-neutral { color: var(--text-secondary); }
+    .eval-bar-container { width: 100%; height: 10px; background: #e0dcd6; border-radius: 5px; overflow: hidden; }
+    .eval-bar-fill { height: 100%; border-radius: 5px; transition: width 0.4s ease; }
+    .eval-bar-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-muted); margin-top: 4px; }
+
+    /* Top moves */
+    .moves-list { max-height: 340px; overflow-y: auto; }
+    .move-row { display: flex; align-items: center; padding: 7px 8px; border-radius: 6px; transition: background 0.1s; cursor: default; gap: 10px; }
+    .move-row:hover { background: var(--surface-alt); }
+    .move-rank { font-size: 11px; font-weight: 600; color: var(--text-muted); width: 22px; text-align: right; flex-shrink: 0; }
+    .move-san { font-size: 14px; font-weight: 500; font-family: 'SF Mono', 'Fira Code', monospace; width: 60px; flex-shrink: 0; }
+    .move-bar-wrap { flex: 1; height: 6px; background: #eee; border-radius: 3px; overflow: hidden; }
+    .move-bar { height: 100%; border-radius: 3px; transition: width 0.3s ease; }
+    .move-prob { font-size: 12px; font-weight: 500; color: var(--text-secondary); width: 50px; text-align: right; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+
+    /* Dataset info */
+    .dataset-info { display: flex; gap: 20px; flex-wrap: wrap; }
+    .dataset-item { font-size: 13px; }
+    .dataset-item label { font-size: 11px; color: var(--text-secondary); display: block; margin-bottom: 2px; }
+    .dataset-item .move-label { font-family: 'SF Mono', 'Fira Code', monospace; font-weight: 500; }
+
+    /* Variation */
+    .variation-moves { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 13px; min-height: 24px; }
+    .var-move { padding: 2px 6px; border-radius: 4px; cursor: pointer; color: var(--text-secondary); transition: background 0.1s; }
+    .var-move:hover { background: var(--surface-alt); }
+    .var-move.active { background: var(--accent); color: #fff; }
+    .var-start { padding: 2px 6px; border-radius: 4px; cursor: pointer; color: var(--text-muted); font-size: 11px; }
+    .var-start:hover { background: var(--surface-alt); }
+    .var-start.active { background: var(--accent); color: #fff; }
+
+    /* Legend */
+    .legend-items { display: flex; flex-direction: column; gap: 6px; }
+    .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-secondary); }
+    .legend-swatch { width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; }
+
+    /* Empty state */
+    .empty-state { text-align: center; padding: 40px 20px; color: var(--text-muted); }
+    .empty-state p { font-size: 14px; margin-top: 8px; }
+
+    /* Modals / Overlays */
+    .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 900; }
+    .modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--surface); padding: 24px 28px; border-radius: var(--radius); box-shadow: 0 8px 32px rgba(0,0,0,0.2); z-index: 1000; text-align: center; }
+    .modal h3 { font-size: 16px; font-weight: 600; margin-bottom: 18px; color: var(--text); }
+    .promo-pieces { display: flex; gap: 8px; justify-content: center; }
+    .promo-piece { width: 54px; height: 54px; border: 2px solid var(--border); border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 36px; transition: border-color 0.15s, background 0.15s; }
+    .promo-piece:hover { border-color: var(--accent); background: var(--surface-alt); }
+
+    /* Side selection */
+    .side-btn { width: 80px; height: 80px; border: 2px solid var(--border); border-radius: 12px; cursor: pointer; transition: all 0.15s; background: var(--surface); }
+    .side-btn:hover { border-color: var(--accent); background: var(--surface-alt); transform: scale(1.05); }
+    .side-btns { display: flex; gap: 20px; justify-content: center; }
+
+    /* Game move history */
+    .game-moves { max-height: 280px; overflow-y: auto; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 13px; line-height: 1.8; color: var(--text-secondary); padding: 4px 0; }
+    .game-moves .move-number { color: var(--text-muted); margin-right: 2px; }
+    .game-moves .san-move { color: var(--text); font-weight: 500; margin: 0 3px; }
+
+    /* Score display */
+    .score-display { display: flex; align-items: center; justify-content: center; gap: 16px; font-size: 18px; font-weight: 600; }
+    .score-label { font-size: 12px; color: var(--text-secondary); font-weight: 400; }
+    .score-val { font-size: 32px; font-variant-numeric: tabular-nums; }
+    .score-sep { font-size: 24px; color: var(--text-muted); }
+
+    /* Game result overlay */
+    .result-msg { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+    .result-sub { font-size: 14px; color: var(--text-secondary); margin-bottom: 20px; }
+
+    .position-counter { font-size: 12px; color: var(--text-muted); margin-left: auto; }
+
+    @media (max-width: 900px) {
+      .main { grid-template-columns: 1fr; }
+      .cg-wrap { width: min(480px, calc(100vw - 72px)); height: min(480px, calc(100vw - 72px)); }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header with tabs -->
+    <div class="header">
+      <h1>ChessBot Battleground App</h1>
+      <div class="tabs">
+        <button class="tab active" id="tab-play">Play</button>
+        <button class="tab" id="tab-analysis">Analysis</button>
+        <button class="tab" id="tab-selfplay">Self-Play</button>
+      </div>
+    </div>
+
+    <!-- ═══ ANALYSIS CONTROLS ═══ -->
+    <div class="controls" id="controls-analysis" style="display:none;">
+      <button class="btn btn-primary" id="btn-next">Next Position</button>
+      <button class="btn btn-reset" id="btn-reset">Reset</button>
+      <button class="btn" id="btn-flip-analysis">Flip Board</button>
+      <label style="font-size:13px; color:var(--text-secondary);">Top
+        <select class="top-n-select" id="top-n-select">
+          <option value="5">5</option><option value="10" selected>10</option>
+          <option value="15">15</option><option value="20">20</option>
+        </select>
+      </label>
+      <span class="position-counter" id="position-counter"></span>
+    </div>
+
+    <!-- ═══ SELF-PLAY CONTROLS ═══ -->
+    <div class="controls" id="controls-selfplay" style="display:none; flex-wrap:wrap; gap:10px; align-items:center;">
+      <button class="btn btn-primary" id="btn-sp-start">&#9654; Start</button>
+      <button class="btn" id="btn-sp-restart" disabled>&#8635; Restart</button>
+      <button class="btn btn-danger" id="btn-sp-stop" disabled>&#9632; Reset</button>
+      <div style="display:flex; align-items:center; gap:8px; margin-left:8px;">
+        <span style="font-size:12px; color:var(--text-secondary);">Speed</span>
+        <input type="range" id="sp-speed" min="0" max="2000" value="500" step="50" style="width:120px; cursor:pointer;">
+        <span id="sp-speed-label" style="font-size:12px; color:var(--text-secondary); width:42px;">500ms</span>
+      </div>
+    </div>
+
+    <!-- ═══ PLAY CONTROLS ═══ -->
+    <div class="controls" id="controls-play">
+      <button class="btn btn-primary" id="btn-new-game">New Game</button>
+      <button class="btn btn-danger" id="btn-resign" disabled>Resign</button>
+      <button class="btn" id="btn-flip-play">Flip Board</button>
+    </div>
+
+    <div class="main">
+      <!-- Board (shared) -->
+      <div class="board-wrap">
+        <div id="board" class="cg-wrap"></div>
+        <div class="board-status">
+          <span class="status-pill" id="status-pill">Click New Game to start</span>
+        </div>
+      </div>
+
+      <!-- ═══ SELF-PLAY PANEL ═══ -->
+      <div class="panel" id="panel-selfplay" style="display:none;">
+        <div class="card">
+          <div class="card-title">Self-Play Config</div>
+          <div style="display:flex; flex-direction:column; gap:12px;">
+            <label style="display:flex; align-items:center; gap:10px; cursor:pointer;">
+              <input type="checkbox" id="sp-use-mcts" style="cursor:pointer; width:15px; height:15px;">
+              <div>
+                <div style="font-size:13px; font-weight:500; color:var(--text);">MCTS</div>
+                <div style="font-size:11px; color:var(--text-muted);">Monte Carlo Tree Search</div>
+              </div>
+            </label>
+            <div id="sp-sims-wrap" style="display:none; flex-direction:column; gap:4px; padding-left:25px;">
+              <label style="font-size:12px; color:var(--text-secondary);">Simulations
+                <span style="color:var(--text-muted); font-weight:400;"> — more = stronger but slower</span>
+              </label>
+              <input type="number" id="sp-num-sims" value="250" min="10" max="2000" step="10"
+                style="width:90px; padding:5px 8px; font-size:13px; border:1px solid var(--border); border-radius:6px; background:var(--surface); color:var(--text);">
+            </div>
+            <label id="sp-sample-wrap" style="display:flex; align-items:center; gap:10px; cursor:pointer;">
+              <input type="checkbox" id="sp-sample" style="cursor:pointer; width:15px; height:15px;">
+              <div>
+                <div style="font-size:13px; font-weight:500; color:var(--text);">Sampling</div>
+                <div style="font-size:11px; color:var(--text-muted);">Sample from distribution (off = best move only)</div>
+              </div>
+            </label>
+            <div id="sp-mode-summary" style="margin-top:2px; padding:8px 10px; background:var(--surface-alt); border-radius:6px; font-size:12px; color:var(--text-secondary); border:1px solid var(--border);">
+              Mode: <strong id="sp-mode-text" style="color:var(--accent);">Best Move</strong>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Score</div>
+          <div class="score-display">
+            <div><div class="score-label">White</div><div class="score-val" id="sp-white-score">0</div></div>
+            <div class="score-sep">—</div>
+            <div><div class="score-label">Black</div><div class="score-val" id="sp-black-score">0</div></div>
+          </div>
+        </div>
+        <div class="card" id="sp-game-card">
+          <div class="card-title">Current Game</div>
+          <div id="sp-game-status" style="font-size:13px; color:var(--text-secondary); margin-bottom:6px;">
+            Click <strong>Start</strong> to begin
+          </div>
+          <div id="sp-last-move" style="font-size:12px; color:var(--text-muted);"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Moves</div>
+          <div class="game-moves" id="sp-moves-list"><span style="color:var(--text-muted);">No moves yet</span></div>
+        </div>
+      </div>
+
+      <!-- ═══ ANALYSIS PANEL ═══ -->
+      <div class="panel" id="panel-analysis" style="display:none;">
+        <div class="card" id="eval-card" style="display:none;">
+          <div class="card-title">Evaluation (<span id="eval-side">White</span>)</div>
+          <div class="eval-values">
+            <div class="eval-item"><label>Model</label><div class="value" id="model-eval">—</div></div>
+            <div class="eval-item" id="gt-eval-item"><label>Ground Truth</label><div class="value" id="gt-eval">—</div></div>
+          </div>
+          <div class="eval-bar-container"><div class="eval-bar-fill" id="eval-bar" style="width:50%;background:#999;"></div></div>
+          <div class="eval-bar-labels"><span>-1.0</span><span>0.0</span><span>+1.0</span></div>
+        </div>
+        <div class="card" id="moves-card" style="display:none;"><div class="card-title">Top Moves</div><div class="moves-list" id="moves-list"></div></div>
+        <div class="card" id="dataset-card" style="display:none;"><div class="card-title">Dataset</div><div class="dataset-info" id="dataset-info"></div></div>
+        <div class="card" id="variation-card" style="display:none;">
+          <div class="card-title">Variation <span id="variation-hint" style="font-weight:400;text-transform:none;letter-spacing:0;">← → arrow keys</span></div>
+          <div class="variation-moves" id="variation-moves"></div>
+        </div>
+        <div class="card" id="legend-card" style="display:none;">
+          <div class="card-title">Arrows</div>
+          <div class="legend-items">
+            <div class="legend-item"><span class="legend-swatch" style="background:#3b82f6;"></span> Played move</div>
+            <div class="legend-item"><span class="legend-swatch" style="background:#eab308;"></span> Best move</div>
+            <div class="legend-item"><span class="legend-swatch" style="background:#15803d;"></span><span class="legend-swatch" style="background:#4ade80;"></span><span class="legend-swatch" style="background:#a3e635;"></span><span class="legend-swatch" style="background:#facc15;"></span><span class="legend-swatch" style="background:#fb923c;"></span> Model top 1–N</div>
+          </div>
+        </div>
+        <div class="empty-state" id="empty-state"><p>Click <strong>Next Position</strong> to load a position from the test dataset</p></div>
+      </div>
+
+      <!-- ═══ PLAY PANEL ═══ -->
+      <div class="panel" id="panel-play">
+        <div class="card">
+          <div class="card-title">Score</div>
+          <div class="score-display">
+            <div><div class="score-label">You</div><div class="score-val" id="player-score">0</div></div>
+            <div class="score-sep">—</div>
+            <div><div class="score-label">Bot</div><div class="score-val" id="cpu-score">0</div></div>
+          </div>
+        </div>
+        <div class="card" id="game-eval-card">
+          <div class="card-title" style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0;">
+            <span>Bot Evaluation (<span id="game-eval-side">White</span>)</span>
+            <label style="font-size:11px; font-weight:500; color:var(--text-muted); display:flex; align-items:center; gap:5px; cursor:pointer; user-select:none; text-transform:none; letter-spacing:0;">
+              <input type="checkbox" id="toggle-eval" checked style="cursor:pointer;"> Show
+            </label>
+          </div>
+          <div id="game-eval-body" style="margin-top:12px;">
+            <div class="eval-values">
+              <div class="eval-item"><label>Model</label><div class="value" id="game-model-eval">—</div></div>
+            </div>
+            <div class="eval-bar-container"><div class="eval-bar-fill" id="game-eval-bar" style="width:50%;background:#999;"></div></div>
+            <div class="eval-bar-labels"><span>-1.0</span><span>0.0</span><span>+1.0</span></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Moves</div>
+          <div class="game-moves" id="game-moves-list"><span style="color:var(--text-muted);">Start a new game to play</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Overlays -->
+  <div class="overlay" id="overlay"></div>
+  <div class="modal" id="promo-modal"><h3>Promote to</h3><div class="promo-pieces" id="promo-pieces"></div></div>
+  <div class="modal" id="side-modal">
+    <h3>Choose Your Side</h3>
+    <div class="side-btns">
+      <img class="side-btn" id="side-white" src="https://images.chesscomfiles.com/chess-themes/pieces/neo/150/wk.png" alt="White">
+      <img class="side-btn" id="side-black" src="https://images.chesscomfiles.com/chess-themes/pieces/neo/150/bk.png" alt="Black">
+    </div>
+  </div>
+  <div class="modal" id="result-modal">
+    <div class="result-msg" id="result-msg"></div>
+    <div class="result-sub" id="result-sub"></div>
+    <button class="btn btn-primary" id="btn-play-again">New Game</button>
+  </div>
+
+  <script type="module">
+    import { Chessground } from 'https://cdn.jsdelivr.net/npm/chessground@9.1.1/+esm';
+    import { Chess } from 'https://cdn.jsdelivr.net/npm/chess.js@1.0.0-beta.8/+esm';
+
+    // ── State ────────────────────────────────────────────────────
+    let cg = null;
+    let chess = new Chess();
+    let currentOrientation = 'white';
+    let pendingPromotion = null;
+    let topN = {{ top_n }};
+
+    // Mode: 'analysis' or 'play'
+    let currentMode = 'play';
+
+    // Analysis state
+    let isOriginal = true;
+    let moveStack = [];
+    let moveIndex = 0;
+    let lastAnalysisData = null;
+
+    // Play state
+    let playerColor = null;  // 'w' or 'b'
+    let gameActive = false;
+
+    // ── Init chessground ─────────────────────────────────────────
+    const boardEl = document.getElementById('board');
+    cg = Chessground(boardEl, {
+      orientation: 'white',
+      movable: { free: false, color: 'both', dests: new Map(), events: { after: onMove } },
+      draggable: { showGhost: true },
+      highlight: { lastMove: true, check: true },
+      animation: { duration: 200 },
+      drawable: {
+        enabled: true,
+        brushes: {
+          top1: { key:'top1', color:'#15803d', opacity:0.85, lineWidth:14 },
+          top2: { key:'top2', color:'#4ade80', opacity:0.7,  lineWidth:11 },
+          top3: { key:'top3', color:'#a3e635', opacity:0.6,  lineWidth:9 },
+          top4: { key:'top4', color:'#facc15', opacity:0.5,  lineWidth:8 },
+          top5: { key:'top5', color:'#fb923c', opacity:0.4,  lineWidth:7 },
+          topN: { key:'topN', color:'#f87171', opacity:0.3,  lineWidth:6 },
+          played:{ key:'played', color:'#3b82f6', opacity:0.7, lineWidth:10 },
+          best:  { key:'best',   color:'#eab308', opacity:0.7, lineWidth:10 },
+        },
+      },
+    });
+
+    // ── Helpers ───────────────────────────────────────────────────
+    function getBrush(rank) {
+      if (rank<=1) return'top1'; if(rank<=2) return'top2'; if(rank<=3) return'top3';
+      if (rank<=4) return'top4'; if(rank<=5) return'top5'; return'topN';
+    }
+    function evalClass(v) { return v>0.05?'eval-positive':v<-0.05?'eval-negative':'eval-neutral'; }
+    function formatEval(v) { return (v===null||v===undefined)?'—':(v>=0?'+':'')+v.toFixed(2); }
+    function setStatus(text, cls) { const p=document.getElementById('status-pill'); p.textContent=text; p.className='status-pill '+(cls||''); }
+    function toDests(lm) { const d=new Map(); for(const[f,ts] of Object.entries(lm)) d.set(f,ts); return d; }
+    function showModal(id) { document.getElementById('overlay').style.display='block'; document.getElementById(id).style.display='block'; }
+    function hideModals() { document.getElementById('overlay').style.display='none'; document.querySelectorAll('.modal').forEach(m=>m.style.display='none'); }
+    document.getElementById('overlay').addEventListener('click', hideModals);
+
+    function updateEvalBar(val, barId) {
+      const pct = ((val+1)/2)*100;
+      const bar = document.getElementById(barId);
+      bar.style.width = pct+'%';
+      bar.style.background = val>0.1?'var(--green)':val<-0.1?'var(--red)':'#999';
+    }
+
+    // ── Tab switching ────────────────────────────────────────────
+    function switchMode(mode) {
+      currentMode = mode;
+      document.getElementById('tab-analysis').classList.toggle('active', mode==='analysis');
+      document.getElementById('tab-play').classList.toggle('active', mode==='play');
+      document.getElementById('tab-selfplay').classList.toggle('active', mode==='selfplay');
+      document.getElementById('controls-analysis').style.display = mode==='analysis'?'':'none';
+      document.getElementById('controls-play').style.display = mode==='play'?'':'none';
+      document.getElementById('controls-selfplay').style.display = mode==='selfplay'?'':'none';
+      document.getElementById('panel-analysis').style.display = mode==='analysis'?'':'none';
+      document.getElementById('panel-play').style.display = mode==='play'?'':'none';
+      document.getElementById('panel-selfplay').style.display = mode==='selfplay'?'':'none';
+
+      if (mode === 'play') {
+        cg.setAutoShapes([]);
+        // Restore game board if active
+        if (gameActive) {
+          fetchGameState();
+        } else {
+          cg.set({ fen: 'start', movable: { color: undefined, dests: new Map() } });
+          setStatus('Click New Game to start', '');
+        }
+      } else {
+        cg.setAutoShapes([]);
+        if (lastAnalysisData) {
+          updateAnalysisUI(lastAnalysisData);
+        } else {
+          cg.set({ fen: 'start', movable: { color: undefined, dests: new Map() } });
+          setStatus('Load a position to begin', '');
+        }
+      }
+    }
+    document.getElementById('tab-analysis').addEventListener('click', () => switchMode('analysis'));
+    document.getElementById('tab-play').addEventListener('click', () => switchMode('play'));
+
+    // ══════════════════════════════════════════════════════════════
+    // ██  ANALYSIS MODE
+    // ══════════════════════════════════════════════════════════════
+
+    function updateAnalysisUI(data) {
+      lastAnalysisData = data;
+      chess.load(data.fen);
+      const turnColor = data.turn==='w'?'white':'black';
+      cg.set({
+        fen: data.fen, orientation: currentOrientation, turnColor,
+        movable: { color: turnColor, dests: toDests(data.legal_moves||{}) },
+        check: chess.isCheck(),
+      });
+
+      if (data.game_over) { setStatus('Game Over: '+(data.result||''),'status-gameover'); }
+      else { setStatus((data.turn==='w'?'White':'Black')+' to move', data.turn==='w'?'status-white':'status-black'); }
+
+      // Eval
+      document.getElementById('eval-card').style.display='';
+      document.getElementById('eval-side').textContent = data.turn==='w'?'White':'Black';
+      const mEl = document.getElementById('model-eval');
+      mEl.textContent=formatEval(data.model_eval); mEl.className='value '+evalClass(data.model_eval);
+      updateEvalBar(data.model_eval, 'eval-bar');
+
+      const gtI = document.getElementById('gt-eval-item'), gtE = document.getElementById('gt-eval');
+      if (data.ground_truth_eval!=null) { gtI.style.display=''; gtE.textContent=formatEval(data.ground_truth_eval); gtE.className='value '+evalClass(data.ground_truth_eval); }
+      else { gtI.style.display='none'; }
+
+      // Top moves
+      const mc=document.getElementById('moves-card'), ml=document.getElementById('moves-list');
+      mc.style.display=''; ml.innerHTML='';
+      const tm=data.top_moves||[], mx=tm.length>0?tm[0].probability:1;
+      tm.forEach(m=>{
+        const bw=(m.probability/Math.max(mx,0.01))*100;
+        const bc=`hsl(${Math.max(0,120-(m.rank-1)*15)},60%,45%)`;
+        const r=document.createElement('div'); r.className='move-row';
+        r.innerHTML=`<span class="move-rank">${m.rank}.</span><span class="move-san">${m.san}</span><div class="move-bar-wrap"><div class="move-bar" style="width:${bw}%;background:${bc};"></div></div><span class="move-prob">${(m.probability*100).toFixed(1)}%</span>`;
+        ml.appendChild(r);
+      });
+
+      // Arrows
+      const shapes=[];
+      tm.forEach(m=>shapes.push({orig:m.from_sq,dest:m.to_sq,brush:getBrush(m.rank)}));
+      if(data.dataset_move_uci&&data.dataset_move_uci.length>=4) shapes.push({orig:data.dataset_move_uci.substring(0,2),dest:data.dataset_move_uci.substring(2,4),brush:'played'});
+      if(data.dataset_best_move_uci&&data.dataset_best_move_uci.length>=4) shapes.push({orig:data.dataset_best_move_uci.substring(0,2),dest:data.dataset_best_move_uci.substring(2,4),brush:'best'});
+      cg.setAutoShapes(shapes);
+
+      // Dataset info
+      const dc=document.getElementById('dataset-card'), di=document.getElementById('dataset-info');
+      if(data.dataset_move_san||data.dataset_best_move_san){
+        dc.style.display=''; let h='';
+        if(data.dataset_move_san) h+=`<div class="dataset-item"><label>Played Move</label><span class="move-label">${data.dataset_move_san}</span></div>`;
+        if(data.dataset_best_move_san) h+=`<div class="dataset-item"><label>Best Move</label><span class="move-label">${data.dataset_best_move_san}</span></div>`;
+        if(data.ground_truth_eval!=null) h+=`<div class="dataset-item"><label>Evaluation</label><span>${formatEval(data.ground_truth_eval)}</span></div>`;
+        if(data.fen) h+=`<div class="dataset-item" style="width:100%;margin-top:4px;"><label>FEN</label><span class="move-label" style="font-size:11px;word-break:break-all;">${data.fen}</span></div>`;
+        di.innerHTML=h;
+      } else { dc.style.display='none'; }
+
+      document.getElementById('legend-card').style.display='';
+
+      // Variation
+      isOriginal=data.is_original;
+      if(data.move_stack!==undefined) moveStack=data.move_stack;
+      if(data.move_index!==undefined) moveIndex=data.move_index;
+      document.getElementById('btn-reset').style.display=moveStack.length>0?'':'none';
+      const vc=document.getElementById('variation-card'), vm=document.getElementById('variation-moves');
+      if(moveStack.length>0){
+        vc.style.display='';
+        let h=`<span class="var-start ${moveIndex===0?'active':''}" data-idx="0">start</span>`;
+        moveStack.forEach((u,i)=>{const idx=i+1;h+=`<span class="var-move ${moveIndex===idx?'active':''}" data-idx="${idx}">${u}</span>`;});
+        vm.innerHTML=h;
+        vm.querySelectorAll('[data-idx]').forEach(el=>el.addEventListener('click',()=>jumpToIndex(parseInt(el.dataset.idx))));
+      } else { vc.style.display='none'; }
+
+      if(data.position_index) document.getElementById('position-counter').textContent='Position #'+data.position_index;
+      document.getElementById('empty-state').style.display='none';
+    }
+
+    // ── Move handler (shared) ────────────────────────────────────
+    function onMove(orig, dest) {
+      const piece = chess.get(orig);
+      if (piece && piece.type === 'p') {
+        const dr = dest[1];
+        if ((piece.color==='w'&&dr==='8')||(piece.color==='b'&&dr==='1')) {
+          pendingPromotion = { source: orig, target: dest };
+          showPromotionModal(piece.color);
+          return;
+        }
+      }
+      if (currentMode === 'play') sendGameMove(orig, dest, '');
+      else sendAnalysisMove(orig, dest, '');
+    }
+
+    async function sendAnalysisMove(source, target, promotion) {
+      setStatus('Analyzing...','status-loading');
+      try {
+        const r=await fetch('/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({source,target,promotion})});
+        const d=await r.json(); if(d.error){setStatus(d.error,'status-gameover');return;} updateAnalysisUI(d);
+      } catch(e){setStatus('Error: '+e.message,'status-gameover');}
+    }
+
+    // ── Promotion modal ──────────────────────────────────────────
+    const PS={w:{q:'\u2655',r:'\u2656',b:'\u2657',n:'\u2658'},b:{q:'\u265B',r:'\u265C',b:'\u265D',n:'\u265E'}};
+    function showPromotionModal(color) {
+      const c=document.getElementById('promo-pieces'); c.innerHTML='';
+      ['q','r','b','n'].forEach(p=>{
+        const el=document.createElement('div'); el.className='promo-piece'; el.textContent=PS[color][p];
+        el.addEventListener('click',()=>{
+          hideModals();
+          const fn = currentMode==='play' ? sendGameMove : sendAnalysisMove;
+          fn(pendingPromotion.source, pendingPromotion.target, p);
+          pendingPromotion=null;
+        });
+        c.appendChild(el);
+      });
+      showModal('promo-modal');
+    }
+
+    // ── Analysis button handlers ─────────────────────────────────
+    document.getElementById('btn-next').addEventListener('click', async()=>{
+      const b=document.getElementById('btn-next'); b.disabled=true; setStatus('Loading position...','status-loading');
+      try { const r=await fetch('/load_position',{method:'POST'}); const d=await r.json();
+        if(d.error){setStatus(d.error,'status-gameover');return;}
+        currentOrientation=d.turn==='w'?'white':'black'; updateAnalysisUI(d);
+      } catch(e){setStatus('Error: '+e.message,'status-gameover');} finally{b.disabled=false;}
+    });
+    document.getElementById('btn-reset').addEventListener('click', async()=>{
+      setStatus('Resetting...','status-loading');
+      try { const r=await fetch('/reset_position',{method:'POST'}); const d=await r.json();
+        if(d.error){setStatus(d.error,'status-gameover');return;}
+        currentOrientation=d.turn==='w'?'white':'black'; updateAnalysisUI(d);
+      } catch(e){setStatus('Error: '+e.message,'status-gameover');}
+    });
+    document.getElementById('btn-flip-analysis').addEventListener('click',()=>{
+      currentOrientation=currentOrientation==='white'?'black':'white'; cg.set({orientation:currentOrientation});
+    });
+    document.getElementById('top-n-select').addEventListener('change',(e)=>{topN=parseInt(e.target.value);});
+
+    // Arrow keys (analysis only)
+    async function goBack(){if(moveIndex<=0||currentMode!=='analysis')return;setStatus('Analyzing...','status-loading');try{const r=await fetch('/go_back',{method:'POST'});const d=await r.json();if(!d.error)updateAnalysisUI(d);}catch(e){setStatus('Error: '+e.message,'status-gameover');}}
+    async function goForward(){if(moveIndex>=moveStack.length||currentMode!=='analysis')return;setStatus('Analyzing...','status-loading');try{const r=await fetch('/go_forward',{method:'POST'});const d=await r.json();if(!d.error)updateAnalysisUI(d);}catch(e){setStatus('Error: '+e.message,'status-gameover');}}
+    async function jumpToIndex(t){if(t===moveIndex)return;setStatus('Analyzing...','status-loading');try{while(moveIndex!==t){const rt=t<moveIndex?'/go_back':'/go_forward';const r=await fetch(rt,{method:'POST'});const d=await r.json();if(d.error)break;moveIndex=d.move_index;if(moveIndex===t)updateAnalysisUI(d);}}catch(e){setStatus('Error: '+e.message,'status-gameover');}}
+    document.addEventListener('keydown',(e)=>{if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT'||e.target.tagName==='TEXTAREA')return;if(e.key==='ArrowLeft'){e.preventDefault();goBack();}else if(e.key==='ArrowRight'){e.preventDefault();goForward();}});
+
+    // ══════════════════════════════════════════════════════════════
+    // ██  PLAY MODE
+    // ══════════════════════════════════════════════════════════════
+
+    function updateGameUI(data) {
+      chess.load(data.fen);
+      const isCheck = chess.isCheck();
+      const turnColor = data.turn==='w'?'white':'black';
+      const myColor = data.player_color==='w'?'white':'black';
+
+      // Only allow moving own pieces, and only when it's your turn
+      const canMove = !data.game_over && turnColor === myColor;
+      cg.set({
+        fen: data.fen,
+        orientation: currentOrientation,
+        turnColor,
+        lastMove: data.bot_move_from ? [data.bot_move_from, data.bot_move_to] : undefined,
+        movable: { color: canMove ? myColor : undefined, dests: canMove ? toDests(data.legal_moves||{}) : new Map() },
+        check: isCheck,
+      });
+      cg.setAutoShapes([]);
+
+      // Status
+      if (data.game_over) {
+        const msg = data.winner==='player'?'You win!':data.winner==='bot'?'Bot wins!':'Draw!';
+        setStatus(msg, 'status-gameover');
+      } else if (turnColor === myColor) {
+        setStatus('Your turn', 'status-yourturn');
+      } else {
+        setStatus('Bot thinking...', 'status-botturn');
+      }
+
+      // Score
+      document.getElementById('player-score').textContent = data.player_wins;
+      document.getElementById('cpu-score').textContent = data.cpu_wins;
+
+      // Eval bar (respects Show Eval toggle)
+      const showEval = document.getElementById('toggle-eval').checked;
+      const ev = data.model_eval || 0;
+      document.getElementById('game-eval-body').style.display = showEval ? '' : 'none';
+      if (showEval) {
+        document.getElementById('game-eval-side').textContent = data.player_color==='w'?'White':'Black';
+        const ge = document.getElementById('game-model-eval');
+        ge.textContent = formatEval(ev); ge.className = 'value ' + evalClass(ev);
+        updateEvalBar(ev, 'game-eval-bar');
+      }
+
+      // Move history
+      const mh = data.move_history || [];
+      const ml = document.getElementById('game-moves-list');
+      if (mh.length === 0) { ml.innerHTML = '<span style="color:var(--text-muted);">No moves yet</span>'; }
+      else {
+        let h = '';
+        for (let i = 0; i < mh.length; i++) {
+          if (i % 2 === 0) h += `<span class="move-number">${Math.floor(i/2)+1}.</span>`;
+          h += `<span class="san-move">${mh[i]}</span> `;
+        }
+        ml.innerHTML = h;
+        ml.scrollTop = ml.scrollHeight;
+      }
+
+      // Resign button
+      document.getElementById('btn-resign').disabled = data.game_over;
+
+      // Game over modal
+      if (data.game_over) {
+        gameActive = false;
+        const rm = document.getElementById('result-msg');
+        const rs = document.getElementById('result-sub');
+        rm.textContent = data.winner==='player'?'You Win!':data.winner==='bot'?'Bot Wins!':'Draw!';
+        rm.style.color = data.winner==='player'?'var(--green)':data.winner==='bot'?'var(--red)':'var(--text-secondary)';
+        rs.textContent = `Score: ${data.player_wins} — ${data.cpu_wins}`;
+        setTimeout(() => showModal('result-modal'), 500);
+      }
+    }
+
+    async function sendGameMove(source, target, promotion) {
+      setStatus('Bot thinking...', 'status-botturn');
+      try {
+        const r = await fetch('/game/move', {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ source, target, promotion }),
+        });
+        const d = await r.json();
+        if (d.error) { setStatus(d.error, 'status-gameover'); return; }
+        updateGameUI(d);
+      } catch(e) { setStatus('Error: '+e.message, 'status-gameover'); }
+    }
+
+    async function startNewGame(color) {
+      hideModals();
+      playerColor = color;
+      currentOrientation = color==='w'?'white':'black';
+      gameActive = true;
+      document.getElementById('btn-resign').disabled = false;
+      setStatus('Starting game...', 'status-loading');
+      try {
+        const r = await fetch('/game/new', {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ color }),
+        });
+        const d = await r.json();
+        updateGameUI(d);
+      } catch(e) { setStatus('Error: '+e.message, 'status-gameover'); }
+    }
+
+    async function fetchGameState() {
+      try {
+        const r = await fetch('/game/state', { method: 'POST' });
+        const d = await r.json();
+        if (d.game_active) { updateGameUI(d); }
+        else {
+          document.getElementById('player-score').textContent = d.player_wins;
+          document.getElementById('cpu-score').textContent = d.cpu_wins;
+          setStatus('Click New Game to start', '');
+        }
+      } catch(e) {}
+    }
+
+    // Play button handlers
+    document.getElementById('btn-new-game').addEventListener('click', () => showModal('side-modal'));
+    document.getElementById('btn-play-again').addEventListener('click', () => { hideModals(); showModal('side-modal'); });
+    document.getElementById('side-white').addEventListener('click', () => startNewGame('w'));
+    document.getElementById('side-black').addEventListener('click', () => startNewGame('b'));
+    document.getElementById('btn-resign').addEventListener('click', async () => {
+      if (!gameActive) return;
+      setStatus('Resigned', 'status-gameover');
+      try {
+        const r = await fetch('/game/resign', { method: 'POST' });
+        const d = await r.json();
+        updateGameUI(d);
+      } catch(e) {}
+    });
+    document.getElementById('btn-flip-play').addEventListener('click', () => {
+      currentOrientation = currentOrientation==='white'?'black':'white';
+      cg.set({ orientation: currentOrientation });
+    });
+    document.getElementById('toggle-eval').addEventListener('change', (e) => {
+      document.getElementById('game-eval-body').style.display = e.target.checked ? '' : 'none';
+    });
+
+    // ══════════════════════════════════════════════════════════════
+    // ██  SELF-PLAY MODE
+    // ══════════════════════════════════════════════════════════════
+
+    let selfPlayRunning = false;
+    let selfPlayDelay = 500;
+
+    function spUpdateButtons() {
+      document.getElementById('btn-sp-start').disabled = selfPlayRunning;
+      document.getElementById('btn-sp-restart').disabled = !selfPlayRunning;
+      document.getElementById('btn-sp-stop').disabled = !selfPlayRunning;
+      const cfgDisabled = selfPlayRunning;
+      document.getElementById('sp-use-mcts').disabled = cfgDisabled;
+      document.getElementById('sp-num-sims').disabled = cfgDisabled;
+      document.getElementById('sp-sample').disabled = cfgDisabled;
+      document.getElementById('sp-speed').disabled = false; // always adjustable
+    }
+
+    function spUpdateScores(data) {
+      document.getElementById('sp-white-score').textContent = data.white_wins ?? 0;
+      document.getElementById('sp-black-score').textContent = data.black_wins ?? 0;
+    }
+
+    function spUpdateUI(data) {
+      if (data.fen) {
+        chess.load(data.fen);
+        const turnColor = data.turn === 'w' ? 'white' : 'black';
+        const lastMove = data.move_from ? [data.move_from, data.move_to] : undefined;
+        cg.set({
+          fen: data.fen,
+          orientation: currentOrientation,
+          turnColor,
+          movable: { color: undefined, dests: new Map() },
+          lastMove,
+          check: chess.isCheck(),
+        });
+        // Arrow: blue for white move, green for black (previous mover)
+        if (data.move_from) {
+          const prevTurn = data.turn === 'w' ? 'black' : 'white'; // move was made by the other side
+          const brush = prevTurn === 'white' ? 'played' : 'top1';
+          cg.setAutoShapes([{ orig: data.move_from, dest: data.move_to, brush }]);
+        }
+      }
+
+      // Status
+      if (data.game_over) {
+        const msg = data.winner === 'white' ? 'White wins!' : data.winner === 'black' ? 'Black wins!' : 'Draw!';
+        document.getElementById('sp-game-status').innerHTML =
+          `<strong style="color:${data.winner==='white'?'var(--green)':data.winner==='black'?'var(--red)':'var(--text-secondary)'}">${msg}</strong>`;
+        setStatus(msg, 'status-gameover');
+      } else if (data.turn) {
+        const mh = data.move_history || [];
+        const moveNum = Math.ceil(mh.length / 2) + (data.turn === 'w' ? 1 : 0);
+        const side = data.turn === 'w' ? 'White' : 'Black';
+        document.getElementById('sp-game-status').textContent = `${side} to move  •  Move ${moveNum}`;
+        setStatus(side + ' to move', data.turn === 'w' ? 'status-white' : 'status-black');
+      }
+
+      // Last move
+      if (data.move_san) {
+        document.getElementById('sp-last-move').textContent = `Last: ${data.move_san}`;
+      }
+
+      // Move history
+      const mh = data.move_history || [];
+      const ml = document.getElementById('sp-moves-list');
+      if (mh.length === 0) {
+        ml.innerHTML = '<span style="color:var(--text-muted);">No moves yet</span>';
+      } else {
+        let h = '';
+        for (let i = 0; i < mh.length; i++) {
+          if (i % 2 === 0) h += `<span class="move-number">${Math.floor(i/2)+1}.</span>`;
+          h += `<span class="san-move">${mh[i]}</span> `;
+        }
+        ml.innerHTML = h;
+        ml.scrollTop = ml.scrollHeight;
+      }
+
+      spUpdateScores(data);
+    }
+
+    async function spRequestNextMove() {
+      if (!selfPlayRunning) return;
+      try {
+        const r = await fetch('/selfplay/next_move', { method: 'POST' });
+        const d = await r.json();
+
+        if (d.thinking) {
+          setStatus('Thinking...', 'status-botturn');
+          setTimeout(spRequestNextMove, 200);
+          return;
+        }
+        if (d.stopped) {
+          selfPlayRunning = false;
+          spUpdateButtons();
+          return;
+        }
+        spUpdateUI(d);
+        if (d.game_over) {
+          selfPlayRunning = false;
+          spUpdateButtons();
+          return;
+        }
+        setTimeout(spRequestNextMove, selfPlayDelay);
+      } catch(e) {
+        setStatus('Error: ' + e.message, 'status-gameover');
+      }
+    }
+
+    async function startSelfPlay() {
+      const useMcts = document.getElementById('sp-use-mcts').checked;
+      const numSims = parseInt(document.getElementById('sp-num-sims').value) || 250;
+      const sample = document.getElementById('sp-sample').checked;
+      selfPlayDelay = parseInt(document.getElementById('sp-speed').value);
+      selfPlayRunning = true;
+      spUpdateButtons();
+      cg.setAutoShapes([]);
+      document.getElementById('sp-last-move').textContent = '';
+      document.getElementById('sp-moves-list').innerHTML = '<span style="color:var(--text-muted);">No moves yet</span>';
+      setStatus('Starting...', 'status-loading');
+
+      try {
+        const r = await fetch('/selfplay/start', {
+          method: 'POST', headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ use_mcts: useMcts, num_sims: numSims, sample }),
+        });
+        const d = await r.json();
+        spUpdateUI(d);
+        setTimeout(spRequestNextMove, selfPlayDelay);
+      } catch(e) {
+        selfPlayRunning = false;
+        spUpdateButtons();
+        setStatus('Error: ' + e.message, 'status-gameover');
+      }
+    }
+
+    async function stopSelfPlay() {
+      selfPlayRunning = false;
+      spUpdateButtons();
+      try {
+        const r = await fetch('/selfplay/stop', { method: 'POST' });
+        const d = await r.json();
+        spUpdateScores(d);
+        cg.set({ fen: 'start', movable: { color: undefined, dests: new Map() }, lastMove: undefined });
+        cg.setAutoShapes([]);
+        document.getElementById('sp-game-status').textContent = 'Click Start to begin';
+        document.getElementById('sp-last-move').textContent = '';
+        document.getElementById('sp-moves-list').innerHTML = '<span style="color:var(--text-muted);">No moves yet</span>';
+        setStatus('Stopped', '');
+      } catch(e) {}
+    }
+
+    async function restartSelfPlay() {
+      selfPlayRunning = false;
+      try {
+        await fetch('/selfplay/stop', { method: 'POST' });
+      } catch(e) {}
+      cg.set({ fen: 'start', movable: { color: undefined, dests: new Map() } });
+      cg.setAutoShapes([]);
+      setStatus('Restarting...', 'status-loading');
+      await new Promise(r => setTimeout(r, 1000));
+      startSelfPlay();
+    }
+
+    // Self-play button handlers
+    document.getElementById('btn-sp-start').addEventListener('click', startSelfPlay);
+    document.getElementById('btn-sp-restart').addEventListener('click', restartSelfPlay);
+    document.getElementById('btn-sp-stop').addEventListener('click', stopSelfPlay);
+
+    document.getElementById('sp-speed').addEventListener('input', (e) => {
+      selfPlayDelay = parseInt(e.target.value);
+      document.getElementById('sp-speed-label').textContent = selfPlayDelay + 'ms';
+    });
+
+    function spUpdateModeSummary() {
+      const useMcts = document.getElementById('sp-use-mcts').checked;
+      const sample = document.getElementById('sp-sample').checked;
+      const numSims = document.getElementById('sp-num-sims').value;
+      let text;
+      if (useMcts) text = `MCTS (${numSims} sims)`;
+      else if (sample) text = 'Sampling';
+      else text = 'Best Move';
+      document.getElementById('sp-mode-text').textContent = text;
+      document.getElementById('sp-sims-wrap').style.display = useMcts ? 'flex' : 'none';
+      document.getElementById('sp-sample-wrap').style.display = useMcts ? 'none' : 'flex';
+    }
+
+    document.getElementById('sp-use-mcts').addEventListener('change', spUpdateModeSummary);
+    document.getElementById('sp-sample').addEventListener('change', spUpdateModeSummary);
+    document.getElementById('sp-num-sims').addEventListener('input', spUpdateModeSummary);
+
+    document.getElementById('tab-selfplay').addEventListener('click', () => {
+      switchMode('selfplay');
+      if (!selfPlayRunning) {
+        cg.set({ fen: 'start', movable: { color: undefined, dests: new Map() } });
+        cg.setAutoShapes([]);
+        setStatus('Click Start to begin', '');
+      }
+    });
+  </script>
+</body>
+</html>
