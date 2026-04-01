@@ -1,4 +1,5 @@
 from pathlib import Path
+import json
 import random
 from typing import List, Optional
 import chess
@@ -34,11 +35,16 @@ class HFChessDataset(IterableDataset):
     _counts = None  # class-level cache
 
     @classmethod
-    def get_counts(cls):
+    def get_counts(cls, local_dir=None):
+        if local_dir is not None:
+            try:
+                with open(Path(local_dir) / "count.txt") as f:
+                    return json.loads(f.readline())
+            except Exception:
+                return {}
         if cls._counts is None:
             try:
                 from huggingface_hub import hf_hub_download
-                import json
                 path = hf_hub_download(repo_id="KeithG33/ChessBot-Dataset", filename="count.txt", repo_type="dataset")
                 with open(path) as f:
                     cls._counts = json.loads(f.readline())
@@ -53,13 +59,16 @@ class HFChessDataset(IterableDataset):
         shuffle_buffer: Optional[int] = 10_000,
         num_test_samples: Optional[int] = 10_000_000, # approximately 1/3 of test set
         take_samples: Optional[int] = None,  # Number of samples to take from dataset
+        local_dir: Optional[str] = None,  # Load from local directory instead of HF hub
     ):
         super().__init__()
         self.split = split
-        self.total = self.get_counts().get(split)
+        self.total = self.get_counts(local_dir).get(split)
         print(f"Total samples in {split} set: {self.total}")
+
+        repo = str(local_dir) if local_dir is not None else "KeithG33/ChessBot-Dataset"
         self.ds = load_dataset(
-            "KeithG33/ChessBot-Dataset",
+            repo,
             data_files={
                 "train": "train/*.pgn.zst",
                 "test":  "test/*.pgn.zst",
