@@ -11,11 +11,11 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chessground@9.1.1/assets/chessground.cburnett.css">
   <style>
     :root {
-      --bg: #f5f0eb; --surface: #ffffff; --surface-alt: #faf7f4;
-      --text: #2c2418; --text-secondary: #7a6e5f; --text-muted: #b0a694;
-      --accent: #8b7355; --accent-hover: #74613f; --border: #e8e2db;
-      --green: #5a8a5e; --red: #a85d5d; --blue: #4a7fb5; --gold: #c49b2f;
-      --radius: 10px; --shadow: 0 2px 20px rgba(0,0,0,0.08);
+      --bg: #0f1117; --surface: #1a1d27; --surface-alt: #22263a;
+      --text: #e8e6f0; --text-secondary: #9b97b0; --text-muted: #555872;
+      --accent: #7c6af5; --accent-hover: #6657d9; --border: #2e3148;
+      --green: #4caf7d; --red: #e05c6a; --blue: #4a8fdb; --gold: #d4a92a;
+      --radius: 10px; --shadow: 0 2px 24px rgba(0,0,0,0.4);
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
@@ -60,12 +60,12 @@
     .cg-wrap { width: 480px; height: 480px; }
     .board-status { text-align: center; margin-top: 10px; font-size: 13px; color: var(--text-secondary); }
     .status-pill { display: inline-block; padding: 4px 14px; border-radius: 20px; font-size: 12px; font-weight: 500; }
-    .status-white { background: #eef5ee; color: var(--green); }
-    .status-black { background: #f0ece4; color: var(--text); }
-    .status-loading { background: #fef5e7; color: #b8860b; }
-    .status-gameover { background: #f5eded; color: var(--red); }
-    .status-yourturn { background: #eef5ee; color: var(--green); }
-    .status-botturn { background: #fef5e7; color: #b8860b; }
+    .status-white { background: #1a2e23; color: var(--green); }
+    .status-black { background: #1e1e2e; color: var(--text); }
+    .status-loading { background: #2a2510; color: var(--gold); }
+    .status-gameover { background: #2a1a1e; color: var(--red); }
+    .status-yourturn { background: #1a2e23; color: var(--green); }
+    .status-botturn { background: #2a2510; color: var(--gold); }
 
     /* Right panel */
     .panel { display: flex; flex-direction: column; gap: 16px; }
@@ -79,7 +79,7 @@
     .eval-positive { color: var(--green); }
     .eval-negative { color: var(--red); }
     .eval-neutral { color: var(--text-secondary); }
-    .eval-bar-container { width: 100%; height: 10px; background: #e0dcd6; border-radius: 5px; overflow: hidden; }
+    .eval-bar-container { width: 100%; height: 10px; background: #2e3148; border-radius: 5px; overflow: hidden; }
     .eval-bar-fill { height: 100%; border-radius: 5px; transition: width 0.4s ease; }
     .eval-bar-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-muted); margin-top: 4px; }
 
@@ -89,7 +89,7 @@
     .move-row:hover { background: var(--surface-alt); }
     .move-rank { font-size: 11px; font-weight: 600; color: var(--text-muted); width: 22px; text-align: right; flex-shrink: 0; }
     .move-san { font-size: 14px; font-weight: 500; font-family: 'SF Mono', 'Fira Code', monospace; width: 60px; flex-shrink: 0; }
-    .move-bar-wrap { flex: 1; height: 6px; background: #eee; border-radius: 3px; overflow: hidden; }
+    .move-bar-wrap { flex: 1; height: 6px; background: #2e3148; border-radius: 3px; overflow: hidden; }
     .move-bar { height: 100%; border-radius: 3px; transition: width 0.3s ease; }
     .move-prob { font-size: 12px; font-weight: 500; color: var(--text-secondary); width: 50px; text-align: right; font-variant-numeric: tabular-nums; flex-shrink: 0; }
 
@@ -728,12 +728,13 @@
     // ══════════════════════════════════════════════════════════════
 
     let selfPlayRunning = false;
+    let selfPlayStarted = false;
     let selfPlayDelay = 500;
 
     function spUpdateButtons() {
       document.getElementById('btn-sp-start').disabled = selfPlayRunning;
-      document.getElementById('btn-sp-restart').disabled = !selfPlayRunning;
-      document.getElementById('btn-sp-stop').disabled = !selfPlayRunning;
+      document.getElementById('btn-sp-restart').disabled = !selfPlayRunning && !selfPlayStarted;
+      document.getElementById('btn-sp-stop').disabled = !selfPlayRunning && !selfPlayStarted;
       const cfgDisabled = selfPlayRunning;
       document.getElementById('sp-use-mcts').disabled = cfgDisabled;
       document.getElementById('sp-num-sims').disabled = cfgDisabled;
@@ -838,6 +839,7 @@
       const sample = document.getElementById('sp-sample').checked;
       selfPlayDelay = parseInt(document.getElementById('sp-speed').value);
       selfPlayRunning = true;
+      selfPlayStarted = true;
       spUpdateButtons();
       cg.setAutoShapes([]);
       document.getElementById('sp-last-move').textContent = '';
@@ -861,6 +863,7 @@
 
     async function stopSelfPlay() {
       selfPlayRunning = false;
+      selfPlayStarted = false;
       spUpdateButtons();
       try {
         const r = await fetch('/selfplay/stop', { method: 'POST' });
