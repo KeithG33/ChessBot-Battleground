@@ -301,13 +301,15 @@ class HFChessTrainer(BaseChessTrainer):
 
     @staticmethod
     def build_train_loader(cfg) -> DataLoader:
-        dataset = HFChessDataset('train', shuffle_buffer=cfg.dataset.shuffle_buffer)
+        local_dir = getattr(cfg.dataset, 'local_dir', None)
+        dataset = HFChessDataset('train', shuffle_buffer=cfg.dataset.shuffle_buffer, local_dir=local_dir)
         return DataLoader(dataset, batch_size=cfg.train.batch_size, num_workers=cfg.dataset.num_workers)
 
     @staticmethod
     def build_val_loader(cfg) -> DataLoader:
-        dataset = HFChessDataset('test', shuffle_buffer=cfg.dataset.shuffle_buffer, num_test_samples=cfg.dataset.num_test_samples)
-        return DataLoader(dataset, batch_size=cfg.train.batch_size, num_workers=cfg.dataset.num_workers)  
+        local_dir = getattr(cfg.dataset, 'local_dir', None)
+        dataset = HFChessDataset('test', shuffle_buffer=cfg.dataset.shuffle_buffer, num_test_samples=cfg.dataset.num_test_samples, local_dir=local_dir)
+        return DataLoader(dataset, batch_size=cfg.train.batch_size, num_workers=cfg.dataset.num_workers)
     
     def train(self):
         assert (

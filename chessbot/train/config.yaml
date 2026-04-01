@@ -12,6 +12,7 @@ dataset:
   size_train: 1                         # Number of files to sample and train on. Used by PGN datasets
   size_test: 1                          # Number of files to sample and test on. Used by PGN datasets
   num_processes: 1                      # Number of threads for data loading. Used by PGN datasets
+  local_dir: null                       # Local dataset directory (train/ and test/ subdirs). If null, streams from HF hub.
   num_workers: 1                        # Number of workers for data loading. Used by streaming datasets
   num_train_samples: 0                  # Number of samples for training. Used by streaming datasets
   num_test_samples: 0                   # Number of samples for testing. Used by streaming datasets
