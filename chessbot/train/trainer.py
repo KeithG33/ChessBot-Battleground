@@ -168,15 +168,16 @@ class BaseChessTrainer:
             self.optimizer, schedulers=schedulers, milestones=milestones,
         )
 
-    def update_and_log(self, losses: dict, iter: int, train_or_val: str = "train"):
+    def update_and_log(self, losses: dict, optimizer_step: int, train_or_val: str = "train"):
+        """Log metrics. losses should already be averaged over grad_accum_steps and gathered across processes."""
         self.stats.update(losses)
         cond = self.cfg.logging.wandb
         if train_or_val == "train":
-            cond = cond and iter % self.cfg.logging.log_every == 0
+            cond = cond and optimizer_step % self.cfg.logging.log_every == 0
         if cond:
             avg_dict = {k: self.stats.get_average(k) for k in losses.keys()}
             avg_dict["lr"] = self.optimizer.param_groups[0]["lr"]
-            wandb.log({**avg_dict, "iter": iter})
+            wandb.log({**avg_dict, "optimizer_step": optimizer_step})
   
     def train_step(self, state, action, result):
         state = state.float()
@@ -200,7 +201,8 @@ class BaseChessTrainer:
             if self.scheduler:
                 self.scheduler.step()
 
-        return policy_loss, value_loss, loss
+        # Return raw per-micro-batch losses (not yet averaged or gathered)
+        return policy_loss.detach(), value_loss.detach(), loss.detach()
 
     def run_validation(self):
         val_loader = self.build_val_loader(self.cfg)
@@ -210,7 +212,6 @@ class BaseChessTrainer:
         else:
             total = len(val_loader.dataset)
 
-        # TODO: add total calc
         with tqdm(
             total=total,
             desc="Validation",
@@ -325,73 +326,91 @@ class HFChessTrainer(BaseChessTrainer):
                 self.model, self.optimizer, self.train_loader, self.scheduler
             )
         )
-        global_iter = 0
+        optimizer_step = 0
         if self.cfg.train.checkpoint_dir:
             self.accelerator.load_state(self.cfg.train.checkpoint_dir)
             iter_file = os.path.join(self.cfg.train.checkpoint_dir, "global_iter.txt")
             if os.path.exists(iter_file):
                 with open(iter_file) as f:
-                    global_iter = int(f.read().strip())
-                self._logger.info(f"Resuming from global_iter={global_iter:,}")
-                self.progress_bar.update(global_iter)
+                    optimizer_step = int(f.read().strip())
+                self._logger.info(f"Resuming from optimizer_step={optimizer_step:,}")
+                self.progress_bar.update(optimizer_step)
 
         # Run training
         self.model.train()
         best_val_loss = float('inf')
         val_loss = float('inf')
+        grad_accum = max(self.cfg.train.grad_accum_steps, 1)
+
+        # Accumulators for losses across micro-batches
+        accum_loss = accum_ploss = accum_vloss = 0.0
 
         for epoch in range(self.cfg.train.epochs):
 
-            for iter, data in enumerate(self.train_loader):
+            for data in self.train_loader:
                 state, action, result = data[0], data[1], data[2]
                 policy_loss, value_loss, loss = self.train_step(state, action, result)
-                global_iter += 1
-                loss_dict = {
-                    "train_loss": loss.item(),
-                    "train_ploss": policy_loss.item(),
-                    "train_vloss": value_loss.item(),
-                }
-                self.update_and_log(loss_dict, global_iter)
 
-                # Validation
-                if (
-                    self.cfg.train.validation_every > 0
-                    and global_iter % self.cfg.train.validation_every == 0
-                ):
-                    val_loss, val_ploss, val_vloss = self.run_validation()
-                    loss_dict = {
-                        "val_loss": val_loss,
-                        "val_ploss": val_ploss,
-                        "val_vloss": val_vloss,
-                    }
-                    self.update_and_log(loss_dict, global_iter, train_or_val="val")
+                accum_loss  += loss.item()
+                accum_ploss += policy_loss.item()
+                accum_vloss += value_loss.item()
 
-                    if val_loss < best_val_loss:
-                        best_val_loss = val_loss
-                        self.accelerator.save_model(self.model, self.best_model_path, safe_serialization=False)
+                if self.accelerator.sync_gradients:
+                    optimizer_step += 1
+
+                    # Average over micro-batches, gather across processes
+                    avg = lambda t: self.accelerator.gather(
+                        torch.tensor(t / grad_accum, device=self.accelerator.device)
+                    ).mean().item()
+                    mean_loss  = avg(accum_loss)
+                    mean_ploss = avg(accum_ploss)
+                    mean_vloss = avg(accum_vloss)
+                    accum_loss = accum_ploss = accum_vloss = 0.0
+
+                    self.update_and_log(
+                        {"train_loss": mean_loss, "train_ploss": mean_ploss, "train_vloss": mean_vloss},
+                        optimizer_step,
+                    )
+
+                    # Validation
+                    if (
+                        self.cfg.train.validation_every > 0
+                        and optimizer_step % self.cfg.train.validation_every == 0
+                    ):
+                        val_loss, val_ploss, val_vloss = self.run_validation()
+                        self.update_and_log(
+                            {"val_loss": val_loss, "val_ploss": val_ploss, "val_vloss": val_vloss},
+                            optimizer_step,
+                            train_or_val="val",
+                        )
+
+                        if val_loss < best_val_loss:
+                            best_val_loss = val_loss
+                            self.accelerator.save_model(self.model, self.best_model_path, safe_serialization=False)
+
                         self.accelerator.save_state(output_dir=self.checkpoint_dir)
                         with open(os.path.join(self.checkpoint_dir, "global_iter.txt"), "w") as f:
-                            f.write(str(global_iter))
+                            f.write(str(optimizer_step))
 
-                    self.progress_bar.refresh()
+                        self.progress_bar.refresh()
 
-                self.progress_bar.set_postfix(
-                    {
-                        "E": f"{epoch + 1}/{self.cfg.train.epochs}",
-                        "Iter": f"{global_iter:,}",
-                        "Loss": f"{loss.item():.4f}",
-                        "Val": f"{val_loss:.4f}",
-                        "LR": f"{self.optimizer.param_groups[0]['lr']:.2e}",
-                    }
-                )
-                self.progress_bar.update(1)
+                    self.progress_bar.set_postfix(
+                        {
+                            "E": f"{epoch + 1}/{self.cfg.train.epochs}",
+                            "Step": f"{optimizer_step:,}",
+                            "Loss": f"{mean_loss:.4f}",
+                            "Val": f"{val_loss:.4f}",
+                            "LR": f"{self.optimizer.param_groups[0]['lr']:.2e}",
+                        }
+                    )
+                    self.progress_bar.update(1)
 
                 # Reduce gpu power
                 time.sleep(0.1)
 
             self.accelerator.save_state(output_dir=self.checkpoint_dir)
             with open(os.path.join(self.checkpoint_dir, "global_iter.txt"), "w") as f:
-                f.write(str(global_iter))
+                f.write(str(optimizer_step))
 
         self._logger.info(f"Training complete!")
         self.progress_bar.close()
