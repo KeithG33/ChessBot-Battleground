@@ -699,6 +699,13 @@ def create_app(model, device="cuda", top_n=10, buffer_size=50):
                 app.config["SP_DRAWS"] += 1
             app.config["SP_RUNNING"] = False
 
+        # Eval from white's perspective: model returns side-to-move, so negate for black
+        model_eval = None
+        if not is_over:
+            inf = run_inference(model, board, device, top_n=1)
+            raw = inf["model_eval"]
+            model_eval = raw if board.turn == chess.WHITE else -raw
+
         return {
             "fen": board.fen(),
             "turn": "w" if board.turn == chess.WHITE else "b",
@@ -712,6 +719,7 @@ def create_app(model, device="cuda", top_n=10, buffer_size=50):
             "black_wins": app.config["SP_BLACK_WINS"],
             "draws": app.config["SP_DRAWS"],
             "move_history": app.config["SP_MOVE_HISTORY"],
+            "model_eval": model_eval,
         }
 
     @app.route("/selfplay/start", methods=["POST"])

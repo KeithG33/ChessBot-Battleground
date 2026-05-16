@@ -246,6 +246,14 @@
             <div><div class="score-label">Black</div><div class="score-val" id="sp-black-score">0</div></div>
           </div>
         </div>
+        <div class="card" id="sp-eval-card">
+          <div class="card-title">Evaluation (White perspective)</div>
+          <div class="eval-values">
+            <div class="eval-item"><label>Model</label><div class="value" id="sp-model-eval">—</div></div>
+          </div>
+          <div class="eval-bar-container"><div class="eval-bar-fill" id="sp-eval-bar" style="width:50%;background:#999;"></div></div>
+          <div class="eval-bar-labels"><span>-1.0 (Black)</span><span>0.0</span><span>+1.0 (White)</span></div>
+        </div>
         <div class="card" id="sp-game-card">
           <div class="card-title">Current Game</div>
           <div id="sp-game-status" style="font-size:13px; color:var(--text-secondary); margin-bottom:6px;">
@@ -800,6 +808,18 @@
         }
         ml.innerHTML = h;
         ml.scrollTop = ml.scrollHeight;
+      }
+
+      // Eval (white perspective)
+      const spEv = data.model_eval;
+      const spEvalEl = document.getElementById('sp-model-eval');
+      if (spEv != null) {
+        spEvalEl.textContent = formatEval(spEv);
+        spEvalEl.className = 'value ' + evalClass(spEv);
+        updateEvalBar(spEv, 'sp-eval-bar');
+      } else {
+        spEvalEl.textContent = '—';
+        spEvalEl.className = 'value eval-neutral';
       }
 
       spUpdateScores(data);
